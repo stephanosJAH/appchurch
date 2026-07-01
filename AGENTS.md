@@ -1,3 +1,6 @@
-# Expo HAS CHANGED
+# Expo SDK 54
 
-Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before writing any code.
+Este proyecto usa **Expo SDK 54** (compatible con Expo Go 54 del usuario).
+Consultá los docs versionados en https://docs.expo.dev/versions/v54.0.0/ antes
+de escribir o actualizar código. No subas el SDK sin confirmar con el usuario:
+Expo Go 54 no corre apps de SDK 55+.

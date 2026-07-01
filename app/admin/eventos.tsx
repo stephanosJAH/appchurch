@@ -1,0 +1,257 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
+import { Alert, Image, Pressable, View } from "react-native";
+import { Body, Button, Card, Chip, Field, KeyboardScrollView, Label, Muted, Title } from "../../components/ui";
+import { formatFechaLarga } from "../../lib/date";
+import { colors } from "../../lib/theme";
+import { AdjuntoTipo, Evento, TipoEvento } from "../../lib/types";
+import { useDeleteEvento, useEventosAdmin, useUpsertEvento } from "../../lib/queries/eventos";
+import { AdjuntoLocal, elegirAdjunto, subirAdjunto } from "../../lib/storage";
+
+const TIPOS: TipoEvento[] = ["general", "discipulado", "otro"];
+
+function toISO(fecha: string, hora: string): string {
+  return new Date(`${fecha}T${hora}:00`).toISOString();
+}
+
+function isoToFecha(iso: string): string {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function isoToHora(iso: string): string {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+export default function AdminEventos() {
+  const { data: eventos = [] } = useEventosAdmin();
+  const upsert = useUpsertEvento();
+  const del = useDeleteEvento();
+
+  const [showForm, setShowForm] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [titulo, setTitulo] = useState("");
+  const [descripcion, setDescripcion] = useState("");
+  const [tipo, setTipo] = useState<TipoEvento>("general");
+  const [fecha, setFecha] = useState("");
+  const [horaInicio, setHoraInicio] = useState("19:00");
+  const [horaFin, setHoraFin] = useState("21:00");
+  const [ubicacion, setUbicacion] = useState("");
+  // Adjunto: existente (remoto) y/o uno nuevo elegido localmente.
+  const [adjuntoUrl, setAdjuntoUrl] = useState<string | null>(null);
+  const [adjuntoTipo, setAdjuntoTipo] = useState<AdjuntoTipo | null>(null);
+  const [adjuntoLocal, setAdjuntoLocal] = useState<AdjuntoLocal | null>(null);
+  const [subiendo, setSubiendo] = useState(false);
+
+  const reset = () => {
+    setEditId(null);
+    setTitulo("");
+    setDescripcion("");
+    setTipo("general");
+    setFecha("");
+    setHoraInicio("19:00");
+    setHoraFin("21:00");
+    setUbicacion("");
+    setAdjuntoUrl(null);
+    setAdjuntoTipo(null);
+    setAdjuntoLocal(null);
+    setShowForm(false);
+  };
+
+  const abrirNuevo = () => {
+    reset();
+    setShowForm(true);
+  };
+
+  const editar = (e: Evento) => {
+    setEditId(e.id);
+    setTitulo(e.titulo);
+    setDescripcion(e.descripcion ?? "");
+    setTipo(e.tipo);
+    setFecha(isoToFecha(e.fecha_inicio));
+    setHoraInicio(isoToHora(e.fecha_inicio));
+    setHoraFin(isoToHora(e.fecha_fin));
+    setUbicacion(e.ubicacion ?? "");
+    setAdjuntoUrl(e.adjunto_url);
+    setAdjuntoTipo(e.adjunto_tipo);
+    setAdjuntoLocal(null);
+    setShowForm(true);
+  };
+
+  const onElegirAdjunto = async () => {
+    try {
+      const file = await elegirAdjunto();
+      if (file) setAdjuntoLocal(file);
+    } catch (e: any) {
+      Alert.alert("Error", e.message ?? "No se pudo abrir el selector.");
+    }
+  };
+
+  const quitarAdjunto = () => {
+    setAdjuntoLocal(null);
+    setAdjuntoUrl(null);
+    setAdjuntoTipo(null);
+  };
+
+  const guardar = async () => {
+    if (!titulo.trim()) {
+      Alert.alert("Falta el título", "Ingresá un título.");
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+      Alert.alert("Fecha inválida", "Usá el formato AAAA-MM-DD.");
+      return;
+    }
+    try {
+      let url = adjuntoUrl;
+      let tAdj = adjuntoTipo;
+      if (adjuntoLocal) {
+        setSubiendo(true);
+        const up = await subirAdjunto(adjuntoLocal);
+        url = up.url;
+        tAdj = up.tipo;
+        setSubiendo(false);
+      }
+      await upsert.mutateAsync({
+        ...(editId ? { id: editId } : {}),
+        titulo: titulo.trim(),
+        descripcion: descripcion.trim() || null,
+        tipo,
+        discipulado_id: null,
+        fecha_inicio: toISO(fecha, horaInicio),
+        fecha_fin: toISO(fecha, horaFin),
+        ubicacion: ubicacion.trim() || null,
+        adjunto_url: url,
+        adjunto_tipo: tAdj,
+      });
+      reset();
+    } catch (e: any) {
+      setSubiendo(false);
+      Alert.alert("Error", e.message ?? "No se pudo guardar la actividad.");
+    }
+  };
+
+  const eliminar = (id: string) => {
+    Alert.alert("Eliminar", "¿Eliminar esta actividad? Esta acción no se puede deshacer.", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Eliminar", style: "destructive", onPress: () => del.mutate(id) },
+    ]);
+  };
+
+  const tieneAdjunto = !!adjuntoLocal || !!adjuntoUrl;
+  const adjuntoEsImagen = adjuntoLocal ? adjuntoLocal.tipo === "imagen" : adjuntoTipo === "imagen";
+  const previewUri = adjuntoLocal?.uri ?? adjuntoUrl ?? undefined;
+
+  return (
+    <KeyboardScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <Button
+        title={showForm ? "Cancelar" : "+ Nueva actividad"}
+        variant={showForm ? "outline" : "primary"}
+        onPress={() => (showForm ? reset() : abrirNuevo())}
+      />
+
+      {showForm && (
+        <Card className="mt-3">
+          <Title className="mb-3 text-base">
+            {editId ? "Editar actividad" : "Nueva actividad"}
+          </Title>
+          <Field label="Título" value={titulo} onChangeText={setTitulo} />
+          <Field label="Descripción" value={descripcion} onChangeText={setDescripcion} multiline />
+
+          <Label className="mb-1.5">Tipo</Label>
+          <View className="mb-4 flex-row gap-2">
+            {TIPOS.map((t) => (
+              <View key={t} className="flex-1">
+                <Button title={t} variant={tipo === t ? "primary" : "outline"} size="sm" onPress={() => setTipo(t)} />
+              </View>
+            ))}
+          </View>
+
+          <Field label="Fecha" value={fecha} onChangeText={setFecha} placeholder="AAAA-MM-DD" autoCapitalize="none" />
+          <View className="flex-row gap-3">
+            <View className="flex-1">
+              <Field label="Hora inicio" value={horaInicio} onChangeText={setHoraInicio} placeholder="19:00" autoCapitalize="none" />
+            </View>
+            <View className="flex-1">
+              <Field label="Hora fin" value={horaFin} onChangeText={setHoraFin} placeholder="21:00" autoCapitalize="none" />
+            </View>
+          </View>
+          <Field label="Ubicación" value={ubicacion} onChangeText={setUbicacion} />
+
+          {/* Adjunto: flyer/imagen o PDF */}
+          <Label className="mb-1.5">Flyer / adjunto</Label>
+          {tieneAdjunto ? (
+            <View className="mb-4 flex-row items-center gap-3 rounded-lg border border-black/10 bg-surface p-3">
+              {adjuntoEsImagen && previewUri ? (
+                <Image source={{ uri: previewUri }} style={{ width: 48, height: 48, borderRadius: 8 }} />
+              ) : (
+                <View className="h-12 w-12 items-center justify-center rounded-lg bg-surface-mid">
+                  <Ionicons name="document-text-outline" size={22} color={colors.primaryContainer} />
+                </View>
+              )}
+              <View className="flex-1">
+                <Body className="text-ink" numberOfLines={1}>
+                  {adjuntoLocal?.name ?? (adjuntoEsImagen ? "Imagen adjunta" : "PDF adjunto")}
+                </Body>
+                <Muted>{adjuntoLocal ? "Nuevo · sin subir" : "Guardado"}</Muted>
+              </View>
+              <Pressable onPress={quitarAdjunto} hitSlop={10} className="active:opacity-60">
+                <Ionicons name="close-circle" size={24} color={colors.outline} />
+              </Pressable>
+            </View>
+          ) : (
+            <View className="mb-4">
+              <Button title="Adjuntar flyer o PDF" variant="outline" size="sm" onPress={onElegirAdjunto} />
+            </View>
+          )}
+
+          <Button
+            title={editId ? "Guardar cambios" : "Publicar"}
+            onPress={guardar}
+            loading={upsert.isPending || subiendo}
+          />
+        </Card>
+      )}
+
+      <Label className="mb-2 mt-4">Actividades ({eventos.length})</Label>
+      <View className="gap-2.5">
+        {eventos.map((e) => {
+          const vigente = new Date(e.fecha_fin) >= new Date();
+          return (
+            <Card key={e.id}>
+              <View className="mb-2 flex-row items-center justify-between">
+                <Chip tone="navy">{e.tipo}</Chip>
+                {!vigente && <Chip tone="neutral">finalizada</Chip>}
+              </View>
+              <View className="flex-row gap-3">
+                {e.adjunto_url && e.adjunto_tipo === "imagen" ? (
+                  <Image source={{ uri: e.adjunto_url }} style={{ width: 56, height: 56, borderRadius: 8 }} />
+                ) : e.adjunto_url ? (
+                  <View className="h-14 w-14 items-center justify-center rounded-lg bg-surface-mid">
+                    <Ionicons name="document-text-outline" size={22} color={colors.primaryContainer} />
+                  </View>
+                ) : null}
+                <View className="flex-1">
+                  <Title numberOfLines={2} className="text-base">{e.titulo}</Title>
+                  <Muted className="mt-1">{formatFechaLarga(e.fecha_inicio)}</Muted>
+                </View>
+              </View>
+              {e.descripcion ? (
+                <Body className="mt-2" numberOfLines={2}>
+                  {e.descripcion}
+                </Body>
+              ) : null}
+              <View className="mt-3 flex-row gap-2">
+                <Button title="Editar" variant="outline" size="sm" onPress={() => editar(e)} />
+                <Button title="Eliminar" variant="danger" size="sm" onPress={() => eliminar(e.id)} />
+              </View>
+            </Card>
+          );
+        })}
+      </View>
+    </KeyboardScrollView>
+  );
+}
