@@ -75,6 +75,7 @@ function AuthGate() {
         options={{ title: "Registrar reunión", presentation: "modal" }}
       />
       <Stack.Screen name="reunion/[id]" options={{ title: "Reunión" }} />
+      <Stack.Screen name="miembro/[id]" options={{ title: "Miembro" }} />
       <Stack.Screen name="admin" options={{ headerShown: false }} />
     </Stack>
   );

@@ -46,6 +46,42 @@ export function useAgregarParticipacion(discipuladoId: string) {
   });
 }
 
+// Participaciones activas de un miembro, con el líder de cada grupo.
+// El RLS ya filtra: un discipulador solo ve las de SUS grupos; el admin, todas.
+export function useParticipacionesDeMiembro(miembroId: string) {
+  return useQuery({
+    queryKey: ["participaciones", "de-miembro", miembroId],
+    enabled: !!miembroId,
+    queryFn: async (): Promise<{ id: string; discipulado: { discipulador_id: string | null } | null }[]> => {
+      const { data, error } = await supabase
+        .from("participaciones")
+        .select("id, discipulado:discipulados(discipulador_id)")
+        .eq("miembro_id", miembroId)
+        .eq("activo", true);
+      if (error) throw error;
+      return (data ?? []) as unknown as { id: string; discipulado: { discipulador_id: string | null } | null }[];
+    },
+  });
+}
+
+// Desasociar (baja lógica) un discípulo del grupo: activo = false.
+export function useDesasociarParticipacion(discipuladoId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (participacionId: string) => {
+      const { error } = await supabase
+        .from("participaciones")
+        .update({ activo: false })
+        .eq("id", participacionId);
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({
+        queryKey: participacionesKeys.byDiscipulado(discipuladoId),
+      }),
+  });
+}
+
 // Crear un discípulo nuevo (miembro + participación) vía RPC agregar_discipulo.
 export function useAgregarDiscipuloNuevo(discipuladoId: string) {
   const qc = useQueryClient();

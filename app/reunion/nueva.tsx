@@ -1,11 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useMemo, useState } from "react";
-import { Alert, Pressable, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Platform, Pressable, View } from "react-native";
 import { Body, Button, Card, Field, KeyboardScrollView, Label, Muted, Title } from "../../components/ui";
-import { todayISO } from "../../lib/date";
+import { dateToFecha, fechaLabel, fechaToDate, todayISO } from "../../lib/date";
 import { colors } from "../../lib/theme";
 import { AsistenciaInput, Modalidad } from "../../lib/types";
+import { useDiscipulado } from "../../lib/queries/discipulados";
 import { useParticipaciones } from "../../lib/queries/participaciones";
 import { useRegistrarReunion } from "../../lib/queries/reuniones";
 
@@ -17,11 +19,17 @@ export default function NuevaReunion() {
   const grupoId = String(discipuladoId);
 
   const { data: participaciones = [], isLoading } = useParticipaciones(grupoId);
+  const { data: discipulado } = useDiscipulado(grupoId);
   const registrar = useRegistrarReunion();
 
   const [fecha, setFecha] = useState(todayISO());
+  const [showPicker, setShowPicker] = useState(false);
   const [tema, setTema] = useState("");
   const [modalidad, setModalidad] = useState<Modalidad>("presencial");
+  // Default: la modalidad configurada en el discipulado (se aplica al cargar).
+  useEffect(() => {
+    if (discipulado?.modalidad) setModalidad(discipulado.modalidad);
+  }, [discipulado?.modalidad]);
   const [ofrenda, setOfrenda] = useState("");
   const [notas, setNotas] = useState("");
   const [presentes, setPresentes] = useState<Record<string, boolean>>({});
@@ -63,14 +71,29 @@ export default function NuevaReunion() {
 
   return (
     <KeyboardScrollView>
-      <View className="flex-row items-end gap-2">
-          <View className="flex-1">
-            <Field label="Fecha" value={fecha} onChangeText={setFecha} placeholder="AAAA-MM-DD" autoCapitalize="none" />
-          </View>
-          <View className="mb-4">
-            <Button title="Hoy" variant="outline" size="sm" onPress={() => setFecha(todayISO())} />
-          </View>
+      <Label className="mb-1.5">Fecha</Label>
+        <View className="mb-4 flex-row items-center gap-2">
+          <Pressable
+            onPress={() => setShowPicker(true)}
+            className="flex-1 flex-row items-center justify-between rounded-lg border border-black/10 bg-surface px-4 py-3.5 active:opacity-70"
+          >
+            <Body className="capitalize text-ink">{fechaLabel(fecha)}</Body>
+            <Ionicons name="calendar-outline" size={18} color={colors.outline} />
+          </Pressable>
+          <Button title="Hoy" variant="outline" size="sm" onPress={() => setFecha(todayISO())} />
         </View>
+        {showPicker && (
+          <DateTimePicker
+            value={fechaToDate(fecha)}
+            mode="date"
+            display={Platform.OS === "ios" ? "inline" : "default"}
+            onChange={(event, selected) => {
+              // Android cierra el diálogo con cada acción; iOS queda inline.
+              if (Platform.OS !== "ios") setShowPicker(false);
+              if (event.type === "set" && selected) setFecha(dateToFecha(selected));
+            }}
+          />
+        )}
 
         <Field label="Tema / lección" value={tema} onChangeText={setTema} placeholder="Tema dado en la reunión" multiline />
 

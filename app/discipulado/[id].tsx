@@ -15,12 +15,13 @@ import {
   Muted,
   Title,
 } from "../../components/ui";
-import { formatFechaCorta, formatHora, formatMoneda } from "../../lib/date";
+import { calcularEdad, formatFechaCorta, formatHora, formatMoneda } from "../../lib/date";
 import { colors } from "../../lib/theme";
 import { DIAS_SEMANA, Sexo } from "../../lib/types";
 import { useDiscipulado } from "../../lib/queries/discipulados";
 import {
   useAgregarDiscipuloNuevo,
+  useDesasociarParticipacion,
   useParticipaciones,
 } from "../../lib/queries/participaciones";
 import { useReuniones } from "../../lib/queries/reuniones";
@@ -35,11 +36,27 @@ export default function DiscipuladoDetalle() {
   const { data: participaciones = [] } = useParticipaciones(discipuladoId);
   const { data: reuniones = [] } = useReuniones(discipuladoId);
   const agregar = useAgregarDiscipuloNuevo(discipuladoId);
+  const desasociar = useDesasociarParticipacion(discipuladoId);
 
   const [showForm, setShowForm] = useState(false);
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
   const [sexo, setSexo] = useState<Sexo>("M");
+
+  const onDesasociar = (participacionId: string, nombre: string) => {
+    Alert.alert(
+      "Desasociar discípulo",
+      `¿Quitar a ${nombre} de este discipulado? Podés volver a agregarlo más adelante.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Desasociar",
+          style: "destructive",
+          onPress: () => desasociar.mutate(participacionId),
+        },
+      ]
+    );
+  };
 
   const onAgregar = async () => {
     if (!nombre.trim()) {
@@ -154,14 +171,34 @@ export default function DiscipuladoDetalle() {
         </Card>
       ) : (
         <View className="gap-2.5">
-          {participaciones.map((p) => (
-            <Card key={p.id} className="flex-row items-center gap-3 py-3.5">
-              <Avatar name={p.miembro?.nombre} size={38} tone="gold" />
-              <Body className="flex-1 text-ink">
-                {p.miembro?.nombre} {p.miembro?.apellido ?? ""}
-              </Body>
-            </Card>
-          ))}
+          {participaciones.map((p) => {
+            const edad = calcularEdad(p.miembro?.fecha_nacimiento);
+            const nombreCompleto = `${p.miembro?.nombre ?? ""} ${p.miembro?.apellido ?? ""}`.trim();
+            return (
+              <Card key={p.id} className="flex-row items-center gap-3 py-3.5">
+                <Pressable
+                  onPress={() => router.push({ pathname: "/miembro/[id]", params: { id: p.miembro_id } })}
+                  className="flex-1 flex-row items-center gap-3 active:opacity-70"
+                >
+                  <Avatar name={p.miembro?.nombre} size={38} tone="gold" />
+                  <View className="flex-1">
+                    <Body className="text-ink">{nombreCompleto}</Body>
+                    {edad != null ? <Muted>{edad} años</Muted> : null}
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.outline} />
+                </Pressable>
+                {isAdmin && (
+                  <Pressable
+                    onPress={() => onDesasociar(p.id, nombreCompleto || "este discípulo")}
+                    hitSlop={10}
+                    className="active:opacity-60"
+                  >
+                    <Ionicons name="person-remove-outline" size={20} color={colors.error} />
+                  </Pressable>
+                )}
+              </Card>
+            );
+          })}
         </View>
       )}
 

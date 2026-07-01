@@ -1,10 +1,14 @@
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, FlatList, View } from "react-native";
+import { Alert, FlatList, Pressable, View } from "react-native";
 import { Avatar, Body, Button, Card, Chip, Field, Label, Muted } from "../../components/ui";
+import { colors } from "../../lib/theme";
 import { Sexo } from "../../lib/types";
 import { useMiembros, useUpsertMiembro } from "../../lib/queries/miembros";
 
 export default function AdminMiembros() {
+  const router = useRouter();
   const { data: miembros = [], isLoading } = useMiembros();
   const upsert = useUpsertMiembro();
 
@@ -76,16 +80,22 @@ export default function AdminMiembros() {
           </View>
         }
         renderItem={({ item }) => (
-          <Card className="mb-2.5 flex-row items-center gap-3 py-3.5">
-            <Avatar name={item.nombre} size={38} tone="gold" />
-            <View className="flex-1">
-              <Body className="text-ink">
-                {item.nombre} {item.apellido ?? ""}
-              </Body>
-              {item.telefono ? <Muted>{item.telefono}</Muted> : null}
-            </View>
-            <Chip tone="neutral">{item.sexo}</Chip>
-          </Card>
+          <Pressable
+            onPress={() => router.push({ pathname: "/miembro/[id]", params: { id: item.id } })}
+            className="active:opacity-70"
+          >
+            <Card className="mb-2.5 flex-row items-center gap-3 py-3.5">
+              <Avatar name={item.nombre} size={38} tone="gold" />
+              <View className="flex-1">
+                <Body className="text-ink">
+                  {item.nombre} {item.apellido ?? ""}
+                </Body>
+                {item.telefono ? <Muted>{item.telefono}</Muted> : null}
+              </View>
+              <Chip tone="neutral">{item.sexo}</Chip>
+              <Ionicons name="chevron-forward" size={16} color={colors.outline} />
+            </Card>
+          </Pressable>
         )}
         ListEmptyComponent={
           !isLoading ? (

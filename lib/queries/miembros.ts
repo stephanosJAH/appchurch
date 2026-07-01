@@ -4,7 +4,24 @@ import { Miembro } from "../types";
 
 export const miembrosKeys = {
   all: ["miembros"] as const,
+  detail: (id: string) => ["miembros", id] as const,
 };
+
+export function useMiembro(id: string) {
+  return useQuery({
+    queryKey: miembrosKeys.detail(id),
+    enabled: !!id,
+    queryFn: async (): Promise<Miembro | null> => {
+      const { data, error } = await supabase
+        .from("miembros")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw error;
+      return data as Miembro | null;
+    },
+  });
+}
 
 export function useMiembros() {
   return useQuery({
@@ -37,6 +54,11 @@ export function useUpsertMiembro() {
       if (error) throw error;
       return data as Miembro;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: miembrosKeys.all }),
+    onSuccess: (m) => {
+      qc.invalidateQueries({ queryKey: miembrosKeys.all });
+      qc.invalidateQueries({ queryKey: miembrosKeys.detail(m.id) });
+      // Las participaciones embeben al miembro: refrescar para ver cambios.
+      qc.invalidateQueries({ queryKey: ["participaciones"] });
+    },
   });
 }

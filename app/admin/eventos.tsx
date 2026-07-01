@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useState } from "react";
-import { Alert, Image, Pressable, View } from "react-native";
+import { Alert, Image, Platform, Pressable, View } from "react-native";
 import { Body, Button, Card, Chip, Field, KeyboardScrollView, Label, Muted, Title } from "../../components/ui";
-import { formatFechaLarga } from "../../lib/date";
+import { dateToFecha, fechaLabel, fechaToDate, formatFechaLarga } from "../../lib/date";
 import { colors } from "../../lib/theme";
 import { AdjuntoTipo, Evento, TipoEvento } from "../../lib/types";
 import { useDeleteEvento, useEventosAdmin, useUpsertEvento } from "../../lib/queries/eventos";
@@ -37,6 +38,7 @@ export default function AdminEventos() {
   const [descripcion, setDescripcion] = useState("");
   const [tipo, setTipo] = useState<TipoEvento>("general");
   const [fecha, setFecha] = useState("");
+  const [showPicker, setShowPicker] = useState(false);
   const [horaInicio, setHoraInicio] = useState("19:00");
   const [horaFin, setHoraFin] = useState("21:00");
   const [ubicacion, setUbicacion] = useState("");
@@ -170,7 +172,28 @@ export default function AdminEventos() {
             ))}
           </View>
 
-          <Field label="Fecha" value={fecha} onChangeText={setFecha} placeholder="AAAA-MM-DD" autoCapitalize="none" />
+          <Label className="mb-1.5">Fecha</Label>
+          <Pressable
+            onPress={() => setShowPicker(true)}
+            className="mb-4 flex-row items-center justify-between rounded-lg border border-black/10 bg-surface px-4 py-3.5 active:opacity-70"
+          >
+            <Body className={fecha ? "text-ink capitalize" : "text-outline"}>
+              {fechaLabel(fecha)}
+            </Body>
+            <Ionicons name="calendar-outline" size={18} color={colors.outline} />
+          </Pressable>
+          {showPicker && (
+            <DateTimePicker
+              value={fechaToDate(fecha)}
+              mode="date"
+              display={Platform.OS === "ios" ? "inline" : "default"}
+              onChange={(event, selected) => {
+                // Android cierra el diálogo con cada acción; iOS queda inline.
+                if (Platform.OS !== "ios") setShowPicker(false);
+                if (event.type === "set" && selected) setFecha(dateToFecha(selected));
+              }}
+            />
+          )}
           <View className="flex-row gap-3">
             <View className="flex-1">
               <Field label="Hora inicio" value={horaInicio} onChangeText={setHoraInicio} placeholder="19:00" autoCapitalize="none" />

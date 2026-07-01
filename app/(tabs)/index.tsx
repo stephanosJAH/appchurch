@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Image, Pressable, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
 import {
   Body,
@@ -15,12 +15,13 @@ import {
   Title,
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
-import { formatHora, formatMoneda, toISODate } from "../../lib/date";
+import { formatFechaLarga, formatHora, formatMoneda, toISODate } from "../../lib/date";
 import { colors } from "../../lib/theme";
 import { DIAS_SEMANA } from "../../lib/types";
 import { useDiscipulados } from "../../lib/queries/discipulados";
 import { useEventosVigentes } from "../../lib/queries/eventos";
 import { useMiembros } from "../../lib/queries/miembros";
+import { useParticipaciones } from "../../lib/queries/participaciones";
 import { useReunionesMes } from "../../lib/queries/reuniones";
 
 function QuickAction({
@@ -56,12 +57,14 @@ function StatCard({
   value,
   hint,
   onPress,
+  cta = "Ver desglose",
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: string;
   hint?: string;
   onPress?: () => void;
+  cta?: string;
 }) {
   const inner = (
     <Card>
@@ -77,7 +80,7 @@ function StatCard({
           ) : null}
           {onPress ? (
             <View className="mt-2 flex-row items-center gap-1">
-              <Muted className="text-navy">Ver desglose</Muted>
+              <Muted className="text-navy">{cta}</Muted>
               <Ionicons name="chevron-forward" size={13} color={colors.primary} />
             </View>
           ) : null}
@@ -106,6 +109,12 @@ export default function Dashboard() {
   // Solo actividades/anuncios, sin las reuniones de discipulado (igual que el feed).
   const eventos = eventosVigentes.filter((e) => e.tipo !== "discipulado" && !e.discipulado_id);
   const { data: miembros = [] } = useMiembros();
+  // Un discipulador lidera a lo sumo un grupo (constraint 1:1); sus "miembros"
+  // son las participaciones activas de ese grupo, no el padrón completo.
+  const miDiscipulado = discipulados.find((d) => d.discipulador_id === profile?.id);
+  const { data: misParticipaciones = [] } = useParticipaciones(
+    isAdmin ? "" : miDiscipulado?.id ?? ""
+  );
 
   const { desde, hasta, mesLabel } = useMemo(() => {
     const now = new Date();
@@ -127,6 +136,8 @@ export default function Dashboard() {
       .map((d) => ({ ...d, offset: (d.dia_semana - hoy + 7) % 7 }))
       .sort((a, b) => a.offset - b.offset || a.hora_inicio.localeCompare(b.hora_inicio))[0];
   }, [discipulados, hoy]);
+  // El próximo evento/actividad (eventos ya vienen ordenados por fecha_inicio).
+  const proximoEvento = eventos[0];
 
   return (
     <View className="flex-1 bg-cream">
@@ -147,7 +158,7 @@ export default function Dashboard() {
               <View className="absolute right-4 top-4 opacity-20">
                 <Ionicons name="book" size={72} color={colors.tertiaryDim} />
               </View>
-              <Chip tone="gold">Próxima actividad</Chip>
+              <Chip tone="gold">Tu discipulado</Chip>
             </View>
             <View className="p-5">
               <View className="mb-2 flex-row items-center gap-1.5">
@@ -173,6 +184,68 @@ export default function Dashboard() {
             </View>
           </Card>
         )}
+
+        {/* Separador de sección */}
+        {proximo && proximoEvento && <View className="mb-5 h-px bg-black/10" />}
+
+        {/* Próximo evento/actividad */}
+        {proximoEvento && (
+          <>
+          <Label className="mb-2">Eventos</Label>
+          <Pressable
+            onPress={() => router.push({ pathname: "/actividad/[id]", params: { id: proximoEvento.id } })}
+            className="active:opacity-90"
+          >
+            <Card className="mb-6 overflow-hidden p-0">
+              <View className="h-28 justify-end bg-navy p-4">
+                {proximoEvento.adjunto_url && proximoEvento.adjunto_tipo === "imagen" ? (
+                  <Image
+                    source={{ uri: proximoEvento.adjunto_url }}
+                    resizeMode="cover"
+                    style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.55 }}
+                  />
+                ) : (
+                  <View className="absolute right-4 top-4 opacity-20">
+                    <Ionicons name="megaphone" size={64} color={colors.tertiaryDim} />
+                  </View>
+                )}
+                <Chip tone="gold">Próximo evento</Chip>
+              </View>
+              <View className="p-5">
+                <View className="mb-2 flex-row items-center gap-1.5">
+                  <Ionicons name="calendar-outline" size={15} color={colors.tertiary} />
+                  <Muted className="capitalize text-gold">
+                    {formatFechaLarga(proximoEvento.fecha_inicio)}
+                  </Muted>
+                </View>
+                <Title numberOfLines={2} className="text-xl">
+                  {proximoEvento.titulo}
+                </Title>
+                {proximoEvento.descripcion ? (
+                  <Body className="mt-1" numberOfLines={2}>
+                    {proximoEvento.descripcion}
+                  </Body>
+                ) : null}
+                {proximoEvento.ubicacion ? (
+                  <View className="mt-2 flex-row items-center gap-1">
+                    <Ionicons name="location-outline" size={15} color={colors.outline} />
+                    <Muted>{proximoEvento.ubicacion}</Muted>
+                  </View>
+                ) : null}
+                <View className="mt-4">
+                  <Button
+                    title="Ver detalles"
+                    onPress={() => router.push({ pathname: "/actividad/[id]", params: { id: proximoEvento.id } })}
+                  />
+                </View>
+              </View>
+            </Card>
+          </Pressable>
+          </>
+        )}
+
+        {/* Separador de sección */}
+        {proximo && proximoEvento && <View className="mb-5 h-px bg-black/10" />}
 
         {/* Accesos rápidos */}
         <View className="mb-6 gap-3">
@@ -217,11 +290,21 @@ export default function Dashboard() {
             hint={`${reunionesMes.length} reuniones este mes`}
             onPress={() => router.push("/ofrendas")}
           />
-          <StatCard
-            icon="people-outline"
-            label="Miembros"
-            value={String(miembros.length)}
-          />
+          {isAdmin ? (
+            <StatCard
+              icon="people-outline"
+              label="Miembros"
+              value={String(miembros.length)}
+            />
+          ) : (
+            <StatCard
+              icon="people-outline"
+              label="Miembros de tu discipulado"
+              value={String(misParticipaciones.length)}
+              onPress={miDiscipulado ? () => router.push(`/discipulado/${miDiscipulado.id}`) : undefined}
+              cta="Ver miembros"
+            />
+          )}
           <StatCard
             icon="calendar-outline"
             label="Actividades vigentes"
