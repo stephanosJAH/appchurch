@@ -19,6 +19,7 @@ import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "../lib/auth";
+import { attachQueryLogger } from "../lib/query-logger";
 import { colors, fonts } from "../lib/theme";
 
 const queryClient = new QueryClient({
@@ -26,6 +27,9 @@ const queryClient = new QueryClient({
     queries: { retry: 1, staleTime: 30_000 },
   },
 });
+
+// Logger de tiempos de queries (solo en desarrollo).
+if (__DEV__) attachQueryLogger(queryClient);
 
 function Loader() {
   return (

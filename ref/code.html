@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Registro de Actividades | Grace &amp; Truth</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&amp;family=Source+Serif+4:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error-container": "#93000a",
+                    "inverse-primary": "#b6c7e7",
+                    "on-tertiary": "#ffffff",
+                    "on-secondary-fixed-variant": "#474743",
+                    "on-error": "#ffffff",
+                    "outline": "#75777e",
+                    "on-primary": "#ffffff",
+                    "on-primary-container": "#8292b0",
+                    "primary-fixed-dim": "#b6c7e7",
+                    "secondary-fixed-dim": "#c9c6c1",
+                    "on-tertiary-fixed": "#261900",
+                    "tertiary-fixed": "#ffdea5",
+                    "surface-container-low": "#f5f3f3",
+                    "surface-tint": "#4f5f7b",
+                    "secondary-fixed": "#e5e2dc",
+                    "primary-container": "#1a2b44",
+                    "on-background": "#1b1c1c",
+                    "surface-container-lowest": "#ffffff",
+                    "error-container": "#ffdad6",
+                    "on-secondary-container": "#656460",
+                    "on-primary-fixed": "#091c34",
+                    "surface-container-high": "#eae8e7",
+                    "on-primary-fixed-variant": "#374762",
+                    "on-secondary": "#ffffff",
+                    "on-surface-variant": "#44474d",
+                    "tertiary-container": "#392700",
+                    "on-secondary-fixed": "#1c1c18",
+                    "surface-dim": "#dbd9d9",
+                    "on-surface": "#1b1c1c",
+                    "primary": "#04162e",
+                    "secondary-container": "#e5e2dc",
+                    "tertiary-fixed-dim": "#e9c176",
+                    "surface": "#fbf9f8",
+                    "on-tertiary-container": "#af8c47",
+                    "primary-fixed": "#d5e3ff",
+                    "surface-variant": "#e4e2e2",
+                    "background": "#fbf9f8",
+                    "outline-variant": "#c5c6ce",
+                    "surface-bright": "#fbf9f8",
+                    "tertiary": "#1f1400",
+                    "secondary": "#5f5e5a",
+                    "surface-container-highest": "#e4e2e2",
+                    "surface-container": "#efeded",
+                    "inverse-surface": "#303030",
+                    "on-tertiary-fixed-variant": "#5d4201",
+                    "error": "#ba1a1a",
+                    "inverse-on-surface": "#f2f0f0"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "unit": "8px",
+                    "margin-desktop": "48px",
+                    "container-max": "1280px",
+                    "margin-mobile": "16px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "body-lg": ["Source Sans 3"],
+                    "label-md": ["Source Sans 3"],
+                    "display-lg": ["Source Serif 4"],
+                    "headline-lg-mobile": ["Source Serif 4"],
+                    "headline-lg": ["Source Serif 4"],
+                    "body-md": ["Source Sans 3"],
+                    "headline-md": ["Source Serif 4"],
+                    "caption": ["Source Sans 3"]
+            },
+            "fontSize": {
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "caption": ["12px", {"lineHeight": "16px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .card-shadow {
+            box-shadow: 0px 4px 12px rgba(26, 43, 68, 0.05);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e5e2dc;
+            border-radius: 10px;
+        }
+        body {
+            background-color: #fbf9f8;
+            color: #1b1c1c;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md text-body-md overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface dark:bg-surface h-16 flex items-center">
+<div class="flex justify-between items-center px-margin-mobile md:px-margin-desktop w-full max-w-container-max mx-auto">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-headline-md">church</span>
+<h1 class="text-headline-md font-headline-md font-semibold text-primary">Grace &amp; Truth</h1>
+</div>
+<div class="flex items-center gap-4">
+<!-- Desktop Nav -->
+<nav class="hidden md:flex items-center gap-6 mr-6">
+<a class="text-secondary font-label-md text-label-md hover:bg-surface-container-high px-3 py-1 rounded-lg transition-colors" href="#">Dashboard</a>
+<a class="text-primary font-label-md text-label-md font-bold bg-surface-container-high px-3 py-1 rounded-lg" href="#">Activities</a>
+<a class="text-secondary font-label-md text-label-md hover:bg-surface-container-high px-3 py-1 rounded-lg transition-colors" href="#">Members</a>
+<a class="text-secondary font-label-md text-label-md hover:bg-surface-container-high px-3 py-1 rounded-lg transition-colors" href="#">Offerings</a>
+</nav>
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container text-xs font-bold overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A clean professional headshot of a church administrator with a warm and welcoming expression. The lighting is soft and natural, against a minimalist cream-colored studio background that matches the app's corporate modernism aesthetic. High resolution, professional photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCxoXUFSA9cN9m5DWzdqXCD4fQ4VYx_wfHPmYsl1Lx_rbqPDMRERLy6U3mK8dgQXxjAG2QzAy33le3OlQUQYptPOy13rJfA21z9b84BmCnpyM5--p0MWqoSpD65XKbZ3f_XJ-54VriaXaqfFNFcC3kiK2VKshC8ThLRTrambu6J_xBw9SqGPaP7DIJpb92DSVb5aqFIvQTVpCFgxe4Gb62E35KOLjuPlXhjUYTNauuUMGl6HeyqLSi4WGvpVJZcpl4H-iNWJ9B80Uo"/>
+</div>
+</div>
+</div>
+</header>
+<main class="pt-24 pb-32 px-margin-mobile md:px-margin-desktop max-w-container-max mx-auto min-h-screen">
+<!-- Search & Filter Header -->
+<div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div class="flex-1 max-w-2xl">
+<h2 class="font-headline-lg text-headline-lg-mobile md:text-headline-lg text-primary mb-4">Registro de Actividades</h2>
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-secondary">search</span>
+<input class="w-full bg-white border border-[rgba(26,43,68,0.1)] rounded-lg py-3 pl-12 pr-4 focus:ring-2 focus:ring-tertiary-fixed-dim focus:border-tertiary-fixed-dim transition-all outline-none text-body-md" placeholder="Buscar actividades pasadas, temas o coordinadores..." type="text"/>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex items-center gap-2 px-4 py-2 bg-white border border-[rgba(26,43,68,0.1)] rounded-lg text-secondary hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[20px]">filter_list</span>
+<span class="font-label-md text-label-md">Filtrar</span>
+</button>
+<button class="hidden md:flex items-center gap-2 px-6 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity shadow-sm">
+<span class="material-symbols-outlined text-[20px]">add</span>
+<span class="font-label-md text-label-md">Nueva Actividad</span>
+</button>
+</div>
+</div>
+<!-- Activity Grid / Bento-ish Layout -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Featured / Next Activity Card -->
+<div class="col-span-1 md:col-span-2 lg:col-span-2 bg-white rounded-xl card-shadow overflow-hidden flex flex-col md:flex-row border border-[rgba(26,43,68,0.05)]">
+<div class="w-full md:w-1/3 h-48 md:h-auto relative">
+<img class="w-full h-full object-cover" data-alt="A serene church interior with soft morning light streaming through tall windows, illuminating wooden pews and a minimalist altar. The scene is quiet and sacred, featuring warm wooden textures and a soft cream color palette, echoing the app's solemn yet welcoming theme. Professional architectural photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBQvM0WT13Y6Wfuw8vXm6ttzuBuB9gyd0tpEnIh1sY3-bD-GIZFnDjgQ5BaBrv1nZZ2HkxCifapNoVjRyTdAXLlA6Qa7aNaYEn8NGxF1qRNr8NGbrJTCtZnSKCc5jYoJurY8IIyAB-RN9SHsg2EzUiKZQWL92x8LkFqIhAv4pM-hoHio7TwaQjTqPjNx15w64QNWttoZg6LSd1beLhbYo22zj6BIxMcviA2_SBzVIf1U9WpfiJyCQ3oe4MrzBoEddvGK_H96bcaVAg"/>
+<div class="absolute top-4 left-4 bg-tertiary-fixed text-tertiary-container px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Próximo</div>
+</div>
+<div class="p-6 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-2 text-secondary-fixed-dim mb-2">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+<span class="text-caption font-label-md uppercase tracking-tight">Domingo, 24 Nov • 10:00 AM</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-3">Servicio Dominical de Adoración</h3>
+<p class="text-secondary text-body-md mb-4 line-clamp-2">Únete a nuestra congregación para un tiempo de alabanza solemne y la exposición de la Palabra sobre el libro de los Salmos.</p>
+</div>
+<div class="flex items-center justify-between mt-auto pt-4 border-t border-[rgba(26,43,68,0.1)]">
+<div class="flex -space-x-2 overflow-hidden">
+<div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-surface-container-high overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Portrait of a diverse church member smiling, warm lighting, professional photography, modern corporate minimalist style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCOB0eE0pjei0Z2x9F_8dkys_u-QSZ8YqqNh7ymMjkm1d6W5R4z9freJZ74-Jq8EgXnbdzIS-ktHYfR9XQsEkcUILpYgE6SakR4uyQu25B3GfXg4BTUubxdO4khphZcZCG4XU5Z7Ly4RUZXneKlaf5gfwnvU7UKkxRPRfd0X6YpzaaJy_htK_lhbDdM73WMwXV0QOUNR0rcah4ol-ROw8bFAgCskoahxXXGz8rXppLWDNbCaCBugE4YTXNqf_llBiVw2w0QCVsGHDg"/>
+</div>
+<div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-surface-container-high overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Portrait of an elderly church member with a kind expression, warm lighting, professional photography, modern corporate minimalist style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCVi5BGq6-uyhEn3WW6rgIg5qIzJEXq-7vuZ8-_h8jJJ7hDhOYzHxmbi-MqFjqn9Oihf4krfa5ugatsr-8gF1Th2raRYQCUe9PSvlPk4H1cUVUEr6XH8bXQcKKQAITsrLHdCGZQI3UK76jTx0-8p6ST3Bcs8IEs96bGdamZ08W-v4Ly-bNc7HEUsDJPRP-JJa5MdRaQExu1BsPGfZX57s7gDQZI49FTpebOXZQ3sqK6DtCvhthwNNlj8vr76N0Ise0IN2M6yK8EJjU"/>
+</div>
+<div class="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-surface-container-high overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Portrait of a young adult church volunteer, warm lighting, professional photography, modern corporate minimalist style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBH77Yxyj1Fx8FY9IuGb8n0jSz2fqr7M6dG6qmExQnz-5A6KdLxl5guTW3vrKnaOzdvZyljuzVnz50KBVmXbDzLdEuJu9eWQmz2neZMWmSqu_sKsgVm_0dhhCovv6QWF_Y9cdx2ZvtjXdgvTIQZ5O2OROC5DdSphcMYhJOSQ7TuyNx2dKPT2P4aq6zdM65OHCEdhvrtG6jEhjc4m2H4Fk_29RyOWzzCZ_mRuKR9AyVMi-r-MhPYNjNCCu0gXJ1FEZi1s_KT7phSopc"/>
+</div>
+<div class="h-8 w-8 rounded-full bg-primary-fixed flex items-center justify-center ring-2 ring-white text-[10px] font-bold text-primary">+142</div>
+</div>
+<div class="flex gap-4">
+<div class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-[18px]">menu_book</span>
+<span class="text-caption">3 Mat.</span>
+</div>
+<button class="text-primary font-bold text-label-md hover:underline decoration-tertiary-fixed-dim underline-offset-4">Detalles</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Activity Card 2 -->
+<div class="bg-white rounded-xl card-shadow p-6 flex flex-col border border-[rgba(26,43,68,0.05)] hover:translate-y-[-4px] transition-transform duration-300">
+<div class="flex justify-between items-start mb-4">
+<span class="px-2 py-1 bg-surface-container-high text-secondary rounded text-[10px] font-bold uppercase tracking-widest">Estudio Bíblico</span>
+<button class="text-secondary hover:text-primary"><span class="material-symbols-outlined">more_vert</span></button>
+</div>
+<h3 class="font-headline-md text-[20px] text-primary mb-2">Cena de Jóvenes</h3>
+<div class="flex items-center gap-2 text-secondary mb-4">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+<span class="text-caption">Mié, 20 Nov • 7:30 PM</span>
+</div>
+<div class="mb-6 h-12">
+<p class="text-secondary text-caption line-clamp-2 italic">"Fortaleciendo lazos en la fe y la mesa." Requerido: confirmación de asistencia.</p>
+</div>
+<div class="mt-auto">
+<div class="text-caption font-bold text-primary mb-2">Materiales (2)</div>
+<div class="flex gap-2 mb-4">
+<div class="w-8 h-8 rounded bg-surface-container-high flex items-center justify-center" title="Guía de Estudio">
+<span class="material-symbols-outlined text-secondary text-[18px]">description</span>
+</div>
+<div class="w-8 h-8 rounded bg-surface-container-high flex items-center justify-center" title="Lista de Menú">
+<span class="material-symbols-outlined text-secondary text-[18px]">restaurant</span>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex -space-x-1">
+<div class="h-6 w-6 rounded-full ring-2 ring-white bg-surface-container-high"></div>
+<div class="h-6 w-6 rounded-full ring-2 ring-white bg-surface-container-high"></div>
+<div class="h-6 w-6 rounded-full bg-secondary-container flex items-center justify-center text-[8px] font-bold">+12</div>
+</div>
+<button class="text-primary text-label-md font-bold">Ver</button>
+</div>
+</div>
+</div>
+<!-- Activity Card 3 -->
+<div class="bg-white rounded-xl card-shadow p-6 flex flex-col border border-[rgba(26,43,68,0.05)] hover:translate-y-[-4px] transition-transform duration-300">
+<div class="flex justify-between items-start mb-4">
+<span class="px-2 py-1 bg-surface-container-high text-secondary rounded text-[10px] font-bold uppercase tracking-widest">Misiones</span>
+<button class="text-secondary hover:text-primary"><span class="material-symbols-outlined">more_vert</span></button>
+</div>
+<h3 class="font-headline-md text-[20px] text-primary mb-2">Entrega de Víveres</h3>
+<div class="flex items-center gap-2 text-secondary mb-4">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+<span class="text-caption">Sáb, 23 Nov • 8:00 AM</span>
+</div>
+<div class="mb-6 h-12">
+<p class="text-secondary text-caption line-clamp-2 italic">Coordinación de voluntarios para la distribución mensual en el sector sur.</p>
+</div>
+<div class="mt-auto">
+<div class="text-caption font-bold text-primary mb-2">Participantes (24)</div>
+<div class="w-full bg-surface-container rounded-full h-1.5 mb-4">
+<div class="bg-primary-fixed-dim h-1.5 rounded-full" style="width: 75%"></div>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1 text-secondary">
+<span class="material-symbols-outlined text-[16px]">location_on</span>
+<span class="text-caption">Bodega Central</span>
+</div>
+<button class="text-primary text-label-md font-bold">Gestionar</button>
+</div>
+</div>
+</div>
+<!-- Activity Card 4 -->
+<div class="bg-white rounded-xl card-shadow p-6 flex flex-col border border-[rgba(26,43,68,0.05)] hover:translate-y-[-4px] transition-transform duration-300">
+<div class="flex justify-between items-start mb-4">
+<span class="px-2 py-1 bg-surface-container-high text-secondary rounded text-[10px] font-bold uppercase tracking-widest">Ensayo</span>
+<button class="text-secondary hover:text-primary"><span class="material-symbols-outlined">more_vert</span></button>
+</div>
+<h3 class="font-headline-md text-[20px] text-primary mb-2">Coro y Orquesta</h3>
+<div class="flex items-center gap-2 text-secondary mb-4">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+<span class="text-caption">Jue, 21 Nov • 6:00 PM</span>
+</div>
+<div class="mb-6 h-12">
+<p class="text-secondary text-caption line-clamp-2 italic">Ensayo general para el concierto de Navidad. Partituras disponibles en digital.</p>
+</div>
+<div class="mt-auto">
+<div class="text-caption font-bold text-primary mb-2">Materiales (5)</div>
+<div class="flex gap-2 mb-4">
+<div class="w-8 h-8 rounded bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary text-[18px]">music_note</span>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex -space-x-1">
+<div class="h-6 w-6 rounded-full ring-2 ring-white bg-surface-container-high"></div>
+<div class="h-6 w-6 rounded-full ring-2 ring-white bg-surface-container-high"></div>
+<div class="h-6 w-6 rounded-full ring-2 ring-white bg-surface-container-high"></div>
+<div class="h-6 w-6 rounded-full bg-secondary-container flex items-center justify-center text-[8px] font-bold">+5</div>
+</div>
+<button class="text-primary text-label-md font-bold">Ver</button>
+</div>
+</div>
+</div>
+<!-- Activity Card 5 (Empty/Add state suggestion) -->
+<div class="bg-transparent border-2 border-dashed border-outline-variant rounded-xl p-6 flex flex-col items-center justify-center text-center opacity-60 hover:opacity-100 transition-opacity cursor-pointer group">
+<div class="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-secondary">add_circle</span>
+</div>
+<h3 class="font-headline-md text-[18px] text-secondary">Agendar Nueva</h3>
+<p class="text-caption text-secondary mt-2">Planifica un nuevo evento o reunión para la comunidad.</p>
+</div>
+</div>
+</main>
+<!-- FAB for Mobile (Implicit requirement from Style/Task) -->
+<button class="fixed bottom-24 right-6 md:hidden w-14 h-14 bg-primary text-white rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform z-40">
+<span class="material-symbols-outlined text-[24px]">add</span>
+</button>
+<!-- BottomNavBar -->
+<footer class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-margin-mobile py-2 bg-surface dark:bg-surface shadow-sm md:hidden">
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container-low transition-colors px-4 py-1 rounded-xl" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-label-md font-label-md">Dashboard</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed-dim font-bold scale-95 transition-transform duration-150 px-4 py-1 rounded-xl bg-surface-container-low" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">event_note</span>
+<span class="text-label-md font-label-md">Activities</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container-low transition-colors px-4 py-1 rounded-xl" href="#">
+<span class="material-symbols-outlined">group</span>
+<span class="text-label-md font-label-md">Members</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim hover:bg-surface-container-low transition-colors px-4 py-1 rounded-xl" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span class="text-label-md font-label-md">Offerings</span>
+</a>
+</footer>
+<!-- Atmosphere Micro-interaction script -->
+<script>
+        document.querySelectorAll('.card-shadow').forEach(card => {
+            card.addEventListener('mouseenter', () => {
+                card.style.transition = 'all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1)';
+            });
+        });
+        
+        // Simple search animation
+        const searchInput = document.querySelector('input');
+        searchInput.addEventListener('focus', () => {
+            searchInput.parentElement.classList.add('scale-[1.01]');
+            searchInput.parentElement.classList.add('shadow-md');
+        });
+        searchInput.addEventListener('blur', () => {
+            searchInput.parentElement.classList.remove('scale-[1.01]');
+            searchInput.parentElement.classList.remove('shadow-md');
+        });
+    </script>
+</body></html>

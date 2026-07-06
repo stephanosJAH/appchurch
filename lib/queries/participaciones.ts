@@ -82,6 +82,39 @@ export function useDesasociarParticipacion(discipuladoId: string) {
   });
 }
 
+// Igual que useAgregarDiscipuloNuevo pero el discipulado se elige por llamada
+// (para formularios donde el grupo es un campo más, ej. alta de miembro admin).
+export function useCrearMiembroEnDiscipulado() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      discipuladoId: string;
+      nombre: string;
+      apellido?: string | null;
+      sexo: Sexo;
+      telefono?: string | null;
+      email?: string | null;
+    }): Promise<string> => {
+      const { data, error } = await supabase.rpc("agregar_discipulo", {
+        p_discipulado_id: input.discipuladoId,
+        p_nombre: input.nombre,
+        p_apellido: input.apellido ?? null,
+        p_sexo: input.sexo,
+        p_telefono: input.telefono ?? null,
+        p_email: input.email ?? null,
+      });
+      if (error) throw error;
+      return data as string; // miembro_id
+    },
+    onSuccess: (_id, { discipuladoId }) => {
+      qc.invalidateQueries({
+        queryKey: participacionesKeys.byDiscipulado(discipuladoId),
+      });
+      qc.invalidateQueries({ queryKey: ["miembros"] });
+    },
+  });
+}
+
 // Crear un discípulo nuevo (miembro + participación) vía RPC agregar_discipulo.
 export function useAgregarDiscipuloNuevo(discipuladoId: string) {
   const qc = useQueryClient();

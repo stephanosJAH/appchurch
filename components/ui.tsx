@@ -2,6 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { PropsWithChildren, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   PressableProps,
   ScrollView,
@@ -98,20 +100,27 @@ export function KeyboardScrollView({
 }: PropsWithChildren<ScrollViewProps> & { className?: string }) {
   const insets = useSafeAreaInsets();
   return (
-    <ScrollView
-      className={`flex-1 bg-cream ${className ?? ""}`}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="interactive"
-      automaticallyAdjustKeyboardInsets
-      contentContainerStyle={[
-        { padding: 16, paddingBottom: insets.bottom + 32 },
-        contentContainerStyle,
-      ]}
-      {...props}
+    // iOS: automaticallyAdjustKeyboardInsets alcanza. Android: ese prop es no-op,
+    // así que KeyboardAvoidingView con padding empuja el contenido sobre el teclado.
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "android" ? "padding" : undefined}
     >
-      {children}
-    </ScrollView>
+      <ScrollView
+        className={`flex-1 bg-cream ${className ?? ""}`}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        automaticallyAdjustKeyboardInsets
+        contentContainerStyle={[
+          { padding: 16, paddingBottom: insets.bottom + 32 },
+          contentContainerStyle,
+        ]}
+        {...props}
+      >
+        {children}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -162,6 +171,7 @@ type ButtonProps = PressableProps & {
   variant?: "primary" | "outline" | "gold" | "danger" | "ghost";
   loading?: boolean;
   size?: "md" | "sm";
+  icon?: keyof typeof Ionicons.glyphMap;
 };
 
 export function Button({
@@ -170,6 +180,7 @@ export function Button({
   loading,
   disabled,
   size = "md",
+  icon,
   ...props
 }: ButtonProps) {
   const bg: Record<NonNullable<ButtonProps["variant"]>, string> = {
@@ -199,9 +210,19 @@ export function Button({
       {loading ? (
         <ActivityIndicator color={variant === "primary" || variant === "gold" ? "#fff" : colors.primary} />
       ) : (
-        <Text style={{ fontFamily: fonts.sansSemibold }} className={`text-[15px] ${fg[variant]} ${size === "sm" ? "text-sm" : ""}`}>
-          {title}
-        </Text>
+        <>
+          <Text style={{ fontFamily: fonts.sansSemibold }} className={`text-[15px] ${fg[variant]} ${size === "sm" ? "text-sm" : ""}`}>
+            {title}
+          </Text>
+          {icon ? (
+            <Ionicons
+              name={icon}
+              size={size === "sm" ? 16 : 18}
+              color={variant === "primary" || variant === "gold" ? "#fff" : colors.primary}
+              style={{ marginLeft: 8 }}
+            />
+          ) : null}
+        </>
       )}
     </Pressable>
   );
@@ -222,9 +243,11 @@ type FieldProps = TextInputProps & {
   label?: string;
   error?: string;
   icon?: keyof typeof Ionicons.glyphMap;
+  rightIcon?: keyof typeof Ionicons.glyphMap;
+  onRightIconPress?: () => void;
 };
 
-export function Field({ label, error, icon, className, style, ...props }: FieldProps) {
+export function Field({ label, error, icon, rightIcon, onRightIconPress, className, style, ...props }: FieldProps) {
   const [focused, setFocused] = useState(false);
   const borderClass = error ? "border-danger" : focused ? "border-gold" : "border-black/10";
   return (
@@ -245,9 +268,14 @@ export function Field({ label, error, icon, className, style, ...props }: FieldP
             props.onBlur?.(e);
           }}
           style={[{ fontFamily: fonts.sans }, style]}
-          className={`flex-1 px-4 py-3.5 text-base text-ink ${icon ? "pl-2.5" : ""} ${className ?? ""}`}
+          className={`flex-1 px-4 py-3.5 text-base text-ink ${icon ? "pl-2.5" : ""} ${rightIcon ? "pr-2.5" : ""} ${className ?? ""}`}
           {...props}
         />
+        {rightIcon ? (
+          <Pressable onPress={onRightIconPress} hitSlop={8} className="active:opacity-60" style={{ paddingHorizontal: 14 }}>
+            <Ionicons name={rightIcon} size={18} color={colors.outline} />
+          </Pressable>
+        ) : null}
       </View>
       {error ? <Muted className="mt-1 text-danger">{error}</Muted> : null}
     </View>

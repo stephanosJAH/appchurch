@@ -18,6 +18,7 @@
     "expo-status-bar": "~3.0.9",
     "nativewind": "^4.2.6",
     "react": "19.1.0",
+    "react-dom": "19.1.0",
     "react-hook-form": "^7.80.0",
     "react-native": "0.81.5",
     "react-native-calendars": "^1.1314.0",
@@ -38,7 +39,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "build:apk": "eas build --platform android --profile preview"
   },
   "private": true
 }
