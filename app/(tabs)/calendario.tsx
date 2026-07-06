@@ -3,12 +3,15 @@ import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
+import { CumpleRow } from "../../components/Cumples";
 import { Body, Card, Chip, Headline, Label, Muted, Title } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import {
   addDays,
   addMonths,
+  diasHastaCumple,
   endOfMonth,
+  esCumpleEn,
   formatHora,
   formatMesAnio,
   monthMatrix,
@@ -17,9 +20,11 @@ import {
   toISODate,
 } from "../../lib/date";
 import { colors, fonts } from "../../lib/theme";
-import { DIAS_SEMANA } from "../../lib/types";
+import { DIAS_SEMANA, Miembro } from "../../lib/types";
 import { useDiscipulados } from "../../lib/queries/discipulados";
 import { useEventosVigentes } from "../../lib/queries/eventos";
+import { useMiembros } from "../../lib/queries/miembros";
+import { useParticipaciones } from "../../lib/queries/participaciones";
 import { useReunionesMes, useReunionesSemana } from "../../lib/queries/reuniones";
 
 function rango(d: Date) {
@@ -32,11 +37,21 @@ type Vista = "semana" | "mes";
 
 export default function Calendario() {
   const router = useRouter();
-  const { isAdmin } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const [vista, setVista] = useState<Vista>("semana");
 
   const { data: discipulados = [] } = useDiscipulados();
   const { data: eventos = [] } = useEventosVigentes();
+
+  // Cumpleaños: admin ve el padrón; el discipulador, los miembros de su grupo.
+  const miDiscipulado = discipulados.find((d) => d.discipulador_id === profile?.id);
+  const { data: todosMiembros = [] } = useMiembros();
+  const { data: misParticipaciones = [] } = useParticipaciones(
+    isAdmin ? "" : miDiscipulado?.id ?? ""
+  );
+  const miembros: Miembro[] = isAdmin
+    ? todosMiembros
+    : (misParticipaciones.map((p) => p.miembro).filter(Boolean) as Miembro[]);
 
   return (
     <View className="flex-1 bg-cream">
@@ -54,9 +69,9 @@ export default function Calendario() {
         <Toggle vista={vista} onChange={setVista} />
 
         {vista === "semana" ? (
-          <VistaSemana discipulados={discipulados} eventos={eventos} />
+          <VistaSemana discipulados={discipulados} eventos={eventos} miembros={miembros} />
         ) : (
-          <VistaMes discipulados={discipulados} eventos={eventos} />
+          <VistaMes discipulados={discipulados} eventos={eventos} miembros={miembros} />
         )}
       </ScrollView>
     </View>
@@ -143,9 +158,11 @@ function EventoRow({ e }: { e: import("../../lib/types").Evento }) {
 function VistaSemana({
   discipulados,
   eventos,
+  miembros,
 }: {
   discipulados: import("../../lib/types").Discipulado[];
   eventos: import("../../lib/types").Evento[];
+  miembros: Miembro[];
 }) {
   const router = useRouter();
   const inicio = useMemo(() => startOfWeek(), []);
@@ -154,6 +171,7 @@ function VistaSemana({
 
   const tieneReunion = (discipuladoId: string, fechaISO: string) =>
     reuniones.some((r) => r.discipulado_id === discipuladoId && r.fecha === fechaISO);
+  const cumplesDe = (fecha: Date) => miembros.filter((m) => esCumpleEn(m.fecha_nacimiento, fecha));
 
   return (
     <>
@@ -165,12 +183,14 @@ function VistaSemana({
       </View>
 
       {ORDEN_SEMANA.map((diaIdx, i) => {
-        const fechaDia = toISODate(addDays(inicio, i));
+        const fecha = addDays(inicio, i);
+        const fechaDia = toISODate(fecha);
         const delDia = discipulados
           .filter((d) => d.dia_semana === diaIdx)
           .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
         const eventosDia = eventos.filter((e) => toISODate(new Date(e.fecha_inicio)) === fechaDia);
-        if (delDia.length === 0 && eventosDia.length === 0) return null;
+        const cumplesDia = cumplesDe(fecha);
+        if (delDia.length === 0 && eventosDia.length === 0 && cumplesDia.length === 0) return null;
 
         const esHoy = fechaDia === toISODate(new Date());
 
@@ -192,6 +212,9 @@ function VistaSemana({
               {eventosDia.map((e) => (
                 <EventoRow key={e.id} e={e} />
               ))}
+              {cumplesDia.map((m) => (
+                <CumpleRow key={m.id} miembro={m} dias={diasHastaCumple(m.fecha_nacimiento) ?? 0} />
+              ))}
             </View>
           </View>
         );
@@ -211,9 +234,11 @@ function VistaSemana({
 function VistaMes({
   discipulados,
   eventos,
+  miembros,
 }: {
   discipulados: import("../../lib/types").Discipulado[];
   eventos: import("../../lib/types").Evento[];
+  miembros: Miembro[];
 }) {
   const router = useRouter();
   const hoyISO = toISODate(new Date());
@@ -233,12 +258,14 @@ function VistaMes({
       .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
   const eventosDe = (fechaISO: string) =>
     eventos.filter((e) => toISODate(new Date(e.fecha_inicio)) === fechaISO);
+  const cumplesDe = (fecha: Date) => miembros.filter((m) => esCumpleEn(m.fecha_nacimiento, fecha));
   const tieneReunion = (discipuladoId: string, fechaISO: string) =>
     reuniones.some((r) => r.discipulado_id === discipuladoId && r.fecha === fechaISO);
 
   const selDate = new Date(seleccion + "T00:00:00");
   const selDiscipulados = discipuladosDe(selDate);
   const selEventos = eventosDe(seleccion);
+  const selCumples = cumplesDe(selDate);
 
   const cambiarMes = (n: number) => {
     const nuevo = addMonths(refMes, n);
@@ -278,6 +305,7 @@ function VistaMes({
               const seleccionado = fechaISO === seleccion;
               const nDisc = discipuladosDe(fecha).length;
               const nEvt = eventosDe(fechaISO).length;
+              const nCumple = cumplesDe(fecha).length;
               return (
                 <Pressable
                   key={fechaISO}
@@ -302,6 +330,9 @@ function VistaMes({
                   <View className="mt-0.5 h-1.5 flex-row gap-0.5">
                     {nDisc > 0 ? <View className="h-1.5 w-1.5 rounded-full bg-navy" /> : null}
                     {nEvt > 0 ? <View className="h-1.5 w-1.5 rounded-full bg-gold" /> : null}
+                    {nCumple > 0 ? (
+                      <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: colors.cumple }} />
+                    ) : null}
                   </View>
                 </Pressable>
               );
@@ -317,6 +348,10 @@ function VistaMes({
             <View className="h-1.5 w-1.5 rounded-full bg-gold" />
             <Muted>Actividad</Muted>
           </View>
+          <View className="flex-row items-center gap-1.5">
+            <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: colors.cumple }} />
+            <Muted>Cumpleaños</Muted>
+          </View>
         </View>
       </Card>
 
@@ -328,9 +363,9 @@ function VistaMes({
         {seleccion === hoyISO ? <Chip tone="gold">Hoy</Chip> : null}
       </View>
 
-      {selDiscipulados.length === 0 && selEventos.length === 0 ? (
+      {selDiscipulados.length === 0 && selEventos.length === 0 && selCumples.length === 0 ? (
         <Card>
-          <Muted>Sin discipulados ni actividades este día.</Muted>
+          <Muted>Sin discipulados, actividades ni cumpleaños este día.</Muted>
         </Card>
       ) : (
         <View className="gap-2.5">
@@ -344,6 +379,9 @@ function VistaMes({
           ))}
           {selEventos.map((e) => (
             <EventoRow key={e.id} e={e} />
+          ))}
+          {selCumples.map((m) => (
+            <CumpleRow key={m.id} miembro={m} dias={diasHastaCumple(m.fecha_nacimiento) ?? 0} />
           ))}
         </View>
       )}

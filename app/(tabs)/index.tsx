@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useMemo } from "react";
 import { Image, Pressable, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
+import { CumplesSection } from "../../components/Cumples";
 import {
   Body,
   Button,
@@ -139,6 +140,9 @@ export default function Dashboard() {
   // El próximo evento/actividad (eventos ya vienen ordenados por fecha_inicio).
   const proximoEvento = eventos[0];
 
+  // Cumpleaños próximos: admin ve el padrón; el discipulador, su grupo.
+  const miembrosCumple = isAdmin ? miembros : misParticipaciones.map((p) => p.miembro);
+
   return (
     <View className="flex-1 bg-cream">
       <AppBar />
@@ -150,6 +154,8 @@ export default function Dashboard() {
             Bienvenido al panel de gestión de tu congregación.
           </Body>
         </View>
+
+        
 
         {/* Próxima actividad destacada */}
         {proximo && (
@@ -187,6 +193,16 @@ export default function Dashboard() {
 
         {/* Separador de sección */}
         {proximo && proximoEvento && <View className="mb-5 h-px bg-black/10" />}
+
+        {/* Cumpleaños próximos */}
+        <CumplesSection
+          miembros={miembrosCumple}
+          titulo={isAdmin ? "Cumpleaños" : "Cumpleaños de tu discipulado"}
+          className="mb-6"
+        />
+
+        {/* Separador de sección Cumpleaños próximos */}
+        {miembrosCumple && <View className="mb-5 h-px bg-black/10" />}
 
         {/* Próximo evento/actividad */}
         {proximoEvento && (
@@ -246,6 +262,8 @@ export default function Dashboard() {
 
         {/* Separador de sección */}
         {proximo && proximoEvento && <View className="mb-5 h-px bg-black/10" />}
+
+        
 
         {/* Accesos rápidos */}
         <View className="mb-6 gap-3">
@@ -311,6 +329,7 @@ export default function Dashboard() {
             value={String(eventos.length)}
           />
         </View>
+
       </ScrollView>
     </View>
   );

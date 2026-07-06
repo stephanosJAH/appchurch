@@ -2,6 +2,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 import { Body, Button, Card, Chip, Field, KeyboardScrollView, Label, Muted } from "../../components/ui";
+import { useAuth } from "../../lib/auth";
 import { formatHora } from "../../lib/date";
 import { fonts } from "../../lib/theme";
 import { DIAS_SEMANA, Modalidad, SexoDiscipulado } from "../../lib/types";
@@ -19,6 +20,7 @@ export default function EditarDiscipulado() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const editingId = id ?? null;
+  const { isAdmin } = useAuth();
 
   const { data: discipulados = [] } = useDiscipulados();
   const { data: profiles = [] } = useProfiles();
@@ -155,6 +157,8 @@ export default function EditarDiscipulado() {
 
       <Field label="Ubicación" value={ubicacion} onChangeText={setUbicacion} />
 
+      {isAdmin && (
+      <>
       <Label className="mb-1.5">Discipulador a cargo</Label>
       <Muted className="mb-2">Solo se listan usuarios sin discipulado asignado.</Muted>
       <View className="mb-5 gap-2">
@@ -189,6 +193,8 @@ export default function EditarDiscipulado() {
           })
         )}
       </View>
+      </>
+      )}
 
       <Button
         title={editingId ? "Guardar cambios" : "Crear discipulado"}
@@ -196,8 +202,8 @@ export default function EditarDiscipulado() {
         loading={upsert.isPending}
       />
 
-      {/* Zona de baja (solo al editar) */}
-      {editingId && (
+      {/* Zona de baja (solo admin, al editar) */}
+      {editingId && isAdmin && (
         <View className="mt-8 border-t border-black/10 pt-5">
           <Label className="mb-1">Zona de riesgo</Label>
           {!showBaja ? (

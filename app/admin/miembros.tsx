@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, View } from "react-native";
 import { Avatar, Body, Button, Card, Chip, Field, Label, Muted } from "../../components/ui";
-import { formatHora } from "../../lib/date";
+import { calcularEdad, formatHora } from "../../lib/date";
 import { colors } from "../../lib/theme";
 import { DIAS_SEMANA, Sexo } from "../../lib/types";
 import { useMiembros } from "../../lib/queries/miembros";
@@ -126,24 +126,30 @@ export default function AdminMiembros() {
             <Label className="mb-2 mt-4">Miembros ({miembros.length})</Label>
           </View>
         }
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => router.push({ pathname: "/miembro/[id]", params: { id: item.id } })}
-            className="active:opacity-70"
-          >
-            <Card className="mb-2.5 flex-row items-center gap-3 py-3.5">
-              <Avatar name={item.nombre} size={38} tone="gold" />
-              <View className="flex-1">
-                <Body className="text-ink">
-                  {item.nombre} {item.apellido ?? ""}
-                </Body>
-                {item.telefono ? <Muted>{item.telefono}</Muted> : null}
-              </View>
-              <Chip tone="neutral">{item.sexo}</Chip>
-              <Ionicons name="chevron-forward" size={16} color={colors.outline} />
-            </Card>
-          </Pressable>
-        )}
+        renderItem={({ item }) => {
+          const edad = calcularEdad(item.fecha_nacimiento);
+          const detalle = [edad != null ? `${edad} años` : null, item.telefono]
+            .filter(Boolean)
+            .join(" · ");
+          return (
+            <Pressable
+              onPress={() => router.push({ pathname: "/miembro/[id]", params: { id: item.id } })}
+              className="active:opacity-70"
+            >
+              <Card className="mb-2.5 flex-row items-center gap-3 py-3.5">
+                <Avatar name={item.nombre} size={38} tone="gold" />
+                <View className="flex-1">
+                  <Body className="text-ink">
+                    {item.nombre} {item.apellido ?? ""}
+                  </Body>
+                  {detalle ? <Muted>{detalle}</Muted> : null}
+                </View>
+                <Chip tone="neutral">{item.sexo}</Chip>
+                <Ionicons name="chevron-forward" size={16} color={colors.outline} />
+              </Card>
+            </Pressable>
+          );
+        }}
         ListEmptyComponent={
           !isLoading ? (
             <Card>

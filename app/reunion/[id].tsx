@@ -135,6 +135,16 @@ export default function ReunionDetalle() {
               <Body className="flex-1 text-ink">
                 {a.miembro?.nombre} {a.miembro?.apellido ?? ""}
               </Body>
+              {a.presente && a.modalidad && a.modalidad !== "ambos" ? (
+                <View className="flex-row items-center gap-1">
+                  <Ionicons
+                    name={a.modalidad === "virtual" ? "videocam-outline" : "business-outline"}
+                    size={13}
+                    color={colors.outline}
+                  />
+                  <Muted className="capitalize">{a.modalidad}</Muted>
+                </View>
+              ) : null}
               <Ionicons
                 name={a.presente ? "checkmark-circle" : "close-circle-outline"}
                 size={22}

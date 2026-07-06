@@ -39,6 +39,12 @@
         "projectId": "55d2d878-e9cc-4cd4-a73c-c6241664e274"
       }
     },
-    "owner": "ampiup"
+    "owner": "ampiup",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/55d2d878-e9cc-4cd4-a73c-c6241664e274"
+    }
   }
 }

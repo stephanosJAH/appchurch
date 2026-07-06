@@ -32,6 +32,9 @@ export const colors = {
   tertiaryContainer: "#ffdea5",
   onTertiaryContainer: "#5d4201",
 
+  // Acento cumpleaños (rosado cálido, distinto de navy/dorado)
+  cumple: "#b5476b",
+
   // Estado
   error: "#ba1a1a",
   errorContainer: "#ffdad6",

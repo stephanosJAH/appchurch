@@ -133,6 +133,36 @@ export function formatCumple(fechaNacimiento?: string | null): string | null {
   });
 }
 
+// Días hasta el próximo cumpleaños a partir de "YYYY-MM-DD" (0 = es hoy).
+// null si no hay fecha válida. Ignora el año de nacimiento.
+export function diasHastaCumple(
+  fechaNacimiento?: string | null,
+  ref = new Date()
+): number | null {
+  if (!fechaNacimiento || !/^\d{4}-\d{2}-\d{2}$/.test(fechaNacimiento)) return null;
+  const nac = fechaToDate(fechaNacimiento);
+  const hoy = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+  let prox = new Date(hoy.getFullYear(), nac.getMonth(), nac.getDate());
+  if (prox < hoy) prox = new Date(hoy.getFullYear() + 1, nac.getMonth(), nac.getDate());
+  return Math.round((prox.getTime() - hoy.getTime()) / 86400000);
+}
+
+// Etiqueta corta para la cuenta regresiva de un cumpleaños.
+export function etiquetaCumple(dias: number): string {
+  if (dias <= 0) return "¡Hoy!";
+  if (dias === 1) return "Mañana";
+  if (dias < 7) return `En ${dias} días`;
+  if (dias < 14) return "Próxima semana";
+  return `En ${dias} días`;
+}
+
+// ¿El cumpleaños (día y mes de `fechaNacimiento`) cae en la fecha `d`?
+export function esCumpleEn(fechaNacimiento: string | null | undefined, d: Date): boolean {
+  if (!fechaNacimiento || !/^\d{4}-\d{2}-\d{2}$/.test(fechaNacimiento)) return false;
+  const nac = fechaToDate(fechaNacimiento);
+  return nac.getMonth() === d.getMonth() && nac.getDate() === d.getDate();
+}
+
 export function formatMoneda(n?: number | null): string {
   return new Intl.NumberFormat("es-AR", {
     style: "currency",
