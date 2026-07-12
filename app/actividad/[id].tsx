@@ -1,10 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
-import { ActivityIndicator, Image, Linking, ScrollView, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, View } from "react-native";
 import { Body, Button, Card, Chip, Muted, Title } from "../../components/ui";
 import { formatHora } from "../../lib/date";
 import { colors } from "../../lib/theme";
 import { useEvento } from "../../lib/queries/eventos";
+import { abrirAdjunto } from "../../lib/storage";
 
 const TONE: Record<string, "navy" | "gold" | "neutral"> = {
   general: "navy",
@@ -103,7 +104,7 @@ export default function ActividadDetalle() {
             <Body className="text-ink">Documento adjunto</Body>
             <Muted>PDF</Muted>
           </View>
-          <Button title="Abrir" size="sm" onPress={() => Linking.openURL(evento.adjunto_url!)} />
+          <Button title="Abrir" size="sm" onPress={() => abrirAdjunto(evento.adjunto_url)} />
         </Card>
       ) : null}
     </ScrollView>
