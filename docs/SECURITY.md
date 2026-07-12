@@ -9,14 +9,14 @@
 
 | # | Severidad | Hallazgo | Estado |
 |---|-----------|----------|--------|
-| 1 | CRÍTICA | Registro abierto + RLS `miembros` expone todo el padrón (PII) | [ ] |
-| 2 | CRÍTICA | `miembros_write` permite editar/borrar cualquier miembro | [ ] |
-| 3 | ALTA | Auto-escalada a admin vía `prof_update_self` | [ ] |
-| 4 | ALTA | Token de sesión en AsyncStorage (no SecureStore) | [ ] |
-| 5 | ALTA | Bucket `adjuntos` público con URLs no firmadas | [ ] |
-| 6 | MEDIA | `Linking.openURL` sin validar esquema | [ ] |
-| 7 | MEDIA | Storage `materiales` sin scoping ni DELETE | [ ] |
-| 8 | MEDIA | Sin reset de contraseña ni política de fortaleza | [ ] |
+| 1 | CRÍTICA | Registro abierto + RLS `miembros` expone todo el padrón (PII) | [—] diferido → [`SECURITY-DIFERIDOS.md`](./SECURITY-DIFERIDOS.md) |
+| 2 | CRÍTICA | `miembros_write` permite editar/borrar cualquier miembro | [x] `0009_miembros_write_scoped.sql` |
+| 3 | ALTA | Auto-escalada a admin vía `prof_update_self` | [x] `0010_no_autoescalar_rol.sql` |
+| 4 | ALTA | Token de sesión en AsyncStorage (no SecureStore) | [x] `lib/supabase.ts` (LargeSecureStore) |
+| 5 | ALTA | Bucket `adjuntos` público con URLs no firmadas | [x] público por diseño + entropía UUID (`lib/storage.ts`) |
+| 6 | MEDIA | `Linking.openURL` sin validar esquema | [x] `abrirAdjunto` (`lib/storage.ts`) |
+| 7 | MEDIA | Storage `materiales` sin scoping ni DELETE | [x] `0011_materiales_scope.sql` |
+| 8 | MEDIA | Sin reset de contraseña ni política de fortaleza | [—] diferido → [`SECURITY-DIFERIDOS.md`](./SECURITY-DIFERIDOS.md) |
 | 9 | BAJA | Anon key en `eas.json` (aceptable, depende de RLS) | [ ] |
 | 10 | BAJA | Sin certificate pinning | [ ] |
 
@@ -52,6 +52,13 @@ anónimo con solo la anon key pública (embebida en el bundle y en `eas.json`).
      );
      ```
      Para "sumar discípulo nuevo", usar la RPC `agregar_discipulo` (ya `security definer`) en vez de dar SELECT global.
+- **Estado (2026-07-08)**: DIFERIDO por decisión de producto. La app se diseñó
+  con registro/login **sin verificación por email** porque muchos miembros de la
+  iglesia no tienen correo. En consecuencia, el SELECT de `miembros` sigue abierto
+  a cualquier autenticado. **Riesgo residual asumido**: un usuario autenticado (o
+  auto-registrado) puede leer el padrón completo. La parte de acotar el SELECT al
+  líder (remediación 2) NO dependía del email y podría retomarse por separado si se
+  decide endurecer la lectura.
 
 ## 2. CRÍTICA — `miembros_write` permite a cualquier autenticado modificar/borrar cualquier miembro
 
@@ -76,6 +83,18 @@ anónimo con solo la anon key pública (embebida en el bundle y en `eas.json`).
   create policy miembros_delete on miembros for delete using (es_admin());
   ```
   Idealmente centralizar la creación en la RPC `agregar_discipulo`.
+- **Estado (2026-07-08)**: RESUELTO en `supabase/migrations/0009_miembros_write_scoped.sql`.
+  Se reemplazó la policy `for all` por tres policies:
+  - `miembros_insert` (INSERT): `auth.role() = 'authenticated'`. La creación real
+    pasa por la RPC `agregar_discipulo` (security definer); el INSERT abierto es
+    necesario para que el `upsert` de edición pase el check y no rompe nada crítico
+    (a lo sumo permite insertar un miembro huérfano, sin borrado ni PII ajena).
+  - `miembros_update` (UPDATE): `es_admin() or es_discipulador_del_miembro(id)`
+    (nuevo helper `security definer`). Preserva la edición del discipulador sobre
+    los miembros de su grupo (`miembro/[id].tsx`).
+  - `miembros_delete` (DELETE): solo `es_admin()`. Cierra el borrado masivo con cascada.
+  - **Endurecimiento opcional futuro**: pasar el INSERT a solo-admin y cambiar el
+    edit del cliente de `.upsert()` a `.update()`.
 
 ## 3. ALTA — Auto-escalada de privilegios: un usuario puede promoverse a admin
 
@@ -101,6 +120,13 @@ anónimo con solo la anon key pública (embebida en el bundle y en `eas.json`).
   create trigger trg_no_cambiar_rol before update on profiles
     for each row execute function public.no_cambiar_rol();
   ```
+- **Estado (2026-07-08)**: RESUELTO en `supabase/migrations/0010_no_autoescalar_rol.sql`.
+  Trigger `BEFORE UPDATE` sobre `profiles` (`no_autoescalar_rol`) que rechaza el
+  cambio de `rol` salvo que el actor sea admin. Se agregó el guard
+  `auth.uid() is not null` que faltaba en el snippet original: sin él, el trigger
+  bloqueaba el **bootstrap del primer admin** por SQL Editor (ahí `auth.uid()` es
+  NULL y `es_admin()` daría false). Preserva el cambio de rol legítimo desde
+  `app/admin/usuarios.tsx` (actor admin) y el bootstrap por SQL Editor.
 
 ## 4. ALTA — Token de sesión almacenado en AsyncStorage en lugar de SecureStore
 
@@ -115,6 +141,15 @@ anónimo con solo la anon key pública (embebida en el bundle y en `eas.json`).
   createClient(url, key, { auth: { storage: LargeSecureStore, ... } });
   ```
   Funciona en Expo Go 54; no bloquea el flujo actual.
+- **Estado (2026-07-09)**: RESUELTO en `lib/supabase.ts`. Se implementó el patrón
+  oficial de Supabase (AES-256): clave aleatoria en SecureStore (keystore) +
+  valor cifrado en AsyncStorage, vía la clase `LargeSecureStore`. Dependencias
+  agregadas (todas Expo Go 54): `expo-secure-store`, `expo-crypto` (aleatoriedad,
+  en vez de `react-native-get-random-values` para no meter un módulo nativo fuera
+  de Expo Go) y `aes-js` (+ `@types/aes-js` dev).
+  - **Efecto en usuarios existentes**: la sesión vieja quedaba en AsyncStorage en
+    texto plano; al no haber clave en el keystore, `_decrypt` la ignora → **un
+    único re-login** y a partir de ahí la sesión queda cifrada. Autoresuelto.
 
 ## 5. ALTA — Bucket `adjuntos` público con URLs no firmadas
 
@@ -123,6 +158,16 @@ anónimo con solo la anon key pública (embebida en el bundle y en `eas.json`).
 - **Explotabilidad**: Adjuntos accesibles por URL pública indefinidamente. Si a futuro se sube material no público, quedaría expuesto.
 - **Impacto**: Bajo si el contenido es siempre público (flyers); alto si un admin sube algo sensible.
 - **Remediación**: Si no es estrictamente público, bucket privado + `createSignedUrl`. Si debe ser público, documentarlo y aumentar entropía del path (`crypto.randomUUID()` vía `expo-crypto`).
+- **Estado (2026-07-09)**: RESUELTO por decisión de producto. Los adjuntos son
+  flyers/anuncios de eventos pensados para difusión, así que el bucket sigue
+  **público por diseño** (evita el refactor a URLs firmadas, que las 5 pantallas
+  que muestran `adjunto_url` como `<Image>` complicarían por expiración/caché).
+  Se cerró el punto explotable — la **baja entropía** del path (`Date.now()` +
+  6 chars base36 ≈ 31 bits, enumerable) — generando ahora el nombre con
+  `Crypto.randomUUID()` (128 bits) en `lib/storage.ts:subirAdjunto`, más
+  sanitización de la extensión. Las policies de `0007` (lectura pública, escritura
+  solo admin) quedan como están. Los adjuntos ya subidos conservan su path viejo
+  (impacto menor); solo las subidas nuevas usan UUID.
 
 ## 6. MEDIA — `adjunto_url` abierto con `Linking.openURL` sin validar el esquema
 
@@ -134,6 +179,12 @@ anónimo con solo la anon key pública (embebida en el bundle y en `eas.json`).
   const url = evento.adjunto_url!;
   if (/^https:\/\//i.test(url)) Linking.openURL(url);
   ```
+- **Estado (2026-07-09)**: RESUELTO. Se centralizó la apertura en el helper
+  `abrirAdjunto(url)` (`lib/storage.ts`): valida `^https://` antes de
+  `Linking.openURL` y, si no lo es (o falla), muestra un aviso en vez de disparar
+  el esquema. `app/actividad/[id].tsx:106` ahora llama a `abrirAdjunto(evento.adjunto_url)`
+  (se quitó el `Linking.openURL` directo y el import de `Linking` que quedó sin uso).
+  Es el único `Linking.openURL` de la app (`enlace_virtual` no se abre por Linking).
 
 ## 7. MEDIA — Storage `materiales` sin policy de DELETE y sin scoping por dueño
 
@@ -141,12 +192,26 @@ anónimo con solo la anon key pública (embebida en el bundle y en `eas.json`).
 - **Descripción**: Cualquier autenticado puede leer y sobrescribir (UPDATE) cualquier archivo del bucket, no solo los suyos. Sin control por carpeta/dueño.
 - **Explotabilidad**: Un líder puede sobrescribir el material de otro grupo.
 - **Remediación**: Acotar por prefijo de carpeta (`(storage.foldername(name))[1] = auth.uid()::text`) o por pertenencia, y agregar la policy de DELETE correspondiente.
+- **Estado (2026-07-10)**: RESUELTO en `supabase/migrations/0011_materiales_scope.sql`.
+  Contexto: el bucket `materiales` **no se usa todavía** (scaffolding de "Fase 2";
+  `reuniones.material_url` siempre se guarda `null` y no hay código que suba ahí),
+  así que se aseguró preventivamente. INSERT/UPDATE/DELETE quedan acotados a
+  `public.es_admin()` o al dueño de la carpeta (`(storage.foldername(name))[1] =
+  auth.uid()::text`), y se agregó la policy de DELETE que faltaba. La lectura sigue
+  para cualquier autenticado (bucket privado, requiere sesión/URL firmada).
+  - **A tener en cuenta al construir Fase 2**: subir bajo `<auth.uid()>/...`
+    (ej. `upload(\`${user.id}/leccion.pdf\`, ...)`), o el `with check` rechaza el alta.
 
 ## 8. MEDIA — Recuperación de contraseña inexistente y sin política de contraseñas
 
 - **Ubicación**: `app/(auth)/login.tsx:60-62`.
 - **Descripción**: "¿Olvidó su contraseña?" solo muestra "contactá a un admin". Sin flujo de reset. Sin validación de fortaleza (Supabase por defecto exige solo 6 caracteres).
 - **Remediación**: Implementar `supabase.auth.resetPasswordForEmail` con deep link. Subir el mínimo de contraseña en Auth. Habilitar protección de contraseñas filtradas (HaveIBeenPwned) en Supabase.
+- **Estado (2026-07-12)**: DIFERIDO. Se movió el detalle, la separación en partes
+  (fortaleza in-repo vs. reset con tensión de producto) y los pasos para retomarlo
+  a [`SECURITY-DIFERIDOS.md`](./SECURITY-DIFERIDOS.md), junto con el #1. La fortaleza
+  de contraseña en el cliente (#8 Parte A) no depende del email y podría retomarse
+  sola.
 
 ## 9. BAJA — Anon key y URL hardcodeadas en `eas.json` versionado
 
