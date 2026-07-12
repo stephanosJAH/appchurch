@@ -8,6 +8,11 @@ Migraciones en orden (`supabase/migrations/`):
 4. `0004_storage.sql` — bucket `materiales` para documentos de lección
 5. `0005_discipulador_unico.sql` — regla 1:1 (un discipulador lidera un solo grupo)
 6. `0006_baja_logica_discipulado.sql` — baja lógica (motivo_baja, fecha_baja)
+7. `0007_eventos_adjunto.sql` — adjunto de eventos + bucket `adjuntos`
+8. `0008_discipulador_edita_su_grupo.sql` — el discipulador edita su propio grupo
+9. `0009_miembros_write_scoped.sql` — escritura de `miembros` acotada (seguridad #2)
+10. `0010_no_autoescalar_rol.sql` — bloquea auto-escalada de `rol` en `profiles` (seguridad #3)
+11. `0011_materiales_scope.sql` — escritura de `materiales` acotada al dueño + DELETE (seguridad #7)
 
 ## Cómo aplicarlas
 
