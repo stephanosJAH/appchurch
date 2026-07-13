@@ -25,10 +25,10 @@ import { colors, fonts } from "../../lib/theme";
 import { Evento } from "../../lib/types";
 import { useEventosVigentes } from "../../lib/queries/eventos";
 
-const TONE: Record<string, "navy" | "gold" | "neutral" | "red"> = {
+const TONE: Record<string, "navy" | "gold" | "neutral" | "danger"> = {
   general: "navy",
   discipulado: "gold",
-  especial: "red",
+  especial: "danger",
   otro: "neutral",
 };
 
