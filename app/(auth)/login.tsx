@@ -22,7 +22,7 @@ function traducirError(msg?: string): string {
   if (!msg) return "No se pudo completar la operación.";
   const m = msg.toLowerCase();
   if (m.includes("already registered") || m.includes("already been registered"))
-    return "Ese usuario o teléfono ya tiene una cuenta.";
+    return "Ese dato ya tiene una cuenta. Si es el teléfono de tu familia y ya lo usó otra persona, escribí otro dato (por ejemplo tu nombre y apellido).";
   if (m.includes("invalid login credentials")) return "Usuario o contraseña incorrectos.";
   if (m.includes("weak") || m.includes("password")) return "La contraseña no cumple los requisitos mínimos.";
   return msg;
@@ -136,14 +136,23 @@ export default function Login() {
             )}
 
             <Field
-              label="Usuario o teléfono"
-              icon="person-outline"
+              label="Teléfono"
+              icon="call-outline"
               value={identificador}
               onChangeText={setIdentificador}
-              placeholder="tu usuario o teléfono"
+              placeholder="Tu número de teléfono"
               autoCapitalize="none"
               autoCorrect={false}
             />
+            {/* Sin keyboardType="phone-pad": si no hay teléfono propio, o el
+                familiar ya tiene cuenta, esta misma caja acepta otro dato
+                (ver isValidIdentifier / traducirError). */}
+            {!isLogin && (
+              <Muted className="-mt-2 mb-4">
+                ¿No tenés teléfono propio, o el de tu familia ya tiene cuenta? Escribí tu nombre y apellido, como
+                figurás en tu discipulado.
+              </Muted>
+            )}
 
             {/* Contraseña con label + enlace de recuperación */}
             <View className="mb-1.5 flex-row items-center justify-between">

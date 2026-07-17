@@ -12,10 +12,26 @@
 
 const SYNTHETIC_DOMAIN = "u.appchurch.app";
 
+// Quita tildes/diéresis (María -> Maria, Núñez -> Nunez) vía descomposición
+// Unicode. Sin esto, "María" y "Maria" normalizan distinto (el acento se
+// borraba directo en vez de convertirse a la letra base) y alguien que un día
+// tipeó el nombre con tilde y otro día sin ella quedaba con dos identificadores
+// distintos, sin poder volver a entrar con el segundo.
+// Rango Unicode de marcas diacríticas combinantes (U+0300-U+036F), escrito
+// vía RegExp(string) para no incrustar los caracteres combinantes literales
+// en el archivo fuente.
+const DIACRITICOS = new RegExp("[\\u0300-\\u036f]", "g");
+
+function quitarDiacriticos(s: string): string {
+  return s.normalize("NFD").replace(DIACRITICOS, "");
+}
+
 /**
- * Normaliza un usuario o teléfono a un slug estable y comparable.
+ * Normaliza un identificador (teléfono, usuario o nombre y apellido) a un slug
+ * estable y comparable.
  * - Si parece teléfono (solo dígitos/separadores y ≥6 dígitos), deja solo dígitos.
- * - Si es un usuario, pasa a minúsculas y conserva solo [a-z0-9._-].
+ * - Si no, pasa a minúsculas, quita tildes y conserva solo [a-z0-9._-] (los
+ *   espacios de "Nombre Apellido" se descartan, no se reemplazan).
  */
 export function normalizeIdentifier(raw: string): string {
   const trimmed = raw.trim().toLowerCase();
@@ -24,7 +40,7 @@ export function normalizeIdentifier(raw: string): string {
   if (soloTelefono && digits.length >= 6) {
     return digits;
   }
-  return trimmed.replace(/[^a-z0-9._-]/g, "");
+  return quitarDiacriticos(trimmed).replace(/[^a-z0-9._-]/g, "");
 }
 
 /** Convierte el identificador ingresado en el email sintético para Supabase. */
