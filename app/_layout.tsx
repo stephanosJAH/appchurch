@@ -1,5 +1,6 @@
 import "../global.css";
 
+import { Ionicons } from "@expo/vector-icons";
 import {
   SourceSans3_400Regular,
   SourceSans3_500Medium,
@@ -18,6 +19,7 @@ import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { Body, Button } from "../components/ui";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { attachQueryLogger } from "../lib/query-logger";
 import { colors, fonts } from "../lib/theme";
@@ -39,17 +41,34 @@ function Loader() {
   );
 }
 
+// Se muestra en vez de quedar con el spinner para siempre cuando el perfil no
+// carga por un error real (red, servidor) y ya se agotaron los reintentos.
+function ProfileErrorScreen({ onRetry, onSignOut }: { onRetry: () => void; onSignOut: () => void }) {
+  return (
+    <View className="flex-1 items-center justify-center gap-4 bg-cream px-8">
+      <Ionicons name="cloud-offline-outline" size={40} color={colors.outline} />
+      <Body className="text-center text-ink">
+        No pudimos cargar tu perfil. Revisá tu conexión e intentá de nuevo.
+      </Body>
+      <View className="w-full gap-2.5">
+        <Button title="Reintentar" onPress={onRetry} />
+        <Button title="Cerrar sesión" variant="outline" onPress={onSignOut} />
+      </View>
+    </View>
+  );
+}
+
 // Redirige según haya o no sesión: protege las rutas autenticadas
 // y saca al usuario logueado de la pantalla de login.
 function AuthGate() {
-  const { session, loading, profile } = useAuth();
+  const { session, loading, profile, profileError, signOut, refreshProfile } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
   const esPendiente = !!session && profile?.rol === "pendiente";
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || profileError) return; // no decidir a medias ni con el perfil roto
     // Con sesión pero sin perfil cargado aún: esperar (no decidir a medias).
     if (session && !profile) return;
 
@@ -63,9 +82,12 @@ function AuthGate() {
     } else if (inAuthGroup || enPendiente) {
       router.replace("/(tabs)");
     }
-  }, [session, loading, profile, esPendiente, segments]);
+  }, [session, loading, profile, profileError, esPendiente, segments]);
 
   if (loading) return <Loader />;
+  if (session && profileError) {
+    return <ProfileErrorScreen onRetry={refreshProfile} onSignOut={signOut} />;
+  }
   // Sesión iniciada pero perfil todavía cargando (post-login): evita mostrar la
   // pantalla equivocada por un instante.
   if (session && !profile) return <Loader />;

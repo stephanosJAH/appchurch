@@ -1,5 +1,5 @@
 import { Session } from "@supabase/supabase-js";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
   PropsWithChildren,
@@ -14,6 +14,9 @@ type AuthState = {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  // Perfil no cargado por un error real (red, servidor) tras agotar reintentos.
+  // Distinto de `!profile` durante la carga o antes de tener sesión.
+  profileError: boolean;
   isAdmin: boolean;
   esObrero: boolean;
   aprobado: boolean;
@@ -23,32 +26,24 @@ type AuthState = {
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
+export const authKeys = {
+  profile: (userId: string) => ["auth", "profile", userId] as const,
+};
+
 async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", userId)
     .maybeSingle();
-  if (error) {
-    console.warn("[auth] no se pudo cargar el perfil:", error.message);
-    return null;
-  }
+  if (error) throw error;
   return data as Profile | null;
 }
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const qc = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const loadProfile = async (s: Session | null) => {
-    if (s?.user) {
-      setProfile(await fetchProfile(s.user.id));
-    } else {
-      setProfile(null);
-    }
-  };
+  const [sessionLoading, setSessionLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -60,36 +55,31 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const t0 = Date.now();
     if (__DEV__) console.log("[auth] ▶ getSession…");
 
-    const syncSession = async (s: Session | null, label: string) => {
+    const syncSession = (s: Session | null, label: string) => {
       const prevUserId = lastUserId;
       lastUserId = s?.user?.id ?? null;
       setSession(s);
-      await loadProfile(s);
       // El token pasó de ausente a presente (o cambió de usuario): refetch de
-      // todo para reemplazar los resultados vacíos por los reales.
+      // todo (incluida la query del perfil, keyed por uid) para reemplazar los
+      // resultados vacíos por los reales.
       if (lastUserId && lastUserId !== prevUserId) {
         if (__DEV__) console.log(`[auth] ↻ token disponible (${label}) — invalidando queries`);
         qc.invalidateQueries();
       }
     };
 
-    supabase.auth.getSession().then(async ({ data }) => {
+    supabase.auth.getSession().then(({ data }) => {
       if (!active) return;
       if (__DEV__)
         console.log(`[auth] ✔ getSession ${Date.now() - t0}ms — con sesión: ${!!data.session}`);
-      const tp = Date.now();
-      await syncSession(data.session, "getSession");
-      if (__DEV__)
-        console.log(`[auth] ✔ perfil ${Date.now() - tp}ms — rol: ${data.session ? "(cargado)" : "sin sesión"}`);
-      if (active) setLoading(false);
+      syncSession(data.session, "getSession");
+      if (active) setSessionLoading(false);
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       if (!active) return;
       if (__DEV__) console.log(`[auth] ⚡ onAuthStateChange: ${event} — con sesión: ${!!s}`);
-      const tp = Date.now();
-      await syncSession(s, event);
-      if (__DEV__) console.log(`[auth] ✔ perfil tras ${event} ${Date.now() - tp}ms`);
+      syncSession(s, event);
     });
 
     return () => {
@@ -98,10 +88,30 @@ export function AuthProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
+  const userId = session?.user?.id ?? null;
+
+  // Perfil en React Query, keyed por uid: da retry y cache (a diferencia del
+  // fetch suelto anterior) y expone un estado de error distinguible en vez de
+  // tragarse el fallo y dejar `profile` en null para siempre (spinner infinito
+  // en app/_layout.tsx si la red falla en el arranque en frío).
+  const {
+    data: profile = null,
+    isLoading: profileLoading,
+    isError: profileError,
+    refetch: refetchProfile,
+  } = useQuery({
+    queryKey: authKeys.profile(userId ?? ""),
+    queryFn: () => fetchProfile(userId as string),
+    enabled: !!userId,
+    retry: 3,
+    staleTime: 30_000,
+  });
+
   const value: AuthState = {
     session,
     profile,
-    loading,
+    loading: sessionLoading || (!!userId && profileLoading),
+    profileError: !!userId && profileError,
     isAdmin: profile?.rol === "admin",
     esObrero: profile?.rol === "obrero" || profile?.rol === "admin",
     aprobado: !!profile && profile.rol !== "pendiente",
@@ -109,7 +119,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       await supabase.auth.signOut();
     },
     refreshProfile: async () => {
-      if (session?.user) setProfile(await fetchProfile(session.user.id));
+      await refetchProfile();
     },
   };
 
