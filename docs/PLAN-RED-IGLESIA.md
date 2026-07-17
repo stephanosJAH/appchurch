@@ -150,13 +150,17 @@ alter type rol_app add value if not exists 'miembro';
 ## Fase 3 — Aprobación de pendientes y gestión de roles
 
 - **`lib/queries/profiles.ts`**: agregar `usePendientes()` (SELECT
-  `rol='pendiente'`, visible a obrero/admin por la policy nueva) y
-  `useActivarMiembro()` (UPDATE `rol → 'miembro'`). `useUpdateRol` sigue para que
-  el admin asigne `obrero`/`admin`.
+  `rol='pendiente'`, visible a obrero/admin por la policy nueva),
+  `useCandidatosParaPerfil()` (RPC `candidatos_para_perfil`) y
+  `useResolverIdentidad()` (RPC `resolver_identidad_pendiente`). `useUpdateRol`
+  sigue para que el admin asigne `obrero`/`admin`.
 - **Pantalla de aprobación accesible a obreros** (no solo admin, que hoy vive en
-  `app/admin/*`): nueva `app/pendientes.tsx` (o sección en la home del obrero) que
-  liste pendientes con acción "Activar". Al activar, opcionalmente linkear el
-  login a su ficha existente (`profiles.miembro_id`).
+  `app/admin/*`): `app/aprobaciones.tsx` — **la aprobación es la resolución de
+  identidad, no un toggle** (0018): al tocar una cuenta pendiente, el obrero ve
+  candidatos rankeados del padrón (`candidatos_para_perfil`) para enlazar, o
+  carga una ficha nueva si de verdad no está. No hay camino para activar sin
+  resolver — evita que la autoedición (`app/mis-datos.tsx`, 0016) duplique la
+  ficha del padrón.
 - **`app/admin/usuarios.tsx`**: selector de rol pasa a **Miembro / Obrero /
   Admin**; renombrar el botón "Discipulador"→"Obrero" y las comparaciones
   `p.rol === "discipulador"` → `"obrero"` (`usuarios.tsx:69,72`). Sumar la sección

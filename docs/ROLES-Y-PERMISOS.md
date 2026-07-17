@@ -53,13 +53,19 @@ Leyenda de alcance en las matrices siguientes:
 | Ver otros perfiles | ✗ | ✗ | Solo `pendiente` (para aprobar) | ✓ |
 | Editar perfil propio (sin rol) | ✓ | ✓ | ✓ | ✓ |
 | Cambiar el **propio** rol | ✗ | ✗ | ✗ | ✓ |
-| Activar `pendiente` → `miembro` | ✗ | ✗ | ✓ | ✓ |
+| Activar `pendiente` → `miembro` | ✗ | ✗ | ✓⁷ | ✓⁷ |
 | Asignar `obrero` / `admin` | ✗ | ✗ | ✗ | ✓ |
 | Borrar un usuario | ✗ | ✗ | ✗ | ✓ |
 
 > El cambio de rol lo protege un trigger (`no_autoescalar_rol`, evolucionado en
 > `0013`): nadie sube su propio rol; el obrero solo puede hacer la activación
 > `pendiente→miembro` de **otros**; el admin cambia cualquier rol.
+> ⁷ **La activación es resolución de identidad, no un toggle** (`0018`,
+> RPC `resolver_identidad_pendiente`): no hay UPDATE directo de `rol` para
+> pendientes. El obrero enlaza la cuenta a una ficha existente del padrón
+> (candidatos por `candidatos_para_perfil`) o crea una nueva; `miembro_id`
+> queda seteado siempre antes de activar. `profiles.miembro_id` es
+> `unique`, así que una ficha del padrón no puede enlazarse dos veces.
 
 ### Personas y PII — `miembros` (tabla base) y `directorio` (vista)
 
@@ -148,18 +154,18 @@ Leyenda de alcance en las matrices siguientes:
 
 Este cuadro describe el **modelo objetivo**. Hoy:
 
-- **Vigente en la DB**: el enum es todavía `('admin','discipulador')`. Las policies
-  actuales (`0002` + `0009`/`0010`/`0011`) ya acotan escritura de `miembros`,
-  bloquean auto-escalada y aíslan storage — pero con el rol viejo `discipulador`.
-- **Pendiente de migrar** (Fase 1 del plan): `0012_roles_expandidos.sql`
-  (rename `discipulador→obrero` + add `miembro`/`pendiente`),
-  `0013_registro_aprobacion.sql` (default `pendiente`, `username`, helpers
-  `es_obrero`/`es_miembro_activo`, trigger de rol matizado, policies de aprobación)
-  y `0014_directorio.sql` (cierra el SELECT del padrón + vista `directorio`).
-- **Pendiente en la app** (Fases 2-4): gate de `pendiente` en el shell, pantalla de
-  aprobación para obreros, `useDirectorio()`, rename de UI `discipulador→obrero`.
-- **Follow-ups** (Fase 5): anuncios, reset de contraseña por admin (Edge Function),
-  config de dashboard (mínimo de contraseña, HaveIBeenPwned).
+- **Vigente en la DB**: `0012`-`0018` aplicadas. Enum `rol_app` con
+  `admin`/`obrero`/`miembro`/`pendiente`, registro con aprobación (`0013`),
+  directorio solo-adultos (`0014`+`0017`), autogestión de datos propios (`0016`,
+  update-only desde `0018`) y activación como resolución de identidad
+  (`0018`: `candidatos_para_perfil` + `resolver_identidad_pendiente`,
+  `profiles.miembro_id` `unique`).
+- **Pendiente en la app**: gate de `pendiente` en el shell más allá del
+  redirect a `/pendiente`, y separar la UI de `miembro` de la de `obrero`
+  (hoy buena parte de la navegación todavía gatea con `isAdmin`/`esObrero`
+  sin un tier propio para `miembro`).
+- **Follow-ups** (Fase 5): anuncios, reset de contraseña por admin (Edge
+  Function), config de dashboard (mínimo de contraseña, HaveIBeenPwned).
 
-Cuando se apliquen 0012-0014 y se completen las fases, esta matriz pasa a reflejar
-lo efectivamente vigente.
+Cuando se complete la separación de UI por tier, esta matriz pasa a reflejar
+lo efectivamente vigente end-to-end.
