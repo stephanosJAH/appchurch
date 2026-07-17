@@ -65,10 +65,16 @@ export default function EditarDiscipulado() {
     return s;
   }, [discipulados, editingId]);
 
-  const libres = useMemo(
-    () => profiles.filter((p) => !tomadosPorOtro.has(p.id)),
-    [profiles, tomadosPorOtro]
-  );
+  // Solo se listan obreros. Se conserva al líder ya asignado (aunque no sea
+  // obrero) para no ocultarlo al editar un discipulado existente.
+  const libres = useMemo(() => {
+    const asignadoActual = editingId
+      ? discipulados.find((x) => x.id === editingId)?.discipulador_id ?? null
+      : null;
+    return profiles.filter(
+      (p) => !tomadosPorOtro.has(p.id) && (p.rol === "obrero" || p.id === asignadoActual)
+    );
+  }, [profiles, tomadosPorOtro, discipulados, editingId]);
 
   const guardar = async () => {
     if (!/^\d{2}:\d{2}$/.test(hora)) {
@@ -160,7 +166,7 @@ export default function EditarDiscipulado() {
       {isAdmin && (
       <>
       <Label className="mb-1.5">Discipulador a cargo</Label>
-      <Muted className="mb-2">Solo se listan usuarios sin discipulado asignado.</Muted>
+      <Muted className="mb-2">Solo se listan obreros sin discipulado asignado.</Muted>
       <View className="mb-5 gap-2">
         <Pressable
           onPress={() => setDiscipuladorId(null)}
@@ -172,7 +178,7 @@ export default function EditarDiscipulado() {
         </Pressable>
 
         {libres.length === 0 ? (
-          <Muted>No hay usuarios libres. Todos los registrados ya lideran un grupo.</Muted>
+          <Muted>No hay obreros disponibles. Los obreros registrados ya lideran un grupo.</Muted>
         ) : (
           libres.map((p) => {
             const sel = discipuladorId === p.id;

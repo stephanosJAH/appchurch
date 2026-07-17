@@ -102,7 +102,7 @@ function StatCard({
 
 export default function Dashboard() {
   const router = useRouter();
-  const { profile, isAdmin } = useAuth();
+  const { profile, isAdmin, esObrero } = useAuth();
   const nombre = (profile?.nombre_completo ?? "").split(" ")[0] || "hermano";
 
   const { data: discipulados = [] } = useDiscipulados();
@@ -269,16 +269,20 @@ export default function Dashboard() {
             subtitle="Contactos y cumpleaños de la iglesia"
             onPress={() => router.push("/directorio")}
           />
-          <QuickAction
-            icon="add-circle-outline"
-            title="Registrar reunión"
-            subtitle="Asistencia, ofrenda y tema"
-            onPress={() =>
-              proximo
-                ? router.push({ pathname: "/reunion/nueva", params: { discipuladoId: proximo.id } })
-                : router.push("/(tabs)/discipulado")
-            }
-          />
+          {/* Registrar reunión es gestión de grupo (RPC valida es_discipulador_de):
+              solo obrero/admin, nunca un miembro. */}
+          {esObrero && (
+            <QuickAction
+              icon="add-circle-outline"
+              title="Registrar reunión"
+              subtitle="Asistencia, ofrenda y tema"
+              onPress={() =>
+                proximo
+                  ? router.push({ pathname: "/reunion/nueva", params: { discipuladoId: proximo.id } })
+                  : router.push("/(tabs)/discipulado")
+              }
+            />
+          )}
           {isAdmin && (
             <QuickAction
               icon="megaphone-outline"
@@ -297,40 +301,46 @@ export default function Dashboard() {
           )}
         </View>
 
-        {/* Resumen mensual */}
-        <View className="mb-3 flex-row items-end justify-between">
-          <Headline>Resumen mensual</Headline>
-          <Muted className="capitalize">{mesLabel}</Muted>
-        </View>
-        <View className="gap-3">
-          <StatCard
-            icon="wallet-outline"
-            label="Total ofrendas"
-            value={formatMoneda(ofrendasMes)}
-            hint={`${reunionesMes.length} reuniones este mes`}
-            onPress={() => router.push("/ofrendas")}
-          />
-          {isAdmin ? (
-            <StatCard
-              icon="people-outline"
-              label="Miembros"
-              value={String(directorio.length)}
-            />
-          ) : (
-            <StatCard
-              icon="people-outline"
-              label="Miembros de tu discipulado"
-              value={String(misParticipaciones.length)}
-              onPress={miDiscipulado ? () => router.push(`/discipulado/${miDiscipulado.id}`) : undefined}
-              cta="Ver miembros"
-            />
-          )}
-          <StatCard
-            icon="calendar-outline"
-            label="Actividades vigentes"
-            value={String(eventos.length)}
-          />
-        </View>
+        {/* Resumen mensual — métricas de gestión (ofrendas, miembros del grupo):
+            solo obrero/admin. Un miembro no gestiona grupos ni ve ofrendas; su
+            feed queda en eventos, cumpleaños y directorio. */}
+        {esObrero && (
+          <>
+            <View className="mb-3 flex-row items-end justify-between">
+              <Headline>Resumen mensual</Headline>
+              <Muted className="capitalize">{mesLabel}</Muted>
+            </View>
+            <View className="gap-3">
+              <StatCard
+                icon="wallet-outline"
+                label="Total ofrendas"
+                value={formatMoneda(ofrendasMes)}
+                hint={`${reunionesMes.length} reuniones este mes`}
+                onPress={() => router.push("/ofrendas")}
+              />
+              {isAdmin ? (
+                <StatCard
+                  icon="people-outline"
+                  label="Miembros"
+                  value={String(directorio.length)}
+                />
+              ) : (
+                <StatCard
+                  icon="people-outline"
+                  label="Miembros de tu discipulado"
+                  value={String(misParticipaciones.length)}
+                  onPress={miDiscipulado ? () => router.push(`/discipulado/${miDiscipulado.id}`) : undefined}
+                  cta="Ver miembros"
+                />
+              )}
+              <StatCard
+                icon="calendar-outline"
+                label="Actividades vigentes"
+                value={String(eventos.length)}
+              />
+            </View>
+          </>
+        )}
 
       </ScrollView>
     </View>

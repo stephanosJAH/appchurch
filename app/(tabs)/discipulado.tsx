@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
-import { Body, Button, Card, Chip, Headline, Label, Muted, Title } from "../../components/ui";
+import { Body, Card, Chip, Headline, Label, Muted, Title } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { formatHora } from "../../lib/date";
 import { colors } from "../../lib/theme";
@@ -55,13 +55,8 @@ export default function MiDiscipulado() {
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-          <View className="mb-4 flex-row items-center justify-between">
-            <Headline>{isAdmin ? "Discipulados" : "Mi discipulado"}</Headline>
-            {isAdmin && (
-              <Button title="Nuevo" variant="outline" size="sm" onPress={() => router.push("/discipulado/editar")} />
-            )}
-          </View>
+        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 96 }} showsVerticalScrollIndicator={false}>
+          <Headline className="mb-4">{isAdmin ? "Discipulados" : "Mi discipulado"}</Headline>
 
           {discipulados.length === 0 ? (
             <Card>
@@ -104,6 +99,23 @@ export default function MiDiscipulado() {
             </View>
           )}
         </ScrollView>
+      )}
+
+      {/* FAB */}
+      {isAdmin && (
+        <Pressable
+          onPress={() => router.push("/discipulado/editar")}
+          style={{
+            shadowColor: "#04162e",
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.25,
+            shadowRadius: 10,
+            elevation: 6,
+          }}
+          className="absolute bottom-5 right-5 h-14 w-14 items-center justify-center rounded-full bg-navy active:opacity-90"
+        >
+          <Ionicons name="add" size={28} color="#fff" />
+        </Pressable>
       )}
     </View>
   );
