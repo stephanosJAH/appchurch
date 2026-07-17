@@ -65,7 +65,7 @@ Leyenda de alcance en las matrices siguientes:
 
 | Acción | `pendiente` | `miembro` | `obrero` | `admin` |
 |---|:---:|:---:|:---:|:---:|
-| Leer **directorio** (nombre, apellido, sexo, cumple, teléfono) | ✗ | ✓ | ✓ | ✓ |
+| Leer **directorio** (nombre, apellido, sexo, cumple, teléfono) | ✗ | ✓⁶ | ✓⁶ | ✓⁶ |
 | Leer **PII completa** (+ email, notas) de la tabla `miembros` | ✗ | ✗ | Su gente | ✓ |
 | Crear miembro (alta de discípulo) | ✗ | ✗ | Su grupo¹ | ✓ |
 | Editar miembro (cualquiera) | ✗ | ✗ | Su gente | ✓ |
@@ -80,6 +80,11 @@ Leyenda de alcance en las matrices siguientes:
 > apellido, sexo, cumpleaños, teléfono y email — **nunca `notas`** (queda para el
 > discipulador/admin). En el primer guardado crean la ficha y la enlazan
 > (`profiles.miembro_id`). No aflojan la RLS de `miembros`.
+> ⁶ **Solo adultos** (`0017`): la vista excluye a los menores de 18 y a
+> cualquier persona sin `fecha_nacimiento` cargada (sin fecha no hay edad, y
+> ante la duda no se publica). Los menores siguen visibles para su
+> discipulador y el admin por la RLS de `miembros`; al directorio general no
+> salen nunca.
 
 ### Grupos y reuniones — `discipulados`, `participaciones`, `reuniones`, `asistencias`, ofrendas
 
