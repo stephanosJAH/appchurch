@@ -42,21 +42,33 @@ function Loader() {
 // Redirige según haya o no sesión: protege las rutas autenticadas
 // y saca al usuario logueado de la pantalla de login.
 function AuthGate() {
-  const { session, loading } = useAuth();
+  const { session, loading, profile } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
+  const esPendiente = !!session && profile?.rol === "pendiente";
+
   useEffect(() => {
     if (loading) return;
+    // Con sesión pero sin perfil cargado aún: esperar (no decidir a medias).
+    if (session && !profile) return;
+
     const inAuthGroup = segments[0] === "(auth)";
-    if (!session && !inAuthGroup) {
-      router.replace("/(auth)/login");
-    } else if (session && inAuthGroup) {
+    const enPendiente = segments[0] === "pendiente";
+
+    if (!session) {
+      if (!inAuthGroup) router.replace("/(auth)/login");
+    } else if (esPendiente) {
+      if (!enPendiente) router.replace("/pendiente");
+    } else if (inAuthGroup || enPendiente) {
       router.replace("/(tabs)");
     }
-  }, [session, loading, segments]);
+  }, [session, loading, profile, esPendiente, segments]);
 
   if (loading) return <Loader />;
+  // Sesión iniciada pero perfil todavía cargando (post-login): evita mostrar la
+  // pantalla equivocada por un instante.
+  if (session && !profile) return <Loader />;
 
   return (
     <Stack
@@ -70,8 +82,13 @@ function AuthGate() {
     >
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="pendiente" options={{ headerShown: false }} />
+      <Stack.Screen name="aprobaciones" options={{ title: "Aprobar cuentas" }} />
+      <Stack.Screen name="directorio" options={{ title: "Directorio" }} />
+      <Stack.Screen name="mis-datos" options={{ title: "Mis datos" }} />
       <Stack.Screen name="ofrendas" options={{ title: "Ofrendas" }} />
-      <Stack.Screen name="actividad/[id]" options={{ title: "Actividad" }} />
+      <Stack.Screen name="actividad/[id]" options={{ title: "Evento" }} />
+      <Stack.Screen name="actividad-semanal/[id]" options={{ title: "Actividad" }} />
       <Stack.Screen name="discipulado/[id]" options={{ title: "Discipulado" }} />
       <Stack.Screen name="discipulado/editar" options={{ title: "Discipulado" }} />
       <Stack.Screen

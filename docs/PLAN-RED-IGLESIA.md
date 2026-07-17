@@ -120,9 +120,11 @@ alter type rol_app add value if not exists 'miembro';
 ## Fase 2 — Auth por usuario/teléfono + fortaleza de contraseña
 
 - **`lib/authIdentity.ts` (nuevo)**: `identifierToEmail(id)` normaliza usuario o
-  teléfono → email sintético no entregable `"<slug>@u.appchurch.local"`
-  (minúsculas, teléfono solo dígitos, sin espacios/@). Nadie ve ni necesita un
-  correo real. Uniqueness la garantiza el email sintético en `auth.users`.
+  teléfono → email sintético `"<slug>@u.appchurch.app"` (minúsculas, teléfono
+  solo dígitos, sin espacios/@). Nadie ve ni necesita un correo real. Uniqueness
+  la garantiza el email sintético en `auth.users`. **Importante**: el TLD debe ser
+  real (no `.local`/`.test`/`.example`), o Supabase rechaza el signup con
+  `email_address_invalid`; nada se envía porque la confirmación queda apagada.
 - **`app/(auth)/login.tsx`**:
   - Reemplazar el campo "Correo electrónico" por "Usuario o teléfono"
     (sin `keyboardType="email-address"`).
@@ -189,6 +191,11 @@ alter type rol_app add value if not exists 'miembro';
   mantiene "contactá a un admin" manual.
 - **Config de dashboard** (#8 Parte B): mínimo de longitud y HaveIBeenPwned (si se
   tiene acceso al dashboard).
+- **Backoffice web** (decisión 2026-07-13: diferido): la gestión de usuarios se
+  hace primero en la app móvil + Edge Functions (única fuente de la lógica
+  privilegiada con `service_role`). Si la ergonomía admin lo pide, se evalúa
+  después **empezando por Expo Web** (mismo código) antes de comprometer un
+  Next.js dedicado.
 
 ---
 
@@ -211,9 +218,10 @@ alter type rol_app add value if not exists 'miembro';
   miembro ve todos los teléfonos ("contacto público"), la fuerza del control
   depende de que los obreros solo activen a gente que reconocen. Se puede
   restringir la activación **solo a admin** si se prefiere más control.
-- **Email sintético `@u.appchurch.local`**: dominio no entregable; sin reset por
-  email (va por admin en Fase 5). Posible colisión usuario↔teléfono si un usuario
-  elige un handle igual a un número (riesgo bajo).
+- **Email sintético `@u.appchurch.app`**: TLD real (obligatorio: Supabase rechaza
+  `.local`/`.test`/`.example`) pero nada se envía porque la confirmación de email
+  está apagada. Sin reset por email (va por admin en Fase 5). Posible colisión
+  usuario↔teléfono si un usuario elige un handle igual a un número (riesgo bajo).
 - **Spam de pendientes**: el signup libre puede crear cuentas `pendiente` sin
   acceso; se puede sumar rate-limit más adelante.
 - **`fecha_nacimiento` expone el año/edad**: si se prefiere, la vista puede

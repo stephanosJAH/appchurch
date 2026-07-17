@@ -132,12 +132,12 @@ export default function AdminEventos() {
       reset();
     } catch (e: any) {
       setSubiendo(false);
-      Alert.alert("Error", e.message ?? "No se pudo guardar la actividad.");
+      Alert.alert("Error", e.message ?? "No se pudo guardar el evento.");
     }
   };
 
   const eliminar = (id: string) => {
-    Alert.alert("Eliminar", "¿Eliminar esta actividad? Esta acción no se puede deshacer.", [
+    Alert.alert("Eliminar", "¿Eliminar este evento? Esta acción no se puede deshacer.", [
       { text: "Cancelar", style: "cancel" },
       { text: "Eliminar", style: "destructive", onPress: () => del.mutate(id) },
     ]);
@@ -150,7 +150,7 @@ export default function AdminEventos() {
   return (
     <KeyboardScrollView contentContainerStyle={{ paddingBottom: 32 }}>
       <Button
-        title={showForm ? "Cancelar" : "+ Nueva actividad"}
+        title={showForm ? "Cancelar" : "+ Nuevo evento"}
         variant={showForm ? "outline" : "primary"}
         onPress={() => (showForm ? reset() : abrirNuevo())}
       />
@@ -158,7 +158,7 @@ export default function AdminEventos() {
       {showForm && (
         <Card className="mt-3">
           <Title className="mb-3 text-base">
-            {editId ? "Editar actividad" : "Nueva actividad"}
+            {editId ? "Editar evento" : "Nuevo evento"}
           </Title>
           <Field label="Título" value={titulo} onChangeText={setTitulo} />
           <Field label="Descripción" value={descripcion} onChangeText={setDescripcion} multiline />
@@ -239,7 +239,7 @@ export default function AdminEventos() {
         </Card>
       )}
 
-      <Label className="mb-2 mt-4">Actividades ({eventos.length})</Label>
+      <Label className="mb-2 mt-4">Eventos ({eventos.length})</Label>
       <View className="gap-2.5">
         {eventos.map((e) => {
           const vigente = new Date(e.fecha_fin) >= new Date();

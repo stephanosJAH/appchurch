@@ -21,7 +21,7 @@ import { colors } from "../../lib/theme";
 import { DIAS_SEMANA } from "../../lib/types";
 import { useDiscipulados } from "../../lib/queries/discipulados";
 import { useEventosVigentes } from "../../lib/queries/eventos";
-import { useMiembros } from "../../lib/queries/miembros";
+import { useDirectorio } from "../../lib/queries/directorio";
 import { useParticipaciones } from "../../lib/queries/participaciones";
 import { useReunionesMes } from "../../lib/queries/reuniones";
 
@@ -109,7 +109,7 @@ export default function Dashboard() {
   const { data: eventosVigentes = [] } = useEventosVigentes();
   // Solo actividades/anuncios, sin las reuniones de discipulado (igual que el feed).
   const eventos = eventosVigentes.filter((e) => e.tipo !== "discipulado" && !e.discipulado_id);
-  const { data: miembros = [] } = useMiembros();
+  const { data: directorio = [] } = useDirectorio();
   // Un discipulador lidera a lo sumo un grupo (constraint 1:1); sus "miembros"
   // son las participaciones activas de ese grupo, no el padrón completo.
   const miDiscipulado = discipulados.find((d) => d.discipulador_id === profile?.id);
@@ -140,8 +140,8 @@ export default function Dashboard() {
   // El próximo evento/actividad (eventos ya vienen ordenados por fecha_inicio).
   const proximoEvento = eventos[0];
 
-  // Cumpleaños próximos: admin ve el padrón; el discipulador, su grupo.
-  const miembrosCumple = isAdmin ? miembros : misParticipaciones.map((p) => p.miembro);
+  // Cumpleaños de toda la congregación (directorio, visible a todo miembro activo).
+  const miembrosCumple = directorio;
 
   return (
     <View className="flex-1 bg-cream">
@@ -195,11 +195,7 @@ export default function Dashboard() {
         {proximo && proximoEvento && <View className="mb-5 h-px bg-black/10" />}
 
         {/* Cumpleaños próximos */}
-        <CumplesSection
-          miembros={miembrosCumple}
-          titulo={isAdmin ? "Cumpleaños" : "Cumpleaños de tu discipulado"}
-          className="mb-6"
-        />
+        <CumplesSection miembros={miembrosCumple} titulo="Cumpleaños" className="mb-6" />
 
         {/* Separador de sección Cumpleaños próximos */}
         {miembrosCumple && <View className="mb-5 h-px bg-black/10" />}
@@ -268,6 +264,12 @@ export default function Dashboard() {
         {/* Accesos rápidos */}
         <View className="mb-6 gap-3">
           <QuickAction
+            icon="people-circle-outline"
+            title="Directorio"
+            subtitle="Contactos y cumpleaños de la iglesia"
+            onPress={() => router.push("/directorio")}
+          />
+          <QuickAction
             icon="add-circle-outline"
             title="Registrar reunión"
             subtitle="Asistencia, ofrenda y tema"
@@ -312,7 +314,7 @@ export default function Dashboard() {
             <StatCard
               icon="people-outline"
               label="Miembros"
-              value={String(miembros.length)}
+              value={String(directorio.length)}
             />
           ) : (
             <StatCard

@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useMemo } from "react";
-import { Alert, FlatList, View } from "react-native";
+import { Alert, FlatList, Pressable, View } from "react-native";
 import { Avatar, Body, Button, Card, Chip, Label, Muted } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { colors } from "../../lib/theme";
@@ -9,10 +10,14 @@ import { useDiscipulados } from "../../lib/queries/discipulados";
 import { useProfiles, useUpdateRol } from "../../lib/queries/profiles";
 
 export default function AdminUsuarios() {
+  const router = useRouter();
   const { profile: yo } = useAuth();
   const { data: profiles = [], isLoading } = useProfiles();
   const { data: discipulados = [] } = useDiscipulados();
   const updateRol = useUpdateRol();
+
+  const pendientesCount = profiles.filter((p) => p.rol === "pendiente").length;
+  const activos = profiles.filter((p) => p.rol !== "pendiente");
 
   // profileId -> nombre del grupo que lidera
   const grupoDe = useMemo(() => {
@@ -65,11 +70,20 @@ export default function AdminUsuarios() {
         <View className="mt-3 flex-row gap-2 border-t border-black/5 pt-3">
           <View className="flex-1">
             <Button
-              title="Discipulador"
-              variant={p.rol === "discipulador" ? "primary" : "outline"}
+              title="Miembro"
+              variant={p.rol === "miembro" ? "primary" : "outline"}
               size="sm"
               disabled={esYo}
-              onPress={() => cambiarRol(p, "discipulador")}
+              onPress={() => cambiarRol(p, "miembro")}
+            />
+          </View>
+          <View className="flex-1">
+            <Button
+              title="Obrero"
+              variant={p.rol === "obrero" ? "primary" : "outline"}
+              size="sm"
+              disabled={esYo}
+              onPress={() => cambiarRol(p, "obrero")}
             />
           </View>
           <View className="flex-1">
@@ -91,10 +105,34 @@ export default function AdminUsuarios() {
     <View className="flex-1 bg-cream">
       <FlatList
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-        data={profiles}
+        data={activos}
         keyExtractor={(p) => p.id}
         renderItem={renderItem}
-        ListHeaderComponent={<Label className="mb-2">Usuarios registrados ({profiles.length})</Label>}
+        ListHeaderComponent={
+          <View>
+            {pendientesCount > 0 && (
+              <Pressable
+                onPress={() => router.push("/aprobaciones")}
+                className="mb-3 active:opacity-80"
+              >
+                <Card className="flex-row items-center gap-3">
+                  <View className="h-9 w-9 items-center justify-center rounded-full bg-gold-container">
+                    <Ionicons name="person-add-outline" size={18} color={colors.onTertiaryContainer} />
+                  </View>
+                  <View className="flex-1">
+                    <Body className="text-ink">
+                      {pendientesCount} cuenta{pendientesCount === 1 ? "" : "s"} pendiente
+                      {pendientesCount === 1 ? "" : "s"}
+                    </Body>
+                    <Muted>Tocá para revisar y habilitar</Muted>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.outline} />
+                </Card>
+              </Pressable>
+            )}
+            <Label className="mb-2">Usuarios registrados ({activos.length})</Label>
+          </View>
+        }
         ListEmptyComponent={
           !isLoading ? (
             <Card>

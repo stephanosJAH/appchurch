@@ -4,6 +4,7 @@ import { Alert, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
 import { Avatar, Body, Button, Card, Chip, Label, Muted, Title } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
+import { usePendientes } from "../../lib/queries/profiles";
 import { colors } from "../../lib/theme";
 
 function Row({
@@ -31,9 +32,18 @@ function Row({
   );
 }
 
+const ROL_LABEL: Record<string, string> = {
+  admin: "Administrador",
+  obrero: "Obrero",
+  miembro: "Miembro",
+  pendiente: "Pendiente",
+};
+
 export default function Perfil() {
   const router = useRouter();
-  const { profile, session, isAdmin, signOut } = useAuth();
+  const { profile, session, isAdmin, esObrero, signOut } = useAuth();
+  const { data: pendientes = [] } = usePendientes(esObrero);
+  const rolLabel = ROL_LABEL[profile?.rol ?? ""] ?? "Miembro";
 
   const confirmSignOut = () => {
     Alert.alert("Cerrar sesión", "¿Querés salir de tu cuenta?", [
@@ -49,11 +59,37 @@ export default function Perfil() {
         <Card className="mb-5 items-center py-7">
           <Avatar name={profile?.nombre_completo} size={72} />
           <Title className="mt-3 text-xl">{profile?.nombre_completo ?? "Sin nombre"}</Title>
-          <Muted className="mt-0.5">{session?.user.email}</Muted>
+          <Muted className="mt-0.5">{profile?.username ?? session?.user.email}</Muted>
           <View className="mt-3">
-            <Chip tone={isAdmin ? "gold" : "navy"}>{isAdmin ? "Administrador" : "Discipulador"}</Chip>
+            <Chip tone={isAdmin ? "gold" : "navy"}>{rolLabel}</Chip>
           </View>
         </Card>
+
+        <Card className="mb-5">
+          <Label className="mb-1">Mi cuenta</Label>
+          <Row
+            icon="person-outline"
+            label="Mis datos personales"
+            onPress={() => router.push("/mis-datos")}
+            last
+          />
+        </Card>
+
+        {esObrero && (
+          <Card className="mb-5">
+            <Label className="mb-1">Aprobaciones</Label>
+            <Row
+              icon="person-add-outline"
+              label={
+                pendientes.length > 0
+                  ? `Cuentas pendientes (${pendientes.length})`
+                  : "Cuentas pendientes"
+              }
+              onPress={() => router.push("/aprobaciones")}
+              last
+            />
+          </Card>
+        )}
 
         {isAdmin && (
           <Card className="mb-5">

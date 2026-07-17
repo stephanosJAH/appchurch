@@ -2,15 +2,23 @@ import { Ionicons } from "@expo/vector-icons";
 import { View } from "react-native";
 import { diasHastaCumple, etiquetaCumple, formatCumple } from "../lib/date";
 import { colors } from "../lib/theme";
-import { Miembro } from "../lib/types";
 import { Body, Card, Chip, Label, Muted } from "./ui";
 
-export type CumpleItem = { miembro: Miembro; dias: number };
+// Forma mínima para calcular/mostrar cumpleaños. La satisfacen tanto `Miembro`
+// (participaciones) como `DirectorioEntry` (vista directorio).
+export type PersonaCumple = {
+  id: string;
+  nombre: string;
+  apellido: string | null;
+  fecha_nacimiento: string | null;
+};
+
+export type CumpleItem = { miembro: PersonaCumple; dias: number };
 
 // Próximos cumpleaños (dentro de `dentroDe` días), ordenados por proximidad.
-// Descarta miembros sin fecha de nacimiento cargada.
+// Descarta personas sin fecha de nacimiento cargada.
 export function proximosCumples(
-  miembros: (Miembro | undefined | null)[],
+  miembros: (PersonaCumple | undefined | null)[],
   dentroDe = 14
 ): CumpleItem[] {
   const items: CumpleItem[] = [];
@@ -23,7 +31,7 @@ export function proximosCumples(
   return items.sort((a, b) => a.dias - b.dias);
 }
 
-export function CumpleRow({ miembro, dias }: { miembro: Miembro; dias: number }) {
+export function CumpleRow({ miembro, dias }: { miembro: PersonaCumple; dias: number }) {
   const nombre = `${miembro.nombre} ${miembro.apellido ?? ""}`.trim();
   const hoy = dias <= 0;
   return (
@@ -52,7 +60,7 @@ export function CumplesSection({
   dentroDe = 30,
   className,
 }: {
-  miembros: (Miembro | undefined | null)[];
+  miembros: (PersonaCumple | undefined | null)[];
   titulo?: string;
   dentroDe?: number;
   className?: string;

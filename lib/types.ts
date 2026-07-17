@@ -3,7 +3,7 @@
 export type Sexo = "M" | "F";
 export type SexoDiscipulado = "M" | "F" | "mixto";
 export type Modalidad = "presencial" | "virtual" | "ambos";
-export type RolApp = "admin" | "discipulador";
+export type RolApp = "admin" | "obrero" | "miembro" | "pendiente";
 export type TipoEvento = "general" | "discipulado" | "otro";
 
 export type Miembro = {
@@ -18,10 +18,21 @@ export type Miembro = {
   created_at: string;
 };
 
+// Subconjunto seguro de `miembros` que ve todo miembro activo (vista `directorio`).
+export type DirectorioEntry = {
+  id: string;
+  nombre: string;
+  apellido: string | null;
+  sexo: Sexo;
+  fecha_nacimiento: string | null;
+  telefono: string | null;
+};
+
 export type Profile = {
   id: string;
   miembro_id: string | null;
   rol: RolApp;
+  username: string | null;
   nombre_completo: string | null;
   created_at: string;
 };
@@ -90,6 +101,26 @@ export type Evento = {
   ubicacion: string | null;
   adjunto_url: string | null;
   adjunto_tipo: AdjuntoTipo | null;
+  creado_por: string | null;
+  created_at: string;
+};
+
+// Actividad RECURRENTE semanal (vs. Evento, que es único con fecha).
+// Se repite cada semana en uno o más días (`dias_semana`), con horario fijo,
+// hasta marcarse inactiva. Ver docs/ACTIVIDADES-Y-EVENTOS.md.
+export type Actividad = {
+  id: string;
+  titulo: string;
+  descripcion: string | null;
+  dias_semana: number[]; // 0=domingo … 6=sábado
+  hora_inicio: string; // "HH:MM:SS"
+  hora_fin: string | null;
+  ubicacion: string | null;
+  modalidad: Modalidad;
+  enlace_virtual: string | null;
+  adjunto_url: string | null;
+  adjunto_tipo: AdjuntoTipo | null;
+  activa: boolean;
   creado_por: string | null;
   created_at: string;
 };

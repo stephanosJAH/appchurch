@@ -3,15 +3,35 @@ import { useState } from "react";
 import { Alert, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Body, Button, Card, Display, Field, Headline, Label, Muted } from "../../components/ui";
+import { identifierToEmail, isValidIdentifier, normalizeIdentifier } from "../../lib/authIdentity";
 import { supabase } from "../../lib/supabase";
 import { cardShadow, colors, fonts } from "../../lib/theme";
 
 type Mode = "login" | "signup";
 
+// Requisitos mínimos de contraseña (#8 Parte A). Devuelve el problema o null.
+function passwordProblem(pw: string): string | null {
+  if (pw.length < 8) return "Usá al menos 8 caracteres.";
+  if (/^\d+$/.test(pw)) return "No uses solo números; sumá letras.";
+  return null;
+}
+
+// Traduce errores de Supabase (que hablan de "email") a algo entendible: acá el
+// identificador es un usuario/teléfono, no un correo.
+function traducirError(msg?: string): string {
+  if (!msg) return "No se pudo completar la operación.";
+  const m = msg.toLowerCase();
+  if (m.includes("already registered") || m.includes("already been registered"))
+    return "Ese usuario o teléfono ya tiene una cuenta.";
+  if (m.includes("invalid login credentials")) return "Usuario o contraseña incorrectos.";
+  if (m.includes("weak") || m.includes("password")) return "La contraseña no cumple los requisitos mínimos.";
+  return msg;
+}
+
 export default function Login() {
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<Mode>("login");
-  const [email, setEmail] = useState("");
+  const [identificador, setIdentificador] = useState("");
   const [password, setPassword] = useState("");
   const [nombre, setNombre] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -21,37 +41,50 @@ export default function Login() {
   const isLogin = mode === "login";
 
   const submit = async () => {
-    if (!email || !password) {
-      Alert.alert("Faltan datos", "Ingresá email y contraseña.");
+    const id = identificador.trim();
+    if (!id || !password) {
+      Alert.alert("Faltan datos", "Ingresá usuario/teléfono y contraseña.");
       return;
     }
-    if (mode === "signup" && !nombre.trim()) {
-      Alert.alert("Faltan datos", "Ingresá tu nombre.");
-      return;
+    if (mode === "signup") {
+      if (!nombre.trim()) {
+        Alert.alert("Faltan datos", "Ingresá tu nombre.");
+        return;
+      }
+      if (!isValidIdentifier(id)) {
+        Alert.alert("Usuario inválido", "Usá al menos 3 letras/números, o un teléfono válido.");
+        return;
+      }
+      const problema = passwordProblem(password);
+      if (problema) {
+        Alert.alert("Contraseña débil", problema);
+        return;
+      }
     }
     setLoading(true);
     try {
+      const emailSintetico = identifierToEmail(id);
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const { error } = await supabase.auth.signInWithPassword({ email: emailSintetico, password });
         if (error) throw error;
       } else {
         const { data, error } = await supabase.auth.signUp({
-          email: email.trim(),
+          email: emailSintetico,
           password,
-          options: { data: { nombre_completo: nombre.trim() } },
+          options: { data: { nombre_completo: nombre.trim(), username: normalizeIdentifier(id) } },
         });
         if (error) throw error;
         // Sin verificación de email: si no vino sesión, iniciamos sesión directo.
         if (!data.session) {
           const { error: signInError } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
+            email: emailSintetico,
             password,
           });
           if (signInError) throw signInError;
         }
       }
     } catch (e: any) {
-      Alert.alert("Error", e.message ?? "No se pudo completar la operación.");
+      Alert.alert("Error", traducirError(e?.message));
     } finally {
       setLoading(false);
     }
@@ -103,14 +136,13 @@ export default function Login() {
             )}
 
             <Field
-              label="Correo electrónico"
-              icon="mail-outline"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="nombre@ejemplo.com"
+              label="Usuario o teléfono"
+              icon="person-outline"
+              value={identificador}
+              onChangeText={setIdentificador}
+              placeholder="tu usuario o teléfono"
               autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
+              autoCorrect={false}
             />
 
             {/* Contraseña con label + enlace de recuperación */}
@@ -153,7 +185,7 @@ export default function Login() {
                 <Muted className="ml-2.5 text-ink-variant">Mantener sesión iniciada</Muted>
               </Pressable>
             ) : (
-              <View className="mb-1" />
+              <Muted className="mb-4 mt-1">Mínimo 8 caracteres, no solo números.</Muted>
             )}
 
             <Button

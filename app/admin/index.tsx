@@ -60,10 +60,16 @@ export default function AdminIndex() {
         onPress={() => router.push("/admin/bajas")}
       />
       <MenuItem
-        icon="megaphone-outline"
-        title="Actividades"
-        subtitle="Eventos visibles para todos"
+        icon="calendar-outline"
+        title="Eventos"
+        subtitle="Actividades únicas con fecha"
         onPress={() => router.push("/admin/eventos")}
+      />
+      <MenuItem
+        icon="repeat-outline"
+        title="Actividades semanales"
+        subtitle="Reuniones recurrentes (día y horario fijo)"
+        onPress={() => router.push("/admin/actividades")}
       />
     </ScrollView>
   );

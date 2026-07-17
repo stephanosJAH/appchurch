@@ -15,6 +15,8 @@ type AuthState = {
   profile: Profile | null;
   loading: boolean;
   isAdmin: boolean;
+  esObrero: boolean;
+  aprobado: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -101,6 +103,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     profile,
     loading,
     isAdmin: profile?.rol === "admin",
+    esObrero: profile?.rol === "obrero" || profile?.rol === "admin",
+    aprobado: !!profile && profile.rol !== "pendiente",
     signOut: async () => {
       await supabase.auth.signOut();
     },

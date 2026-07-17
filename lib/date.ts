@@ -1,5 +1,34 @@
 // Utilidades de fecha/hora (locale es-AR, sin dependencias externas).
 
+import { DIAS_SEMANA } from "./types";
+
+// Orden lunes→domingo para presentar días de la semana.
+const ORDEN_LUNES = [1, 2, 3, 4, 5, 6, 0];
+
+// Días (0=dom..6=sáb) -> etiqueta legible, ordenada lunes→domingo.
+// [2,4] -> "Martes y jueves"; [1] -> "Lunes"; [1,3,5] -> "Lunes, miércoles y viernes".
+export function formatDiasSemana(dias: number[]): string {
+  const orden = ORDEN_LUNES.filter((d) => dias.includes(d));
+  if (orden.length === 0) return "";
+  const nombres = orden.map((d, i) =>
+    i === 0 ? DIAS_SEMANA[d] : DIAS_SEMANA[d].toLowerCase()
+  );
+  if (nombres.length === 1) return nombres[0];
+  return `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}`;
+}
+
+// Próxima fecha (>= hoy, dentro de 7 días) que caiga en alguno de los días dados
+// (0=dom..6=sáb). Sirve para ordenar/ubicar actividades recurrentes. null si vacío.
+export function proximaOcurrencia(dias: number[], ref = new Date()): Date | null {
+  if (!dias || dias.length === 0) return null;
+  const base = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(base, i);
+    if (dias.includes(d.getDay())) return d;
+  }
+  return base;
+}
+
 export function todayISO(): string {
   return toISODate(new Date());
 }

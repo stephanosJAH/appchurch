@@ -20,11 +20,11 @@ import {
   toISODate,
 } from "../../lib/date";
 import { colors, fonts } from "../../lib/theme";
-import { DIAS_SEMANA, Miembro } from "../../lib/types";
+import { DIAS_SEMANA, DirectorioEntry } from "../../lib/types";
+import { useActividadesActivas } from "../../lib/queries/actividades";
+import { useDirectorio } from "../../lib/queries/directorio";
 import { useDiscipulados } from "../../lib/queries/discipulados";
 import { useEventosVigentes } from "../../lib/queries/eventos";
-import { useMiembros } from "../../lib/queries/miembros";
-import { useParticipaciones } from "../../lib/queries/participaciones";
 import { useReunionesMes, useReunionesSemana } from "../../lib/queries/reuniones";
 
 function rango(d: Date) {
@@ -37,21 +37,15 @@ type Vista = "semana" | "mes";
 
 export default function Calendario() {
   const router = useRouter();
-  const { profile, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const [vista, setVista] = useState<Vista>("semana");
 
   const { data: discipulados = [] } = useDiscipulados();
   const { data: eventos = [] } = useEventosVigentes();
+  const { data: actividades = [] } = useActividadesActivas();
 
-  // Cumpleaños: admin ve el padrón; el discipulador, los miembros de su grupo.
-  const miDiscipulado = discipulados.find((d) => d.discipulador_id === profile?.id);
-  const { data: todosMiembros = [] } = useMiembros();
-  const { data: misParticipaciones = [] } = useParticipaciones(
-    isAdmin ? "" : miDiscipulado?.id ?? ""
-  );
-  const miembros: Miembro[] = isAdmin
-    ? todosMiembros
-    : (misParticipaciones.map((p) => p.miembro).filter(Boolean) as Miembro[]);
+  // Cumpleaños de toda la congregación (directorio, visible a todo miembro activo).
+  const { data: miembros = [] } = useDirectorio();
 
   return (
     <View className="flex-1 bg-cream">
@@ -69,9 +63,9 @@ export default function Calendario() {
         <Toggle vista={vista} onChange={setVista} />
 
         {vista === "semana" ? (
-          <VistaSemana discipulados={discipulados} eventos={eventos} miembros={miembros} />
+          <VistaSemana discipulados={discipulados} eventos={eventos} actividades={actividades} miembros={miembros} />
         ) : (
-          <VistaMes discipulados={discipulados} eventos={eventos} miembros={miembros} />
+          <VistaMes discipulados={discipulados} eventos={eventos} actividades={actividades} miembros={miembros} />
         )}
       </ScrollView>
     </View>
@@ -140,16 +134,44 @@ function DiscipuladoRow({
   );
 }
 
-function EventoRow({ e }: { e: import("../../lib/types").Evento }) {
+function EventoRow({ e, onPress }: { e: import("../../lib/types").Evento; onPress: () => void }) {
   return (
-    <Card className="flex-row items-center gap-3 py-4">
-      <View className="h-9 w-9 items-center justify-center rounded-full bg-gold-container">
-        <Ionicons name="megaphone-outline" size={17} color={colors.onTertiaryContainer} />
-      </View>
-      <Body className="flex-1 text-ink" numberOfLines={1}>
-        {e.titulo}
-      </Body>
-    </Card>
+    <Pressable onPress={onPress} className="active:opacity-80">
+      <Card className="flex-row items-center gap-3 py-4">
+        <View className="h-9 w-9 items-center justify-center rounded-full bg-gold-container">
+          <Ionicons name="megaphone-outline" size={17} color={colors.onTertiaryContainer} />
+        </View>
+        <Body className="flex-1 text-ink" numberOfLines={1}>
+          {e.titulo}
+        </Body>
+        <Ionicons name="chevron-forward" size={16} color={colors.outline} />
+      </Card>
+    </Pressable>
+  );
+}
+
+function ActividadRow({ a, onPress }: { a: import("../../lib/types").Actividad; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} className="active:opacity-80">
+      <Card className="flex-row items-center gap-3 py-4">
+        <View
+          className="h-9 w-9 items-center justify-center rounded-full"
+          style={{ backgroundColor: colors.success + "22" }}
+        >
+          <Ionicons name="repeat-outline" size={17} color={colors.success} />
+        </View>
+        <View className="flex-1">
+          <Body className="text-ink" numberOfLines={1}>
+            {a.titulo}
+          </Body>
+          <Muted>
+            {formatHora(a.hora_inicio)}
+            {a.hora_fin ? ` – ${formatHora(a.hora_fin)}` : ""}
+          </Muted>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={colors.outline} />
+      </Card>
+    </Pressable>
   );
 }
 
@@ -158,11 +180,13 @@ function EventoRow({ e }: { e: import("../../lib/types").Evento }) {
 function VistaSemana({
   discipulados,
   eventos,
+  actividades,
   miembros,
 }: {
   discipulados: import("../../lib/types").Discipulado[];
   eventos: import("../../lib/types").Evento[];
-  miembros: Miembro[];
+  actividades: import("../../lib/types").Actividad[];
+  miembros: DirectorioEntry[];
 }) {
   const router = useRouter();
   const inicio = useMemo(() => startOfWeek(), []);
@@ -189,8 +213,17 @@ function VistaSemana({
           .filter((d) => d.dia_semana === diaIdx)
           .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
         const eventosDia = eventos.filter((e) => toISODate(new Date(e.fecha_inicio)) === fechaDia);
+        const actividadesDia = actividades
+          .filter((a) => a.dias_semana.includes(diaIdx))
+          .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
         const cumplesDia = cumplesDe(fecha);
-        if (delDia.length === 0 && eventosDia.length === 0 && cumplesDia.length === 0) return null;
+        if (
+          delDia.length === 0 &&
+          eventosDia.length === 0 &&
+          actividadesDia.length === 0 &&
+          cumplesDia.length === 0
+        )
+          return null;
 
         const esHoy = fechaDia === toISODate(new Date());
 
@@ -209,8 +242,19 @@ function VistaSemana({
                   onPress={() => router.push(`/discipulado/${d.id}`)}
                 />
               ))}
+              {actividadesDia.map((a) => (
+                <ActividadRow
+                  key={a.id}
+                  a={a}
+                  onPress={() => router.push({ pathname: "/actividad-semanal/[id]", params: { id: a.id } })}
+                />
+              ))}
               {eventosDia.map((e) => (
-                <EventoRow key={e.id} e={e} />
+                <EventoRow
+                  key={e.id}
+                  e={e}
+                  onPress={() => router.push({ pathname: "/actividad/[id]", params: { id: e.id } })}
+                />
               ))}
               {cumplesDia.map((m) => (
                 <CumpleRow key={m.id} miembro={m} dias={diasHastaCumple(m.fecha_nacimiento) ?? 0} />
@@ -234,11 +278,13 @@ function VistaSemana({
 function VistaMes({
   discipulados,
   eventos,
+  actividades,
   miembros,
 }: {
   discipulados: import("../../lib/types").Discipulado[];
   eventos: import("../../lib/types").Evento[];
-  miembros: Miembro[];
+  actividades: import("../../lib/types").Actividad[];
+  miembros: DirectorioEntry[];
 }) {
   const router = useRouter();
   const hoyISO = toISODate(new Date());
@@ -258,6 +304,10 @@ function VistaMes({
       .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
   const eventosDe = (fechaISO: string) =>
     eventos.filter((e) => toISODate(new Date(e.fecha_inicio)) === fechaISO);
+  const actividadesDe = (fecha: Date) =>
+    actividades
+      .filter((a) => a.dias_semana.includes(fecha.getDay()))
+      .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
   const cumplesDe = (fecha: Date) => miembros.filter((m) => esCumpleEn(m.fecha_nacimiento, fecha));
   const tieneReunion = (discipuladoId: string, fechaISO: string) =>
     reuniones.some((r) => r.discipulado_id === discipuladoId && r.fecha === fechaISO);
@@ -265,6 +315,7 @@ function VistaMes({
   const selDate = new Date(seleccion + "T00:00:00");
   const selDiscipulados = discipuladosDe(selDate);
   const selEventos = eventosDe(seleccion);
+  const selActividades = actividadesDe(selDate);
   const selCumples = cumplesDe(selDate);
 
   const cambiarMes = (n: number) => {
@@ -305,6 +356,7 @@ function VistaMes({
               const seleccionado = fechaISO === seleccion;
               const nDisc = discipuladosDe(fecha).length;
               const nEvt = eventosDe(fechaISO).length;
+              const nAct = actividadesDe(fecha).length;
               const nCumple = cumplesDe(fecha).length;
               return (
                 <Pressable
@@ -330,6 +382,9 @@ function VistaMes({
                   <View className="mt-0.5 h-1.5 flex-row gap-0.5">
                     {nDisc > 0 ? <View className="h-1.5 w-1.5 rounded-full bg-navy" /> : null}
                     {nEvt > 0 ? <View className="h-1.5 w-1.5 rounded-full bg-gold" /> : null}
+                    {nAct > 0 ? (
+                      <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: colors.success }} />
+                    ) : null}
                     {nCumple > 0 ? (
                       <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: colors.cumple }} />
                     ) : null}
@@ -339,13 +394,17 @@ function VistaMes({
             })}
           </View>
         ))}
-        <View className="mt-2 flex-row justify-center gap-4">
+        <View className="mt-2 flex-row flex-wrap justify-center gap-x-4 gap-y-1">
           <View className="flex-row items-center gap-1.5">
             <View className="h-1.5 w-1.5 rounded-full bg-navy" />
             <Muted>Discipulado</Muted>
           </View>
           <View className="flex-row items-center gap-1.5">
             <View className="h-1.5 w-1.5 rounded-full bg-gold" />
+            <Muted>Evento</Muted>
+          </View>
+          <View className="flex-row items-center gap-1.5">
+            <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: colors.success }} />
             <Muted>Actividad</Muted>
           </View>
           <View className="flex-row items-center gap-1.5">
@@ -363,9 +422,12 @@ function VistaMes({
         {seleccion === hoyISO ? <Chip tone="gold">Hoy</Chip> : null}
       </View>
 
-      {selDiscipulados.length === 0 && selEventos.length === 0 && selCumples.length === 0 ? (
+      {selDiscipulados.length === 0 &&
+      selEventos.length === 0 &&
+      selActividades.length === 0 &&
+      selCumples.length === 0 ? (
         <Card>
-          <Muted>Sin discipulados, actividades ni cumpleaños este día.</Muted>
+          <Muted>Sin discipulados, eventos, actividades ni cumpleaños este día.</Muted>
         </Card>
       ) : (
         <View className="gap-2.5">
@@ -377,8 +439,19 @@ function VistaMes({
               onPress={() => router.push(`/discipulado/${d.id}`)}
             />
           ))}
+          {selActividades.map((a) => (
+            <ActividadRow
+              key={a.id}
+              a={a}
+              onPress={() => router.push({ pathname: "/actividad-semanal/[id]", params: { id: a.id } })}
+            />
+          ))}
           {selEventos.map((e) => (
-            <EventoRow key={e.id} e={e} />
+            <EventoRow
+              key={e.id}
+              e={e}
+              onPress={() => router.push({ pathname: "/actividad/[id]", params: { id: e.id } })}
+            />
           ))}
           {selCumples.map((m) => (
             <CumpleRow key={m.id} miembro={m} dias={diasHastaCumple(m.fecha_nacimiento) ?? 0} />
