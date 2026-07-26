@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
 import { CumpleRow } from "../../components/Cumples";
-import { Body, Card, Chip, Headline, Label, Muted, Title } from "../../components/ui";
+import { Body, Card, Chip, Label, Muted, Title } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import {
   addDays,
@@ -12,6 +12,7 @@ import {
   diasHastaCumple,
   endOfMonth,
   esCumpleEn,
+  fechaEnRango,
   formatHora,
   formatMesAnio,
   monthMatrix,
@@ -35,10 +36,29 @@ const ORDEN_SEMANA = [1, 2, 3, 4, 5, 6, 0]; // lunes..domingo
 
 type Vista = "semana" | "mes";
 
+type Categoria = "discipulado" | "evento" | "actividad" | "cumple";
+
+// Colores alineados con los puntos del calendario y la leyenda.
+const CATEGORIAS: { key: Categoria; label: string; color: string }[] = [
+  { key: "discipulado", label: "Discipulados", color: colors.primary },
+  { key: "evento", label: "Eventos", color: colors.tertiary },
+  { key: "actividad", label: "Actividades", color: colors.success },
+  { key: "cumple", label: "Cumpleaños", color: colors.cumple },
+];
+
 export default function Calendario() {
   const router = useRouter();
   const { isAdmin } = useAuth();
   const [vista, setVista] = useState<Vista>("semana");
+  const [filtros, setFiltros] = useState<Set<Categoria>>(() => new Set(CATEGORIAS.map((c) => c.key)));
+
+  const toggleFiltro = (c: Categoria) =>
+    setFiltros((prev) => {
+      const next = new Set(prev);
+      if (next.has(c)) next.delete(c);
+      else next.add(c);
+      return next;
+    });
 
   const { data: discipulados = [] } = useDiscipulados();
   const { data: eventos = [] } = useEventosVigentes();
@@ -49,11 +69,10 @@ export default function Calendario() {
 
   return (
     <View className="flex-1 bg-cream">
-      <AppBar />
+      <AppBar title={isAdmin ? "Calendario general" : "Mi calendario"} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         <View className="mb-4">
-          <Headline>{isAdmin ? "Calendario general" : "Mi calendario"}</Headline>
-          <Muted className="mt-1">
+          <Muted>
             {isAdmin
               ? "Todos los discipulados, reuniones y actividades"
               : "Tus discipulados y las actividades de la iglesia"}
@@ -62,10 +81,24 @@ export default function Calendario() {
 
         <Toggle vista={vista} onChange={setVista} />
 
+        <FiltroBar activos={filtros} onToggle={toggleFiltro} />
+
         {vista === "semana" ? (
-          <VistaSemana discipulados={discipulados} eventos={eventos} actividades={actividades} miembros={miembros} />
+          <VistaSemana
+            discipulados={discipulados}
+            eventos={eventos}
+            actividades={actividades}
+            miembros={miembros}
+            filtros={filtros}
+          />
         ) : (
-          <VistaMes discipulados={discipulados} eventos={eventos} actividades={actividades} miembros={miembros} />
+          <VistaMes
+            discipulados={discipulados}
+            eventos={eventos}
+            actividades={actividades}
+            miembros={miembros}
+            filtros={filtros}
+          />
         )}
       </ScrollView>
     </View>
@@ -95,6 +128,41 @@ function Toggle({ vista, onChange }: { vista: Vista; onChange: (v: Vista) => voi
             <Ionicons name={o.icon} size={15} color={activo ? "#fff" : colors.onSurfaceVariant} />
             <Body className={activo ? "text-white" : "text-ink-variant"} style={{ fontFamily: fonts.sansSemibold }}>
               {o.label}
+            </Body>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/* ============================ Filtro por categoría ============================ */
+
+function FiltroBar({ activos, onToggle }: { activos: Set<Categoria>; onToggle: (c: Categoria) => void }) {
+  return (
+    <View className="mb-5 flex-row flex-wrap gap-2">
+      {CATEGORIAS.map((cat) => {
+        const on = activos.has(cat.key);
+        return (
+          <Pressable
+            key={cat.key}
+            onPress={() => onToggle(cat.key)}
+            style={
+              on
+                ? { backgroundColor: cat.color + "1A", borderColor: cat.color }
+                : { borderColor: colors.hairline }
+            }
+            className="flex-row items-center gap-1.5 rounded-full border px-3 py-1.5 active:opacity-70"
+          >
+            <View
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: on ? cat.color : colors.outlineVariant }}
+            />
+            <Body
+              className={on ? "text-ink" : "text-ink-muted"}
+              style={{ fontFamily: fonts.sansSemibold, fontSize: 13 }}
+            >
+              {cat.label}
             </Body>
           </Pressable>
         );
@@ -182,11 +250,13 @@ function VistaSemana({
   eventos,
   actividades,
   miembros,
+  filtros,
 }: {
   discipulados: import("../../lib/types").Discipulado[];
   eventos: import("../../lib/types").Evento[];
   actividades: import("../../lib/types").Actividad[];
   miembros: DirectorioEntry[];
+  filtros: Set<Categoria>;
 }) {
   const router = useRouter();
   const inicio = useMemo(() => startOfWeek(), []);
@@ -209,14 +279,20 @@ function VistaSemana({
       {ORDEN_SEMANA.map((diaIdx, i) => {
         const fecha = addDays(inicio, i);
         const fechaDia = toISODate(fecha);
-        const delDia = discipulados
-          .filter((d) => d.dia_semana === diaIdx)
-          .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
-        const eventosDia = eventos.filter((e) => toISODate(new Date(e.fecha_inicio)) === fechaDia);
-        const actividadesDia = actividades
-          .filter((a) => a.dias_semana.includes(diaIdx))
-          .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
-        const cumplesDia = cumplesDe(fecha);
+        const delDia = filtros.has("discipulado")
+          ? discipulados
+              .filter((d) => d.dia_semana === diaIdx)
+              .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio))
+          : [];
+        const eventosDia = filtros.has("evento")
+          ? eventos.filter((e) => fechaEnRango(fechaDia, e.fecha_inicio, e.fecha_fin))
+          : [];
+        const actividadesDia = filtros.has("actividad")
+          ? actividades
+              .filter((a) => a.dias_semana.includes(diaIdx))
+              .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio))
+          : [];
+        const cumplesDia = filtros.has("cumple") ? cumplesDe(fecha) : [];
         if (
           delDia.length === 0 &&
           eventosDia.length === 0 &&
@@ -264,7 +340,13 @@ function VistaSemana({
         );
       })}
 
-      {discipulados.length === 0 && (
+      {filtros.size === 0 && (
+        <Card>
+          <Muted>Seleccioná al menos un filtro para ver el calendario.</Muted>
+        </Card>
+      )}
+
+      {filtros.size > 0 && discipulados.length === 0 && (
         <Card>
           <Muted>No hay discipulados para mostrar en el calendario.</Muted>
         </Card>
@@ -280,11 +362,13 @@ function VistaMes({
   eventos,
   actividades,
   miembros,
+  filtros,
 }: {
   discipulados: import("../../lib/types").Discipulado[];
   eventos: import("../../lib/types").Evento[];
   actividades: import("../../lib/types").Actividad[];
   miembros: DirectorioEntry[];
+  filtros: Set<Categoria>;
 }) {
   const router = useRouter();
   const hoyISO = toISODate(new Date());
@@ -299,16 +383,23 @@ function VistaMes({
   const { data: reuniones = [] } = useReunionesMes(rango.desde, rango.hasta);
 
   const discipuladosDe = (fecha: Date) =>
-    discipulados
-      .filter((d) => d.dia_semana === fecha.getDay())
-      .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
+    !filtros.has("discipulado")
+      ? []
+      : discipulados
+          .filter((d) => d.dia_semana === fecha.getDay())
+          .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
   const eventosDe = (fechaISO: string) =>
-    eventos.filter((e) => toISODate(new Date(e.fecha_inicio)) === fechaISO);
+    !filtros.has("evento")
+      ? []
+      : eventos.filter((e) => fechaEnRango(fechaISO, e.fecha_inicio, e.fecha_fin));
   const actividadesDe = (fecha: Date) =>
-    actividades
-      .filter((a) => a.dias_semana.includes(fecha.getDay()))
-      .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
-  const cumplesDe = (fecha: Date) => miembros.filter((m) => esCumpleEn(m.fecha_nacimiento, fecha));
+    !filtros.has("actividad")
+      ? []
+      : actividades
+          .filter((a) => a.dias_semana.includes(fecha.getDay()))
+          .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
+  const cumplesDe = (fecha: Date) =>
+    !filtros.has("cumple") ? [] : miembros.filter((m) => esCumpleEn(m.fecha_nacimiento, fecha));
   const tieneReunion = (discipuladoId: string, fechaISO: string) =>
     reuniones.some((r) => r.discipulado_id === discipuladoId && r.fecha === fechaISO);
 
@@ -394,24 +485,6 @@ function VistaMes({
             })}
           </View>
         ))}
-        <View className="mt-2 flex-row flex-wrap justify-center gap-x-4 gap-y-1">
-          <View className="flex-row items-center gap-1.5">
-            <View className="h-1.5 w-1.5 rounded-full bg-navy" />
-            <Muted>Discipulado</Muted>
-          </View>
-          <View className="flex-row items-center gap-1.5">
-            <View className="h-1.5 w-1.5 rounded-full bg-gold" />
-            <Muted>Evento</Muted>
-          </View>
-          <View className="flex-row items-center gap-1.5">
-            <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: colors.success }} />
-            <Muted>Actividad</Muted>
-          </View>
-          <View className="flex-row items-center gap-1.5">
-            <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: colors.cumple }} />
-            <Muted>Cumpleaños</Muted>
-          </View>
-        </View>
       </Card>
 
       {/* Agenda del día seleccionado */}

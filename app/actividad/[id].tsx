@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { ActivityIndicator, Image, ScrollView, View } from "react-native";
 import { Body, Button, Card, Chip, Muted, Title } from "../../components/ui";
-import { formatHora } from "../../lib/date";
+import { formatFechaHoraCorta, formatHora, mismoDia } from "../../lib/date";
 import { colors } from "../../lib/theme";
 import { useEvento } from "../../lib/queries/eventos";
 import { abrirAdjunto } from "../../lib/storage";
@@ -70,16 +70,27 @@ export default function ActividadDetalle() {
       <Title className="text-2xl">{evento.titulo}</Title>
 
       {/* Fecha y hora */}
-      <View className="mt-3 flex-row items-center gap-1.5">
-        <Ionicons name="calendar-outline" size={16} color={colors.tertiary} />
-        <Muted className="capitalize text-gold">{fechaLarga(evento.fecha_inicio)}</Muted>
-      </View>
-      <View className="mt-1.5 flex-row items-center gap-1.5">
-        <Ionicons name="time-outline" size={16} color={colors.outline} />
-        <Muted>
-          {horaDe(evento.fecha_inicio)} – {horaDe(evento.fecha_fin)}
-        </Muted>
-      </View>
+      {mismoDia(evento.fecha_inicio, evento.fecha_fin) ? (
+        <>
+          <View className="mt-3 flex-row items-center gap-1.5">
+            <Ionicons name="calendar-outline" size={16} color={colors.tertiary} />
+            <Muted className="capitalize text-gold">{fechaLarga(evento.fecha_inicio)}</Muted>
+          </View>
+          <View className="mt-1.5 flex-row items-center gap-1.5">
+            <Ionicons name="time-outline" size={16} color={colors.outline} />
+            <Muted>
+              {horaDe(evento.fecha_inicio)} – {horaDe(evento.fecha_fin)}
+            </Muted>
+          </View>
+        </>
+      ) : (
+        <View className="mt-3 flex-row items-center gap-1.5">
+          <Ionicons name="calendar-outline" size={16} color={colors.tertiary} />
+          <Muted className="capitalize text-gold">
+            {formatFechaHoraCorta(evento.fecha_inicio)} – {formatFechaHoraCorta(evento.fecha_fin)}
+          </Muted>
+        </View>
+      )}
       {evento.ubicacion ? (
         <View className="mt-1.5 flex-row items-center gap-1.5">
           <Ionicons name="location-outline" size={16} color={colors.outline} />

@@ -6,7 +6,7 @@ import { Avatar, Body, Button, Card, Chip, Field, Label, Muted } from "../../com
 import { calcularEdad, formatHora } from "../../lib/date";
 import { colors } from "../../lib/theme";
 import { DIAS_SEMANA, Sexo } from "../../lib/types";
-import { useMiembros } from "../../lib/queries/miembros";
+import { useMiembros, useUpsertMiembro } from "../../lib/queries/miembros";
 import { useDiscipulados } from "../../lib/queries/discipulados";
 import { useCrearMiembroEnDiscipulado } from "../../lib/queries/participaciones";
 
@@ -15,6 +15,7 @@ export default function AdminMiembros() {
   const { data: miembros = [], isLoading } = useMiembros();
   const { data: discipulados = [] } = useDiscipulados();
   const crear = useCrearMiembroEnDiscipulado();
+  const crearSuelto = useUpsertMiembro();
 
   const [showForm, setShowForm] = useState(false);
   const [nombre, setNombre] = useState("");
@@ -37,18 +38,26 @@ export default function AdminMiembros() {
       Alert.alert("Falta el nombre", "Ingresá al menos el nombre.");
       return;
     }
-    if (!discipuladoId) {
-      Alert.alert("Falta el discipulado", "Elegí a qué discipulado se asocia el miembro.");
-      return;
-    }
     try {
-      await crear.mutateAsync({
-        discipuladoId,
-        nombre: nombre.trim(),
-        apellido: apellido.trim() || null,
-        sexo,
-        telefono: telefono.trim() || null,
-      });
+      if (discipuladoId) {
+        // Alta + participación en el grupo elegido (RPC agregar_discipulo).
+        await crear.mutateAsync({
+          discipuladoId,
+          nombre: nombre.trim(),
+          apellido: apellido.trim() || null,
+          sexo,
+          telefono: telefono.trim() || null,
+        });
+      } else {
+        // Sin grupo (no participa aún o su discipulado no existe todavía):
+        // se crea solo el miembro, sin participación.
+        await crearSuelto.mutateAsync({
+          nombre: nombre.trim(),
+          apellido: apellido.trim() || null,
+          sexo,
+          telefono: telefono.trim() || null,
+        });
+      }
       reset();
     } catch (e: any) {
       Alert.alert("Error", e.message ?? "No se pudo guardar.");
@@ -87,40 +96,52 @@ export default function AdminMiembros() {
                     </View>
                   ))}
                 </View>
-                <Label className="mb-1.5">Discipulado</Label>
-                {discipulados.length === 0 ? (
-                  <Muted className="mb-4">No hay discipulados activos para asociar.</Muted>
-                ) : (
-                  <View className="mb-4 gap-2">
-                    {discipulados.map((d) => {
-                      const activo = discipuladoId === d.id;
-                      return (
-                        <Pressable
-                          key={d.id}
-                          onPress={() => setDiscipuladoId(d.id)}
-                          className={`flex-row items-center gap-2 rounded-xl border p-3 active:opacity-70 ${
-                            activo ? "border-navy bg-navy/5" : "border-black/10 bg-surface"
-                          }`}
-                        >
-                          <Ionicons
-                            name={activo ? "radio-button-on" : "radio-button-off"}
-                            size={18}
-                            color={activo ? colors.primary : colors.outline}
-                          />
-                          <View className="flex-1">
-                            <Body className="text-ink">
-                              {d.nombre ?? d.descripcion_etaria ?? "Discipulado"}
-                            </Body>
-                            <Muted className="text-gold">
-                              {DIAS_SEMANA[d.dia_semana]} · {formatHora(d.hora_inicio)}
-                            </Muted>
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                )}
-                <Button title="Guardar" onPress={guardar} loading={crear.isPending} />
+                <Label className="mb-1.5">Discipulado (opcional)</Label>
+                <Muted className="mb-2">
+                  Si todavía no participa de un grupo o su discipulado aún no existe, dejalo sin asignar.
+                </Muted>
+                <View className="mb-4 gap-2">
+                  <Pressable
+                    onPress={() => setDiscipuladoId(null)}
+                    className={`flex-row items-center gap-2 rounded-xl border p-3 active:opacity-70 ${
+                      discipuladoId === null ? "border-navy bg-navy/5" : "border-black/10 bg-surface"
+                    }`}
+                  >
+                    <Ionicons
+                      name={discipuladoId === null ? "radio-button-on" : "radio-button-off"}
+                      size={18}
+                      color={discipuladoId === null ? colors.primary : colors.outline}
+                    />
+                    <Body className="text-ink">Sin discipulado por ahora</Body>
+                  </Pressable>
+                  {discipulados.map((d) => {
+                    const activo = discipuladoId === d.id;
+                    return (
+                      <Pressable
+                        key={d.id}
+                        onPress={() => setDiscipuladoId(d.id)}
+                        className={`flex-row items-center gap-2 rounded-xl border p-3 active:opacity-70 ${
+                          activo ? "border-navy bg-navy/5" : "border-black/10 bg-surface"
+                        }`}
+                      >
+                        <Ionicons
+                          name={activo ? "radio-button-on" : "radio-button-off"}
+                          size={18}
+                          color={activo ? colors.primary : colors.outline}
+                        />
+                        <View className="flex-1">
+                          <Body className="text-ink">
+                            {d.nombre ?? d.descripcion_etaria ?? "Discipulado"}
+                          </Body>
+                          <Muted className="text-gold">
+                            {DIAS_SEMANA[d.dia_semana]} · {formatHora(d.hora_inicio)}
+                          </Muted>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <Button title="Guardar" onPress={guardar} loading={crear.isPending || crearSuelto.isPending} />
               </Card>
             )}
             <Label className="mb-2 mt-4">Miembros ({miembros.length})</Label>

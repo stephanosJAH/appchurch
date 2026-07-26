@@ -14,14 +14,13 @@ import {
   Body,
   Card,
   Chip,
-  Headline,
   Label,
   LinkAction,
   Muted,
   Title,
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
-import { formatDiasSemana, formatFechaLarga, formatHora, proximaOcurrencia } from "../../lib/date";
+import { formatDiasSemana, formatFechaLarga, formatHora, formatRangoFechas, mismoDia, proximaOcurrencia } from "../../lib/date";
 import { colors, fonts } from "../../lib/theme";
 import { Actividad, Evento } from "../../lib/types";
 import { useActividadesActivas } from "../../lib/queries/actividades";
@@ -123,7 +122,7 @@ export default function Actividades() {
 
   return (
     <View className="flex-1 bg-cream">
-      <AppBar />
+      <AppBar title="Eventos y actividades" />
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 96 }}
         showsVerticalScrollIndicator={false}
@@ -131,8 +130,6 @@ export default function Actividades() {
         keyboardDismissMode="on-drag"
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />}
       >
-        <Headline className="mb-4">Eventos y actividades</Headline>
-
         {/* Buscador */}
         <View className="mb-4 flex-row items-center gap-2 rounded-lg border border-black/10 bg-surface px-3.5 py-3">
           <Ionicons name="search" size={18} color={colors.outline} />
@@ -203,7 +200,11 @@ export default function Actividades() {
                   <View className="p-5">
                     <View className="mb-2 flex-row items-center gap-1.5">
                       <Ionicons name="calendar-outline" size={15} color={colors.tertiary} />
-                      <Muted className="uppercase text-gold">{fechaHora(destacado.fecha_inicio)}</Muted>
+                      <Muted className="uppercase text-gold">
+                        {mismoDia(destacado.fecha_inicio, destacado.fecha_fin)
+                          ? fechaHora(destacado.fecha_inicio)
+                          : formatRangoFechas(destacado.fecha_inicio, destacado.fecha_fin)}
+                      </Muted>
                     </View>
                     <Title numberOfLines={2} className="text-xl">
                       {destacado.titulo}
@@ -258,7 +259,11 @@ export default function Actividades() {
                     </View>
                     <View className="mt-2 flex-row items-center gap-1.5">
                       <Ionicons name="time-outline" size={14} color={colors.outline} />
-                      <Muted>{formatFechaLarga(e.fecha_inicio)}</Muted>
+                      <Muted>
+                        {mismoDia(e.fecha_inicio, e.fecha_fin)
+                          ? formatFechaLarga(e.fecha_inicio)
+                          : formatRangoFechas(e.fecha_inicio, e.fecha_fin)}
+                      </Muted>
                     </View>
                     {e.descripcion ? (
                       <Body className="mt-2" numberOfLines={2}>

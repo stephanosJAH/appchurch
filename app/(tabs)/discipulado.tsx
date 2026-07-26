@@ -2,7 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
-import { Body, Card, Chip, Headline, Label, Muted, Title } from "../../components/ui";
+import { MiGrupoMiembro } from "../../components/MiGrupo";
+import { Body, Card, Chip, Label, Muted, Title } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { formatHora } from "../../lib/date";
 import { colors } from "../../lib/theme";
@@ -41,23 +42,33 @@ function DiscipuladoCard({ d, onPress }: { d: Discipulado; onPress: () => void }
 
 export default function MiDiscipulado() {
   const router = useRouter();
-  const { isAdmin, profile } = useAuth();
-  const { data: discipulados = [], isLoading } = useDiscipulados();
+  const { isAdmin, esObrero, profile } = useAuth();
+  const { data: discipulados = [], isLoading } = useDiscipulados({ enabled: esObrero });
 
   const propios = discipulados.filter((d) => d.discipulador_id === profile?.id);
   const goTo = (id: string) => router.push(`/discipulado/${id}`);
 
+  // El miembro no lidera grupos: ve el suyo (participación) en modo lectura.
+  // La RLS no le deja leer `discipulados`, así que va por RPC — ver
+  // components/MiGrupo.tsx y supabase/migrations/0019_mi_grupo.sql.
+  if (!esObrero) {
+    return (
+      <View className="flex-1 bg-cream">
+        <AppBar title="Mi grupo" />
+        <MiGrupoMiembro />
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-cream">
-      <AppBar />
+      <AppBar title={isAdmin ? "Discipulados" : "Mi discipulado"} />
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 96 }} showsVerticalScrollIndicator={false}>
-          <Headline className="mb-4">{isAdmin ? "Discipulados" : "Mi discipulado"}</Headline>
-
           {discipulados.length === 0 ? (
             <Card>
               <Body>

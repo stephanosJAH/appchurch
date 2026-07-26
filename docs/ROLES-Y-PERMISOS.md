@@ -71,7 +71,7 @@ Leyenda de alcance en las matrices siguientes:
 
 | Acción | `pendiente` | `miembro` | `obrero` | `admin` |
 |---|:---:|:---:|:---:|:---:|
-| Leer **directorio** (nombre, apellido, sexo, cumple, teléfono) | ✗ | ✓⁶ | ✓⁶ | ✓⁶ |
+| Leer **directorio** (nombre, apellido, sexo, cumple, teléfono⁸) | ✗ | ✓⁶ | ✓⁶ | ✓⁶ |
 | Leer **PII completa** (+ email, notas) de la tabla `miembros` | ✗ | ✗ | Su gente | ✓ |
 | Crear miembro (alta de discípulo) | ✗ | ✗ | Su grupo¹ | ✓ |
 | Editar miembro (cualquiera) | ✗ | ✗ | Su gente | ✓ |
@@ -83,30 +83,51 @@ Leyenda de alcance en las matrices siguientes:
 > subconjunto seguro; email y notas nunca salen por ahí.
 > ⁵ Autogestión desde el perfil (`app/mis-datos.tsx`) por las RPC security-definer
 > `mis_datos` / `guardar_mis_datos` (`0016`), acotadas a `auth.uid()`. Editan nombre,
-> apellido, sexo, cumpleaños, teléfono y email — **nunca `notas`** (queda para el
-> discipulador/admin). En el primer guardado crean la ficha y la enlazan
-> (`profiles.miembro_id`). No aflojan la RLS de `miembros`.
+> apellido, sexo, cumpleaños, teléfono, email y `mostrar_contacto` (`0020`) —
+> **nunca `notas`** (queda para el discipulador/admin). Desde `0018` son
+> update-only: la ficha ya viene enlazada de la activación, y una cuenta sin
+> `miembro_id` recibe un error en vez de crear un duplicado. No aflojan la
+> RLS de `miembros`.
 > ⁶ **Solo adultos** (`0017`): la vista excluye a los menores de 18 y a
 > cualquier persona sin `fecha_nacimiento` cargada (sin fecha no hay edad, y
 > ante la duda no se publica). Los menores siguen visibles para su
 > discipulador y el admin por la RLS de `miembros`; al directorio general no
 > salen nunca.
+> ⁸ **El teléfono sale solo con consentimiento** (`0020`): la vista lo
+> publica según `miembros.mostrar_contacto`, que la propia persona controla
+> desde "Mis datos". En `false` la fila sigue apareciendo (nombre y
+> cumpleaños) pero `telefono` llega `null`. Default `true` — preserva lo que
+> la congregación veía antes de la migración. El flag es de la vista: su
+> discipulador y el admin siguen viendo el teléfono en `miembros`, que es el
+> contacto pastoral.
 
 ### Grupos y reuniones — `discipulados`, `participaciones`, `reuniones`, `asistencias`, ofrendas
 
 | Acción | `pendiente` | `miembro` | `obrero` | `admin` |
 |---|:---:|:---:|:---:|:---:|
-| Ver grupos | ✗ | ✗² | Sus grupos | ✓ |
+| Ver grupos | ✗ | Solo el **suyo**² | Sus grupos | ✓ |
+| Ver historial de reuniones (fecha, tema, presentes) | ✗ | Su grupo² | Sus grupos | ✓ |
 | Crear grupo / asignar líder | ✗ | ✗ | ✗ | ✓ |
 | Editar su propio grupo | ✗ | ✗ | Su grupo | ✓ |
 | Gestionar participantes (sumar/quitar) | ✗ | ✗ | Su grupo | ✓ |
 | Registrar reuniones y asistencia | ✗ | ✗ | Su grupo | ✓ |
-| Registrar/ver ofrendas | ✗ | ✗ | Su grupo | ✓ (todas) |
+| Registrar/ver ofrendas, notas y material | ✗ | ✗² | Su grupo | ✓ (todas) |
 
-> ² El `miembro` participa de un grupo pero no lo **gestiona** ni ve el panel de
-> gestión; su vínculo se refleja en el directorio/cumpleaños, no en permisos.
+> ² El `miembro` **ve** su grupo pero no lo **gestiona**. Lectura por dos RPC
+> security-definer (`0019`), porque la RLS de estas tablas es solo líder/admin:
+> `mi_grupo()` (resuelve `auth.uid() → profiles.miembro_id → participaciones
+> activas → discipulados activos`) y `reuniones_de_mi_grupo(id)`, que exige
+> participación activa en ese grupo y devuelve **solo** fecha, tema y nombres de
+> los presentes. Ofrenda, notas y material quedan fuera del `returns table`: el
+> corte es del backend, no de la UI. Sin `profiles.miembro_id` enlazado
+> (cuentas previas a `0018`) ambas devuelven vacío.
 > Registrar reunión + asistencias + ofrenda se hace en una sola RPC transaccional
 > (`registrar_reunion`), que valida `es_admin() or es_discipulador_de(grupo)`.
+>
+> **Nota de PII**: la lista de presentes es la única superficie donde un
+> `miembro` ve a un **menor de edad** (el `directorio` los excluye desde `0017`).
+> Se acota a nombre y apellido — sin teléfono, sin cumpleaños, sin edad — y solo
+> entre gente del mismo grupo.
 
 ### Contenido de la red — `eventos` / actividades, `anuncios`
 
@@ -142,7 +163,9 @@ Leyenda de alcance en las matrices siguientes:
 2. **Gestión = asignación, no rol.** Ser `obrero` no da acceso global; da acceso a
    *tus* grupos y *tu* gente. El admin es el único con alcance total.
 3. **PII en capas.** Directorio (nombre+cumple+tel) para todo miembro; email/notas
-   solo para el obrero de esa persona y el admin.
+   solo para el obrero de esa persona y el admin. El teléfono del directorio,
+   además, es del que lo comparte: se publica solo si la persona lo habilita
+   (`mostrar_contacto`, `0020`).
 4. **Cuenta nueva = inofensiva.** `pendiente` no ve nada hasta que un obrero/admin
    la activa. Por eso el registro abierto deja de ser un agujero (resuelve el #1).
 5. **Nadie escala su propio rol.** Trigger en `profiles`; solo el admin asigna
@@ -159,7 +182,13 @@ Este cuadro describe el **modelo objetivo**. Hoy:
   directorio solo-adultos (`0014`+`0017`), autogestión de datos propios (`0016`,
   update-only desde `0018`) y activación como resolución de identidad
   (`0018`: `candidatos_para_perfil` + `resolver_identidad_pendiente`,
-  `profiles.miembro_id` `unique`).
+  `profiles.miembro_id` `unique`). `0019` suma la lectura del grupo propio
+  para el `miembro` (`mi_grupo` + `reuniones_de_mi_grupo`), que es lo que
+  alimenta el tab "Mi grupo" cuando quien mira no lidera nada.
+- **Escrita, pendiente de aplicar**: `0020` (`miembros.mostrar_contacto` +
+  vista `directorio` publicando el teléfono solo con consentimiento). La app
+  ya manda `p_mostrar_contacto`: hasta que corra la migración, guardar desde
+  "Mis datos" falla, porque la función vieja no acepta ese argumento.
 - **Pendiente en la app**: gate de `pendiente` en el shell más allá del
   redirect a `/pendiente`, y separar la UI de `miembro` de la de `obrero`
   (hoy buena parte de la navegación todavía gatea con `isAdmin`/`esObrero`

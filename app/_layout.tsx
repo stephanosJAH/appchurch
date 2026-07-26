@@ -97,7 +97,8 @@ function AuthGate() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
         headerShadowVisible: false,
-        headerTitleStyle: { color: colors.primary, fontFamily: fonts.serifSemibold },
+        // Misma tipografía que el selector Inicio/Nosotros del AppBar.
+        headerTitleStyle: { color: colors.onSurface, fontFamily: fonts.sansBold, fontSize: 16 },
         headerTintColor: colors.primary,
         contentStyle: { backgroundColor: colors.background },
       }}

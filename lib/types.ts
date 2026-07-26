@@ -15,6 +15,9 @@ export type Miembro = {
   telefono: string | null;
   email: string | null;
   notas: string | null;
+  // Si es false, el teléfono no sale publicado en la vista `directorio`
+  // (0020). La gestión (discipulador/admin) lo sigue viendo acá.
+  mostrar_contacto: boolean;
   created_at: string;
 };
 
@@ -55,6 +58,31 @@ export type Discipulado = {
   created_at: string;
   // Embed opcional del líder (se resuelve vía RLS; null si no es visible/asignado).
   discipulador?: { nombre_completo: string | null } | null;
+};
+
+// El grupo propio visto por un participante (RPC `mi_grupo`, 0019): subset de
+// `discipulados` con el nombre del líder ya resuelto. Sin datos de gestión.
+export type MiGrupo = {
+  id: string;
+  nombre: string | null;
+  descripcion_etaria: string | null;
+  sexo: SexoDiscipulado;
+  modalidad: Modalidad;
+  dia_semana: number;
+  hora_inicio: string;
+  hora_fin: string | null;
+  ubicacion: string | null;
+  enlace_virtual: string | null;
+  discipulador: string | null;
+};
+
+// Reunión vista por un participante (RPC `reuniones_de_mi_grupo`, 0019):
+// fecha, tema y quiénes estuvieron. Sin ofrenda, notas ni material.
+export type ReunionDeMiGrupo = {
+  id: string;
+  fecha: string; // "YYYY-MM-DD"
+  tema: string | null;
+  participantes: string[];
 };
 
 export type Participacion = {

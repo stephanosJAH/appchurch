@@ -8,9 +8,12 @@ export const discipuladosKeys = {
 };
 
 // Lista de discipulados ACTIVOS (RLS filtra: admin ve todo, discipulador el suyo).
-export function useDiscipulados() {
+// Para un 'miembro' la RLS devuelve [] siempre: `enabled` permite no pedirla
+// (su grupo llega por el RPC mi_grupo, ver lib/queries/miGrupo.ts).
+export function useDiscipulados({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: discipuladosKeys.all,
+    enabled,
     queryFn: async (): Promise<Discipulado[]> => {
       const { data, error } = await supabase
         .from("discipulados")

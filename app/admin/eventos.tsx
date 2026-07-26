@@ -3,7 +3,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useState } from "react";
 import { Alert, Image, Platform, Pressable, View } from "react-native";
 import { Body, Button, Card, Chip, Field, KeyboardScrollView, Label, Muted, Title } from "../../components/ui";
-import { dateToFecha, fechaLabel, fechaToDate, formatFechaLarga } from "../../lib/date";
+import { dateToFecha, fechaLabel, fechaToDate, formatFechaLarga, formatRangoFechas, mismoDia } from "../../lib/date";
 import { colors } from "../../lib/theme";
 import { AdjuntoTipo, Evento, TipoEvento } from "../../lib/types";
 import { useDeleteEvento, useEventosAdmin, useUpsertEvento } from "../../lib/queries/eventos";
@@ -39,6 +39,9 @@ export default function AdminEventos() {
   const [tipo, setTipo] = useState<TipoEvento>("general");
   const [fecha, setFecha] = useState("");
   const [showPicker, setShowPicker] = useState(false);
+  const [variosDias, setVariosDias] = useState(false);
+  const [fechaFin, setFechaFin] = useState("");
+  const [showPickerFin, setShowPickerFin] = useState(false);
   const [horaInicio, setHoraInicio] = useState("19:00");
   const [horaFin, setHoraFin] = useState("21:00");
   const [ubicacion, setUbicacion] = useState("");
@@ -54,6 +57,8 @@ export default function AdminEventos() {
     setDescripcion("");
     setTipo("general");
     setFecha("");
+    setVariosDias(false);
+    setFechaFin("");
     setHoraInicio("19:00");
     setHoraFin("21:00");
     setUbicacion("");
@@ -73,7 +78,11 @@ export default function AdminEventos() {
     setTitulo(e.titulo);
     setDescripcion(e.descripcion ?? "");
     setTipo(e.tipo);
-    setFecha(isoToFecha(e.fecha_inicio));
+    const inicioFecha = isoToFecha(e.fecha_inicio);
+    const finFecha = isoToFecha(e.fecha_fin);
+    setFecha(inicioFecha);
+    setVariosDias(finFecha !== inicioFecha);
+    setFechaFin(finFecha);
     setHoraInicio(isoToHora(e.fecha_inicio));
     setHoraFin(isoToHora(e.fecha_fin));
     setUbicacion(e.ubicacion ?? "");
@@ -107,6 +116,15 @@ export default function AdminEventos() {
       Alert.alert("Fecha inválida", "Usá el formato AAAA-MM-DD.");
       return;
     }
+    const finFecha = variosDias ? fechaFin : fecha;
+    if (variosDias && !/^\d{4}-\d{2}-\d{2}$/.test(finFecha)) {
+      Alert.alert("Fecha de fin inválida", "Elegí en qué día termina el evento.");
+      return;
+    }
+    if (finFecha < fecha) {
+      Alert.alert("Fecha de fin inválida", "El fin no puede ser antes del inicio.");
+      return;
+    }
     try {
       let url = adjuntoUrl;
       let tAdj = adjuntoTipo;
@@ -124,7 +142,7 @@ export default function AdminEventos() {
         tipo,
         discipulado_id: null,
         fecha_inicio: toISO(fecha, horaInicio),
-        fecha_fin: toISO(fecha, horaFin),
+        fecha_fin: toISO(finFecha, horaFin),
         ubicacion: ubicacion.trim() || null,
         adjunto_url: url,
         adjunto_tipo: tAdj,
@@ -172,10 +190,10 @@ export default function AdminEventos() {
             ))}
           </View>
 
-          <Label className="mb-1.5">Fecha</Label>
+          <Label className="mb-1.5">{variosDias ? "Fecha de inicio" : "Fecha"}</Label>
           <Pressable
             onPress={() => setShowPicker(true)}
-            className="mb-4 flex-row items-center justify-between rounded-lg border border-black/10 bg-surface px-4 py-3.5 active:opacity-70"
+            className="mb-3 flex-row items-center justify-between rounded-lg border border-black/10 bg-surface px-4 py-3.5 active:opacity-70"
           >
             <Body className={fecha ? "text-ink capitalize" : "text-outline"}>
               {fechaLabel(fecha)}
@@ -190,9 +208,57 @@ export default function AdminEventos() {
               onChange={(event, selected) => {
                 // Android cierra el diálogo con cada acción; iOS queda inline.
                 if (Platform.OS !== "ios") setShowPicker(false);
-                if (event.type === "set" && selected) setFecha(dateToFecha(selected));
+                if (event.type === "set" && selected) {
+                  const nueva = dateToFecha(selected);
+                  setFecha(nueva);
+                  // Si el fin queda antes del nuevo inicio, lo corremos junto.
+                  if (fechaFin && fechaFin < nueva) setFechaFin(nueva);
+                }
               }}
             />
+          )}
+
+          <Pressable
+            onPress={() => {
+              const next = !variosDias;
+              setVariosDias(next);
+              if (next && !fechaFin) setFechaFin(fecha);
+            }}
+            className="mb-4 flex-row items-center gap-2 active:opacity-70"
+          >
+            <Ionicons
+              name={variosDias ? "checkbox" : "square-outline"}
+              size={20}
+              color={variosDias ? colors.primary : colors.outline}
+            />
+            <Body className="text-ink">Termina otro día (ej. campamento)</Body>
+          </Pressable>
+
+          {variosDias && (
+            <>
+              <Label className="mb-1.5">Fecha de fin</Label>
+              <Pressable
+                onPress={() => setShowPickerFin(true)}
+                className="mb-4 flex-row items-center justify-between rounded-lg border border-black/10 bg-surface px-4 py-3.5 active:opacity-70"
+              >
+                <Body className={fechaFin ? "text-ink capitalize" : "text-outline"}>
+                  {fechaLabel(fechaFin)}
+                </Body>
+                <Ionicons name="calendar-outline" size={18} color={colors.outline} />
+              </Pressable>
+              {showPickerFin && (
+                <DateTimePicker
+                  value={fechaToDate(fechaFin || fecha)}
+                  mode="date"
+                  minimumDate={fechaToDate(fecha)}
+                  display={Platform.OS === "ios" ? "inline" : "default"}
+                  onChange={(event, selected) => {
+                    if (Platform.OS !== "ios") setShowPickerFin(false);
+                    if (event.type === "set" && selected) setFechaFin(dateToFecha(selected));
+                  }}
+                />
+              )}
+            </>
           )}
           <View className="flex-row gap-3">
             <View className="flex-1">
@@ -259,7 +325,11 @@ export default function AdminEventos() {
                 ) : null}
                 <View className="flex-1">
                   <Title numberOfLines={2} className="text-base">{e.titulo}</Title>
-                  <Muted className="mt-1">{formatFechaLarga(e.fecha_inicio)}</Muted>
+                  <Muted className="mt-1 capitalize">
+                    {mismoDia(e.fecha_inicio, e.fecha_fin)
+                      ? formatFechaLarga(e.fecha_inicio)
+                      : formatRangoFechas(e.fecha_inicio, e.fecha_fin)}
+                  </Muted>
                 </View>
               </View>
               {e.descripcion ? (

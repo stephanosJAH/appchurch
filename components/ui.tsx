@@ -8,6 +8,7 @@ import {
   PressableProps,
   ScrollView,
   ScrollViewProps,
+  Switch,
   Text,
   TextInput,
   TextInputProps,
@@ -63,9 +64,9 @@ export function Body({ children, className, ...rest }: PropsWithChildren<{ class
   );
 }
 
-export function Muted({ children, className, ...rest }: PropsWithChildren<{ className?: string } & TextProps>) {
+export function Muted({ children, className, style, ...rest }: PropsWithChildren<{ className?: string } & TextProps>) {
   return (
-    <Text style={{ fontFamily: fonts.sans, lineHeight: 20 }} className={`text-sm text-ink-muted ${className ?? ""}`} {...rest}>
+    <Text style={[{ fontFamily: fonts.sans, lineHeight: 20 }, style]} className={`text-sm text-ink-muted ${className ?? ""}`} {...rest}>
       {children}
     </Text>
   );
@@ -279,6 +280,46 @@ export function Field({ label, error, icon, rightIcon, onRightIconPress, classNa
       </View>
       {error ? <Muted className="mt-1 text-danger">{error}</Muted> : null}
     </View>
+  );
+}
+
+// Fila con interruptor: etiqueta + explicación a la izquierda, Switch a la
+// derecha. Tocar el texto también alterna (área de toque grande).
+export function SwitchField({
+  label,
+  description,
+  value,
+  onValueChange,
+  disabled,
+}: {
+  label: string;
+  description?: string;
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={() => !disabled && onValueChange(!value)}
+      disabled={disabled}
+      className={`mb-4 flex-row items-center gap-3 ${disabled ? "opacity-50" : "active:opacity-70"}`}
+    >
+      <View className="flex-1">
+        <Text style={{ fontFamily: fonts.sansSemibold }} className="text-[15px] text-ink">
+          {label}
+        </Text>
+        {description ? <Muted className="mt-0.5">{description}</Muted> : null}
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        disabled={disabled}
+        trackColor={{ false: colors.outlineVariant, true: colors.primaryContainer }}
+        // iOS pinta el thumb blanco solo; en Android hay que decirlo.
+        thumbColor={Platform.OS === "android" ? (value ? colors.tertiaryContainer : colors.surfaceContainerLowest) : undefined}
+        ios_backgroundColor={colors.outlineVariant}
+      />
+    </Pressable>
   );
 }
 

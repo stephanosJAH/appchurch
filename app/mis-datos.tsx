@@ -11,6 +11,7 @@ import {
   KeyboardScrollView,
   Label,
   Muted,
+  SwitchField,
 } from "../components/ui";
 import { calcularEdad, dateToFecha, fechaLabel, fechaToDate } from "../lib/date";
 import { colors } from "../lib/theme";
@@ -28,6 +29,10 @@ export default function MisDatos() {
   const [nacimiento, setNacimiento] = useState(""); // "YYYY-MM-DD" | ""
   const [telefono, setTelefono] = useState("");
   const [email, setEmail] = useState("");
+  // Consentimiento para publicar el teléfono en el directorio. Arranca en
+  // true igual que el default de la columna (0020): si la ficha todavía no
+  // cargó, el form no muestra un "no" que la persona nunca eligió.
+  const [mostrarContacto, setMostrarContacto] = useState(true);
   const [showPicker, setShowPicker] = useState(false);
 
   // Precargar el formulario con la ficha propia cuando llega.
@@ -39,6 +44,7 @@ export default function MisDatos() {
     setNacimiento(datos.fecha_nacimiento ?? "");
     setTelefono(datos.telefono ?? "");
     setEmail(datos.email ?? "");
+    setMostrarContacto(datos.mostrar_contacto ?? true);
   }, [datos]);
 
   const edad = calcularEdad(nacimiento);
@@ -56,6 +62,7 @@ export default function MisDatos() {
         fecha_nacimiento: nacimiento || null,
         telefono: telefono.trim() || null,
         email: email.trim() || null,
+        mostrar_contacto: mostrarContacto,
       });
       Alert.alert("Listo", "Tus datos se actualizaron.", [
         { text: "OK", onPress: () => router.back() },
@@ -147,11 +154,26 @@ export default function MisDatos() {
           placeholder="Opcional"
         />
 
+        <View className="mb-4 border-t border-black/5 pt-4">
+          <Label className="mb-2.5">Privacidad</Label>
+          <SwitchField
+            label="Mostrar mi teléfono en el directorio"
+            description={
+              mostrarContacto
+                ? "Cualquier miembro de la iglesia puede llamarte o escribirte por WhatsApp desde el directorio."
+                : "Tu teléfono queda oculto. Seguís apareciendo con tu nombre y tu cumpleaños."
+            }
+            value={mostrarContacto}
+            onValueChange={setMostrarContacto}
+          />
+        </View>
+
         <Button title="Guardar cambios" onPress={onGuardar} loading={guardar.isPending} />
       </Card>
 
       <Muted className="mt-3 px-1">
-        Estos son los datos que ve tu discipulador y el directorio de la iglesia.
+        Tu discipulador y los administradores siempre ven estos datos. En el directorio de
+        la iglesia se publican tu nombre y tu cumpleaños, y el teléfono solo si lo permitís.
       </Muted>
     </KeyboardScrollView>
   );

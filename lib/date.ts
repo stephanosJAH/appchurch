@@ -115,6 +115,44 @@ export function formatFechaLarga(iso: string): string {
   });
 }
 
+// ¿Los dos ISO caen en el mismo día calendario (hora local)?
+export function mismoDia(isoA: string, isoB: string): boolean {
+  return toISODate(new Date(isoA)) === toISODate(new Date(isoB));
+}
+
+// ¿La fecha (YYYY-MM-DD) cae dentro de [inicio, fin]? Compara solo por día, no por
+// hora — sirve para pintar eventos de varios días (ej. un campamento vie-dom) en
+// cada día que abarcan, no solo en el de `fecha_inicio`.
+export function fechaEnRango(fechaISO: string, inicioISO: string, finISO: string): boolean {
+  const inicio = toISODate(new Date(inicioISO));
+  const fin = toISODate(new Date(finISO));
+  return fechaISO >= inicio && fechaISO <= fin;
+}
+
+// Rango corto para eventos de varios días: "vie 25 jul – dom 27" (mismo mes) o
+// "vie 30 jul – sáb 1 ago" (cruza de mes). Para eventos de un solo día usar
+// `formatFechaLarga`.
+export function formatRangoFechas(isoInicio: string, isoFin: string): string {
+  const di = new Date(isoInicio);
+  const df = new Date(isoFin);
+  const mismoMes = di.getMonth() === df.getMonth() && di.getFullYear() === df.getFullYear();
+  const inicio = di.toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "short" });
+  const fin = df.toLocaleDateString(
+    "es-AR",
+    mismoMes ? { weekday: "short", day: "2-digit" } : { weekday: "short", day: "2-digit", month: "short" }
+  );
+  return `${inicio} – ${fin}`;
+}
+
+// "vie 25 jul, 19:00" — fecha corta + hora, para mostrar el inicio/fin de un
+// evento de varios días junto a su horario.
+export function formatFechaHoraCorta(iso: string): string {
+  const d = new Date(iso);
+  const fecha = d.toLocaleDateString("es-AR", { weekday: "short", day: "2-digit", month: "short" });
+  const hora = formatHora(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`);
+  return `${fecha}, ${hora}`;
+}
+
 // "YYYY-MM-DD" -> Date local (o hoy si está vacío/inválido). Evita el corrimiento
 // de timezone de `new Date("YYYY-MM-DD")` (que interpreta UTC).
 export function fechaToDate(fecha: string): Date {

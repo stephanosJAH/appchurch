@@ -13,6 +13,9 @@ export type MisDatos = {
   fecha_nacimiento: string | null;
   telefono: string | null;
   email: string | null;
+  // Consentimiento para publicar el teléfono en el directorio (0020). No
+  // afecta lo que ven el discipulador ni el admin.
+  mostrar_contacto: boolean;
 };
 
 export const misDatosKeys = {
@@ -46,6 +49,7 @@ export function useGuardarMisDatos() {
         p_fecha_nacimiento: input.fecha_nacimiento,
         p_telefono: input.telefono,
         p_email: input.email,
+        p_mostrar_contacto: input.mostrar_contacto,
       });
       if (error) throw error;
       const row = Array.isArray(data) ? data[0] : data;
