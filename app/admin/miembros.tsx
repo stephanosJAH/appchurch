@@ -4,16 +4,22 @@ import { useState } from "react";
 import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, View } from "react-native";
 import { Avatar, Body, Button, Card, Chip, Field, Label, Muted } from "../../components/ui";
 import { calcularEdad, formatHora } from "../../lib/date";
-import { colors } from "../../lib/theme";
+import { colors, fonts } from "../../lib/theme";
 import { DIAS_SEMANA, Sexo } from "../../lib/types";
 import { useMiembros, useUpsertMiembro } from "../../lib/queries/miembros";
 import { useDiscipulados } from "../../lib/queries/discipulados";
 import { useCrearMiembroEnDiscipulado } from "../../lib/queries/participaciones";
+import { useMiembrosConCuenta } from "../../lib/queries/profiles";
+
 
 export default function AdminMiembros() {
   const router = useRouter();
   const { data: miembros = [], isLoading } = useMiembros();
   const { data: discipulados = [] } = useDiscipulados();
+  // Qué fichas ya tienen cuenta enlazada: sus datos personales los autogestiona
+  // la persona (0021), así que el admin edita sabiendo que la ficha tiene dueño.
+  const { data: conCuenta } = useMiembrosConCuenta();
+  const totalConCuenta = miembros.filter((m) => conCuenta?.has(m.id)).length;
   const crear = useCrearMiembroEnDiscipulado();
   const crearSuelto = useUpsertMiembro();
 
@@ -144,7 +150,16 @@ export default function AdminMiembros() {
                 <Button title="Guardar" onPress={guardar} loading={crear.isPending || crearSuelto.isPending} />
               </Card>
             )}
-            <Label className="mb-2 mt-4">Miembros ({miembros.length})</Label>
+            <Label className={conCuenta ? "mt-4" : "mb-2 mt-4"}>
+              Miembros ({miembros.length})
+            </Label>
+            {/* Recién cuando llegó el dato: si no, diría «0 con cuenta» mientras carga. */}
+            {conCuenta && (
+              <Muted className="mb-2 mt-1">
+                {totalConCuenta} con cuenta en la app · {miembros.length - totalConCuenta} sin
+                cuenta
+              </Muted>
+            )}
           </View>
         }
         renderItem={({ item }) => {
@@ -152,6 +167,7 @@ export default function AdminMiembros() {
           const detalle = [edad != null ? `${edad} años` : null, item.telefono]
             .filter(Boolean)
             .join(" · ");
+          const tieneCuenta = conCuenta?.has(item.id) ?? false;
           return (
             <Pressable
               onPress={() => router.push({ pathname: "/miembro/[id]", params: { id: item.id } })}
@@ -160,12 +176,20 @@ export default function AdminMiembros() {
               <Card className="mb-2.5 flex-row items-center gap-3 py-3.5">
                 <Avatar name={item.nombre} size={38} tone="gold" />
                 <View className="flex-1">
-                  <Body className="text-ink">
-                    {item.nombre} {item.apellido ?? ""}
-                  </Body>
-                  {detalle ? <Muted>{detalle}</Muted> : null}
+                  <View className="flex-row items-center gap-2">
+                    <Body 
+                      className="shrink text-ink" 
+                      style={{ fontFamily: fonts.sansBold}}
+                      numberOfLines={1}
+                    >
+                      {item.nombre} {item.apellido ?? ""}
+                    </Body>
+                    <Chip tone="neutral">{item.sexo}</Chip>
+                  </View>
+                  {/* {edad ? <Muted> <Ionicons name="calendar" size={12} color={colors.outline} /> {`${edad} años`}</Muted> : null} */}
+                  {item.telefono ? <Muted> <Ionicons name="call" size={12} color={colors.outline} /> {item.telefono }</Muted> : null}
                 </View>
-                <Chip tone="neutral">{item.sexo}</Chip>
+                {tieneCuenta && <Chip tone="success">C</Chip>}
                 <Ionicons name="chevron-forward" size={16} color={colors.outline} />
               </Card>
             </Pressable>

@@ -18,9 +18,15 @@ import {
 import { useAuth } from "../../lib/auth";
 import { calcularEdad, dateToFecha, fechaLabel, fechaToDate } from "../../lib/date";
 import { colors } from "../../lib/theme";
-import { Sexo } from "../../lib/types";
-import { useMiembro, useUpsertMiembro } from "../../lib/queries/miembros";
+import { RolApp, Sexo } from "../../lib/types";
+import {
+  useGuardarNotasMiembro,
+  useMiembro,
+  useMiembroTieneCuenta,
+  useUpsertMiembro,
+} from "../../lib/queries/miembros";
 import { useParticipacionesDeMiembro } from "../../lib/queries/participaciones";
+import { useCuentaDeMiembro, useUpdateRol } from "../../lib/queries/profiles";
 
 export default function MiembroDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -29,14 +35,25 @@ export default function MiembroDetalle() {
   const miembroId = String(id);
 
   const { data: miembro, isLoading } = useMiembro(miembroId);
+  const { data: tieneCuenta, isLoading: cargandoCuenta } = useMiembroTieneCuenta(miembroId);
   const { data: participaciones = [] } = useParticipacionesDeMiembro(miembroId);
+  // La cuenta enlazada a esta ficha: solo para admin, que es quien administra
+  // roles (app/admin/usuarios.tsx). Al obrero la RLS le devolvería null igual.
+  const { data: cuenta } = useCuentaDeMiembro(miembroId, isAdmin);
   const upsert = useUpsertMiembro();
+  const guardarNotas = useGuardarNotasMiembro();
+  const updateRol = useUpdateRol();
 
-  // Puede editar: el admin, o el discipulador de algún grupo del miembro.
+  // Gestiona a esta persona: el admin, o el discipulador de alguno de sus grupos.
   const esMiDiscipulo = participaciones.some(
     (p) => p.discipulado?.discipulador_id === profile?.id
   );
-  const puedeEditar = isAdmin || esMiDiscipulo;
+  const puedeGestionar = isAdmin || esMiDiscipulo;
+  // Con cuenta enlazada la ficha tiene dueño: la persona la autogestiona desde
+  // "Mis datos" y su discipulador solo la lee, salvo la descripción pastoral.
+  // El admin conserva la edición (es el ABM del padrón). Lo hace cumplir la RLS
+  // de 0021, no esto: acá solo se decide qué mostrar.
+  const puedeEditarDatos = puedeGestionar && !(tieneCuenta && !isAdmin);
 
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
@@ -45,6 +62,7 @@ export default function MiembroDetalle() {
   const [telefono, setTelefono] = useState("");
   const [email, setEmail] = useState("");
   const [notas, setNotas] = useState("");
+  const [activo, setActivo] = useState(true);
   const [showPicker, setShowPicker] = useState(false);
 
   // Cargar los datos del miembro en el formulario cuando llegan.
@@ -57,6 +75,7 @@ export default function MiembroDetalle() {
     setTelefono(miembro.telefono ?? "");
     setEmail(miembro.email ?? "");
     setNotas(miembro.notas ?? "");
+    setActivo(miembro.activo);
   }, [miembro]);
 
   const edad = calcularEdad(nacimiento);
@@ -76,6 +95,9 @@ export default function MiembroDetalle() {
         telefono: telefono.trim() || null,
         email: email.trim() || null,
         notas: notas.trim() || null,
+        // Solo el admin manda esta columna: el trigger de 0022 rechaza el
+        // cambio de cualquier otro, y mandarla sin poder cambiarla no aporta.
+        ...(isAdmin ? { activo } : {}),
       });
       Alert.alert("Listo", "Datos actualizados.", [
         { text: "OK", onPress: () => router.back() },
@@ -85,7 +107,37 @@ export default function MiembroDetalle() {
     }
   };
 
-  if (isLoading) {
+  const onGuardarNotas = async () => {
+    try {
+      await guardarNotas.mutateAsync({ id: miembroId, notas: notas.trim() || null });
+      Alert.alert("Listo", "Descripción actualizada.");
+    } catch (e: any) {
+      Alert.alert("Error", e.message ?? "No se pudo guardar la descripción.");
+    }
+  };
+
+  // Mismo cambio de rol que app/admin/usuarios.tsx, acá sobre la cuenta de esta
+  // persona. La autorización es de la RLS (`prof_admin`, 0002) más el trigger
+  // que impide autoescalarse (0010); el botón deshabilitado es solo la UI.
+  const esMiCuenta = !!cuenta && cuenta.id === profile?.id;
+  const cambiarRol = (rol: RolApp) => {
+    if (!cuenta || cuenta.rol === rol) return;
+    const accion = () => updateRol.mutate({ id: cuenta.id, rol });
+    if (rol === "admin") {
+      Alert.alert(
+        "Hacer administrador",
+        `${miembro?.nombre ?? "Esta persona"} tendrá acceso total (crear discipulados, gestionar todo). ¿Confirmás?`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Confirmar", onPress: accion },
+        ]
+      );
+    } else {
+      accion();
+    }
+  };
+
+  if (isLoading || cargandoCuenta) {
     return (
       <View className="flex-1 items-center justify-center bg-cream">
         <Muted>Cargando…</Muted>
@@ -117,34 +169,64 @@ export default function MiembroDetalle() {
         </View>
       </Card>
 
-      {/* Solo lectura para quien no puede editar */}
-      {!puedeEditar ? (
-        <Card className="gap-2">
-          <View>
-            <Label>Cumpleaños</Label>
-            <Body className="mt-0.5 capitalize text-ink">
-              {fechaLabel(nacimiento, "Sin registrar")}
-            </Body>
-          </View>
-          {telefono ? (
-            <View>
-              <Label>Teléfono</Label>
-              <Body className="mt-0.5 text-ink">{telefono}</Body>
+      {/* Sin edición de datos: la ficha se lee como información personal. La
+          descripción va aparte porque sí sigue siendo del discipulador. */}
+      {!puedeEditarDatos ? (
+        <>
+          {puedeGestionar && (
+            <View className="mb-4 flex-row items-start gap-2 rounded-lg bg-surface-low p-3">
+              <Ionicons name="person-circle-outline" size={18} color={colors.primary} />
+              <Muted className="flex-1">
+                {miembro.nombre} tiene cuenta en la app: sus datos personales los
+                gestiona desde su perfil. Podés dejarle una descripción para el
+                seguimiento.
+              </Muted>
             </View>
-          ) : null}
-          {email ? (
+          )}
+
+          <Card className="gap-3">
             <View>
-              <Label>Email</Label>
-              <Body className="mt-0.5 text-ink">{email}</Body>
+              <Label>Cumpleaños</Label>
+              <Body className="mt-0.5 capitalize text-ink">
+                {fechaLabel(nacimiento, "Sin registrar")}
+              </Body>
             </View>
-          ) : null}
-          {notas ? (
-            <View>
+            {telefono ? (
+              <View>
+                <Label>Teléfono</Label>
+                <Body className="mt-0.5 text-ink">{telefono}</Body>
+              </View>
+            ) : null}
+            {email ? (
+              <View>
+                <Label>Email</Label>
+                <Body className="mt-0.5 text-ink">{email}</Body>
+              </View>
+            ) : null}
+          </Card>
+
+          {puedeGestionar ? (
+            <Card className="mt-4">
+              <Field
+                label="Descripción"
+                value={notas}
+                onChangeText={setNotas}
+                placeholder="Información adicional (notas, situación, etc.)"
+                multiline
+              />
+              <Button
+                title="Guardar descripción"
+                onPress={onGuardarNotas}
+                loading={guardarNotas.isPending}
+              />
+            </Card>
+          ) : notas ? (
+            <Card className="mt-4">
               <Label>Descripción</Label>
               <Body className="mt-0.5 text-ink">{notas}</Body>
-            </View>
+            </Card>
           ) : null}
-        </Card>
+        </>
       ) : (
         <Card>
           <Field label="Nombre" value={nombre} onChangeText={setNombre} autoCapitalize="words" />
@@ -207,6 +289,61 @@ export default function MiembroDetalle() {
           />
 
           <Button title="Guardar cambios" onPress={guardar} loading={upsert.isPending} />
+        </Card>
+      )}
+
+      {/* Cuenta de la app: el rol se administra desde acá o desde
+          admin/usuarios.tsx, indistinto. Solo aparece si la ficha está enlazada
+          a una cuenta — sin cuenta no hay rol que cambiar. */}
+      {isAdmin && cuenta && (
+        <Card className="mt-4">
+          <View className="flex-row items-center gap-2">
+            <Ionicons name="person-circle-outline" size={18} color={colors.primary} />
+            <Label>Cuenta en la app</Label>
+          </View>
+          <Muted className="mt-1">
+            {cuenta.username
+              ? `Ingresa como ${cuenta.username}`
+              : cuenta.nombre_completo ?? "Cuenta enlazada a esta ficha"}
+          </Muted>
+
+          <Label className="mb-1.5 mt-4">Rol</Label>
+          <View className="flex-row gap-2">
+            <View className="flex-1">
+              <Button
+                title="Miembro"
+                variant={cuenta.rol === "miembro" ? "primary" : "outline"}
+                size="sm"
+                disabled={esMiCuenta || updateRol.isPending}
+                onPress={() => cambiarRol("miembro")}
+              />
+            </View>
+            <View className="flex-1">
+              <Button
+                title="Obrero"
+                variant={cuenta.rol === "obrero" ? "primary" : "outline"}
+                size="sm"
+                disabled={esMiCuenta || updateRol.isPending}
+                onPress={() => cambiarRol("obrero")}
+              />
+            </View>
+            <View className="flex-1">
+              <Button
+                title="Admin"
+                variant={cuenta.rol === "admin" ? "gold" : "outline"}
+                size="sm"
+                disabled={esMiCuenta || updateRol.isPending}
+                onPress={() => cambiarRol("admin")}
+              />
+            </View>
+          </View>
+          {esMiCuenta ? (
+            <Muted className="mt-2">No podés cambiar tu propio rol.</Muted>
+          ) : (
+            <Muted className="mt-2">
+              El obrero gestiona los grupos que tiene asignados; el admin, todo.
+            </Muted>
+          )}
         </Card>
       )}
     </KeyboardScrollView>

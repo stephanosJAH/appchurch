@@ -18,6 +18,9 @@ export type Miembro = {
   // Si es false, el teléfono no sale publicado en la vista `directorio`
   // (0020). La gestión (discipulador/admin) lo sigue viendo acá.
   mostrar_contacto: boolean;
+  // Baja lógica del padrón (0022): en false la persona sale del directorio y
+  // de los cumpleaños, pero conserva ficha e historial. Solo admin lo cambia.
+  activo: boolean;
   created_at: string;
 };
 

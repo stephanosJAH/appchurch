@@ -138,7 +138,7 @@ export default function DiscipuladoDetalle() {
       {/* Encabezado del grupo */}
       <Card className="mb-4 overflow-hidden p-0">
         <View className="h-20 justify-end bg-navy p-4">
-          <View className="absolute right-4 top-3 opacity-20">
+          <View className="absolute right-4 top-3 opacity-20"> 
             <Ionicons name="people" size={52} color={colors.tertiaryDim} />
           </View>
         </View>

@@ -139,7 +139,7 @@ export function Card({ children, className, style, ...props }: PropsWithChildren
 
 /* ============================ Chips / Tags ============================ */
 
-type ChipTone = "navy" | "gold" | "neutral" | "success" | "danger";
+type ChipTone = "navy" | "gold" | "neutral" | "success" | "danger" |  "sky";
 
 export function Chip({ children, tone = "navy" }: PropsWithChildren<{ tone?: ChipTone }>) {
   const bg: Record<ChipTone, string> = {
@@ -148,6 +148,7 @@ export function Chip({ children, tone = "navy" }: PropsWithChildren<{ tone?: Chi
     neutral: "bg-surface-high",
     success: "bg-emerald-100",
     danger: "bg-red-100",
+    sky: "bg-sky-400",
   };
   const fg: Record<ChipTone, string> = {
     navy: "text-white",
@@ -155,6 +156,7 @@ export function Chip({ children, tone = "navy" }: PropsWithChildren<{ tone?: Chi
     neutral: "text-ink-variant",
     success: "text-emerald-800",
     danger: "text-red-700",
+    sky: "text-white"
   };
   return (
     <View className={`self-start rounded-md px-2.5 py-1 ${bg[tone]}`}>

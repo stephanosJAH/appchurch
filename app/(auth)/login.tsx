@@ -1,11 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, Image, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Body, Button, Card, Display, Field, Headline, Label, Muted } from "../../components/ui";
 import { identifierToEmail, isValidIdentifier, normalizeIdentifier } from "../../lib/authIdentity";
 import { supabase } from "../../lib/supabase";
-import { cardShadow, colors, fonts } from "../../lib/theme";
+import { cardShadow, fonts } from "../../lib/theme";
 
 type Mode = "login" | "signup";
 
@@ -110,11 +110,20 @@ export default function Login() {
         <View className="px-6">
           {/* Marca */}
           <View className="mb-8 items-center">
-            <View style={cardShadow} className="mb-4 h-16 w-16 items-center justify-center rounded-full bg-navy">
-              <Ionicons name="book" size={28} color={colors.tertiaryDim} />
+            {/* El JPG viene con esquinas blancas: el contenedor redondo con
+                overflow-hidden las recorta contra el crema. */}
+            <View
+              style={[cardShadow, { width: 88, height: 88 }]}
+              className="mb-4 overflow-hidden rounded-full"
+            >
+              <Image
+                source={require("../../assets/logo-pda.jpg")}
+                style={{ width: "100%", height: "100%" }}
+                resizeMode="cover"
+              />
             </View>
-            <Display className="text-center">Discipulados</Display>
-            <Body className="mt-1 text-center">Gestión de grupos de la iglesia</Body>
+            <Display className="text-center">PDA FAMILIA</Display>
+            <Body className="mt-1 text-center">La red para encontrarnos</Body>
           </View>
 
           {/* Tarjeta */}
@@ -218,7 +227,7 @@ export default function Login() {
 
           {/* Pie */}
           <Muted className="mt-8 text-center text-xs">
-            © 2026 Discipulados. Todos los derechos reservados.
+            © 2026 AMPIUP. Todos los derechos reservados.
           </Muted>
         </View>
       </ScrollView>

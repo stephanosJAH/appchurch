@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { ActividadesHoy, actividadesDeHoy } from "../../components/ActividadesHoy";
 import { AppBar, FeedTab } from "../../components/AppBar";
 import { CumplesSection } from "../../components/Cumples";
 import { DirectorioList } from "../../components/Directorio";
@@ -21,6 +22,7 @@ import { useAuth } from "../../lib/auth";
 import { formatHora } from "../../lib/date";
 import { colors } from "../../lib/theme";
 import { DIAS_SEMANA } from "../../lib/types";
+import { useActividadesActivas } from "../../lib/queries/actividades";
 import { useDiscipulados } from "../../lib/queries/discipulados";
 import { useEventosVigentes } from "../../lib/queries/eventos";
 import { useDirectorio } from "../../lib/queries/directorio";
@@ -78,9 +80,18 @@ export default function Dashboard() {
     });
   }, [tab, width, translateX]);
 
+  // Los carruseles (eventos y actividades de hoy) scrollean horizontal dentro de
+  // este panel. Sin declarar la relación, el pan gana el gesto y arrastrar entre
+  // tarjetas terminaba saltando a "Nosotros": ahora el pan espera a que el
+  // carrusel falle —o ni empiece, que es lo que pasa cuando el arrastre nace
+  // fuera de él. Cada carrusel necesita su propia instancia de Gesture.Native().
+  const carruselEventos = useMemo(() => Gesture.Native(), []);
+  const carruselActividades = useMemo(() => Gesture.Native(), []);
+
   const panGesture = Gesture.Pan()
     .activeOffsetX([-15, 15])
     .failOffsetY([-10, 10])
+    .requireExternalGestureToFail(carruselEventos, carruselActividades)
     .onStart(() => {
       dragStartX.value = translateX.value;
     })
@@ -108,6 +119,7 @@ export default function Dashboard() {
   const { data: eventosVigentes = [] } = useEventosVigentes();
   // Solo actividades/anuncios, sin las reuniones de discipulado (igual que el feed).
   const eventos = eventosVigentes.filter((e) => e.tipo !== "discipulado" && !e.discipulado_id);
+  const { data: actividades = [] } = useActividadesActivas();
   const { data: directorio = [] } = useDirectorio();
 
   const hoy = new Date().getDay();
@@ -116,8 +128,9 @@ export default function Dashboard() {
       .map((d) => ({ ...d, offset: (d.dia_semana - hoy + 7) % 7 }))
       .sort((a, b) => a.offset - b.offset || a.hora_inicio.localeCompare(b.hora_inicio))[0];
   }, [discipulados, hoy]);
-  // ¿Hay eventos esta semana? (para decidir separadores de sección).
+  // ¿Hay eventos esta semana / actividades hoy? (para decidir separadores).
   const hayEventos = useMemo(() => eventosDeLaSemana(eventos).length > 0, [eventos]);
+  const hayActividadesHoy = useMemo(() => actividadesDeHoy(actividades).length > 0, [actividades]);
 
   // Cumpleaños de toda la congregación (directorio, visible a todo miembro activo).
   const miembrosCumple = directorio;
@@ -187,11 +200,27 @@ export default function Dashboard() {
               {/* Separador de sección Cumpleaños próximos */}
               {miembrosCumple && <View className="mb-5 h-px bg-black/10" />}
 
+              {/* Actividades semanales que tocan hoy (carrusel) */}
+              <ActividadesHoy
+                actividades={actividades}
+                swipeGesture={carruselActividades}
+                className="mb-6"
+              />
+
+              {/* Separador entre "hoy" y "esta semana" */}
+              {hayActividadesHoy && hayEventos && <View className="mb-5 h-px bg-black/10" />}
+
               {/* Eventos de la semana (carrusel lunes→domingo) */}
-              <EventosSemana eventos={eventos} className="mb-6" />
+              <EventosSemana
+                eventos={eventos}
+                swipeGesture={carruselEventos}
+                className="mb-6"
+              />
 
               {/* Separador de sección */}
-              {proximo && hayEventos && <View className="mb-5 h-px bg-black/10" />}
+              {proximo && (hayEventos || hayActividadesHoy) && (
+                <View className="mb-5 h-px bg-black/10" />
+              )}
 
               {/* Accesos rápidos */}
               <View className="mb-6 gap-3">

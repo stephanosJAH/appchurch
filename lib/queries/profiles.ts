@@ -6,6 +6,8 @@ export const profilesKeys = {
   all: ["profiles"] as const,
   pendientes: ["profiles", "pendientes"] as const,
   candidatos: (profileId: string) => ["profiles", "candidatos", profileId] as const,
+  miembrosConCuenta: ["profiles", "miembros-con-cuenta"] as const,
+  deMiembro: (miembroId: string) => ["profiles", "de-miembro", miembroId] as const,
 };
 
 // Lista de perfiles (solo admin por RLS). Útil para asignar discipulador.
@@ -19,6 +21,50 @@ export function useProfiles() {
         .order("nombre_completo", { nullsFirst: false });
       if (error) throw error;
       return data as Profile[];
+    },
+  });
+}
+
+// Qué fichas del padrón ya están enlazadas a una cuenta de la app
+// (`profiles.miembro_id`, unique desde 0018). Es la versión en lote de la RPC
+// `miembro_tiene_cuenta` (0021), que resuelve de a una ficha: acá se lee
+// `profiles` directo para no disparar una llamada por fila de la lista.
+//
+// Solo tiene sentido para admin: `prof_select` (0002) deja a los demás ver
+// únicamente su propio perfil, así que para un obrero el set vendría casi
+// vacío. Es una omisión, no una fuga — igual usalo solo en pantallas de admin.
+export function useMiembrosConCuenta() {
+  return useQuery({
+    queryKey: profilesKeys.miembrosConCuenta,
+    queryFn: async (): Promise<Set<string>> => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("miembro_id")
+        .not("miembro_id", "is", null);
+      if (error) throw error;
+      return new Set((data ?? []).map((p) => p.miembro_id as string));
+    },
+  });
+}
+
+// La cuenta enlazada a una ficha del padrón, o null si esa persona todavía no
+// entra a la app. Devuelve el perfil entero (rol incluido), así que es para
+// admin: `prof_select` (0002) no le muestra a nadie más el perfil ajeno, y de
+// hecho un obrero recibiría null incluso para alguien de su grupo — para "¿tiene
+// cuenta?" a secas está `useMiembroTieneCuenta`, que va por RPC definer (0021).
+// Pasá `enabled` para no disparar una consulta que la RLS va a vaciar.
+export function useCuentaDeMiembro(miembroId: string, enabled = true) {
+  return useQuery({
+    queryKey: profilesKeys.deMiembro(miembroId),
+    enabled: enabled && !!miembroId,
+    queryFn: async (): Promise<Profile | null> => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("miembro_id", miembroId)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as Profile) ?? null;
     },
   });
 }

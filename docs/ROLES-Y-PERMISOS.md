@@ -74,7 +74,8 @@ Leyenda de alcance en las matrices siguientes:
 | Leer **directorio** (nombre, apellido, sexo, cumple, teléfono⁸) | ✗ | ✓⁶ | ✓⁶ | ✓⁶ |
 | Leer **PII completa** (+ email, notas) de la tabla `miembros` | ✗ | ✗ | Su gente | ✓ |
 | Crear miembro (alta de discípulo) | ✗ | ✗ | Su grupo¹ | ✓ |
-| Editar miembro (cualquiera) | ✗ | ✗ | Su gente | ✓ |
+| Editar los **datos** de un miembro | ✗ | ✗ | Su gente **sin cuenta**⁹ | ✓ |
+| Escribir la **descripción** (`notas`) de un miembro | ✗ | ✗ | Su gente | ✓ |
 | Editar **sus propios** datos (sin notas) | ✗ | Propio⁵ | Propio | Propio |
 | Borrar miembro | ✗ | ✗ | ✗ | ✓ |
 
@@ -100,6 +101,19 @@ Leyenda de alcance en las matrices siguientes:
 > la congregación veía antes de la migración. El flag es de la vista: su
 > discipulador y el admin siguen viendo el teléfono en `miembros`, que es el
 > contacto pastoral.
+> ⁹ **La ficha de quien tiene cuenta es suya** (`0021`): en cuanto
+> `profiles.miembro_id` apunta a esa persona, la RLS le corta el UPDATE al
+> discipulador (`miembros_update` suma `not miembro_tiene_cuenta(id)`) y los
+> datos personales pasan a editarse solo por `guardar_mis_datos`. Antes los
+> dos caminos escribían la misma fila y el discipulador podía pisar —sin
+> enterarse— lo que la persona acababa de corregir, incluido su
+> `mostrar_contacto`. La **lectura** no cambia: sigue viendo la PII completa
+> de su gente. La descripción sí le queda: se escribe por la RPC
+> `guardar_notas_miembro` (definer, solo esa columna), que es la contracara
+> exacta de `guardar_mis_datos` (edita todo menos `notas`). El **admin no
+> pierde nada**: es el ABM del padrón y quien corrige por quien no puede.
+> En la app: `app/miembro/[id].tsx` muestra la ficha en lectura + el campo de
+> descripción, y `app/admin/miembros.tsx` conserva el formulario completo.
 
 ### Grupos y reuniones — `discipulados`, `participaciones`, `reuniones`, `asistencias`, ofrendas
 

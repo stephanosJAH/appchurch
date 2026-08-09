@@ -162,10 +162,28 @@ function ResolverIdentidad({ profile, onVolver }: { profile: Profile; onVolver: 
             </View>
           </Card>
         )}
+        // El alta de ficha es la otra mitad de la resolución de identidad, no un
+        // escape secundario: cuando el padrón no tiene a nadie parecido es LA
+        // acción de la pantalla, y se muestra como tal. Mientras la búsqueda
+        // corre no aparece — ofrecer "crear" antes de saber si ya existe es
+        // justo cómo se llega a la ficha duplicada que 0018 vino a evitar.
         ListFooterComponent={
-          <View className="mt-2">
-            <Button title="No está en la lista: crear ficha nueva" variant="ghost" onPress={() => setCreandoFicha(true)} />
-          </View>
+          isLoading ? null : (
+            <View className="mt-2">
+              {candidatos.length > 0 ? (
+                <Muted className="mb-2">¿No es ninguna de estas personas?</Muted>
+              ) : null}
+              <Button
+                title="Crear ficha nueva"
+                variant={candidatos.length > 0 ? "outline" : "primary"}
+                icon="person-add-outline"
+                onPress={() => setCreandoFicha(true)}
+              />
+              <Muted className="mt-2">
+                Se carga en el padrón y la cuenta queda enlazada a esa ficha.
+              </Muted>
+            </View>
+          )
         }
       />
     </View>

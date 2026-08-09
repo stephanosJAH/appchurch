@@ -51,7 +51,7 @@ export function AppBar({ title, activeTab, onTabChange }: AppBarProps = {}) {
   const { profile } = useAuth();
 
   return (
-    <View style={{ paddingTop: insets.top + 8 }} className="bg-cream px-4 pb-3">
+    <View style={{ paddingTop: insets.top + 8 }} className="bg-cream px-4 pb-3 mt-3">
       {activeTab && onTabChange ? (
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center gap-7">
@@ -77,6 +77,7 @@ export function AppBar({ title, activeTab, onTabChange }: AppBarProps = {}) {
             <Text style={{ fontFamily: fonts.sansBold }} className="text-[16px] leading-6 text-ink">
               {title ?? "PDA"}
             </Text>
+            <View className={`absolute -bottom-2 h-[3px] w-full rounded-full bg-gold`} />
           </View>
           {/* <Pressable onPress={() => router.push("/(tabs)/perfil")} className="active:opacity-70">
             <Avatar name={profile?.nombre_completo} size={36} />
