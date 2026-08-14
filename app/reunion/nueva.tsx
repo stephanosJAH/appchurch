@@ -1,27 +1,47 @@
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import { Alert, Platform, Pressable, Text, View } from "react-native";
-import { Body, Button, Card, Field, KeyboardScrollView, Label, Muted, Title } from "../../components/ui";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Platform, Pressable, Text, View } from "react-native";
+import { Body, Button, Card, Field, KeyboardScrollView, Label, Muted } from "../../components/ui";
 import { dateToFecha, fechaLabel, fechaToDate, todayISO } from "../../lib/date";
 import { colors, fonts } from "../../lib/theme";
-import { AsistenciaInput, Modalidad } from "../../lib/types";
+import { AsistenciaInput, Miembro, Modalidad } from "../../lib/types";
 import { useDiscipulado } from "../../lib/queries/discipulados";
 import { useParticipaciones } from "../../lib/queries/participaciones";
-import { useRegistrarReunion } from "../../lib/queries/reuniones";
+import { useRegistrarReunion, useReunion } from "../../lib/queries/reuniones";
 
 const MODALIDADES: Modalidad[] = ["presencial", "virtual", "ambos"];
 // Modalidades posibles por miembro (asistió presencial u online).
 type ModalidadMiembro = "presencial" | "virtual";
 const MODALIDADES_MIEMBRO: ModalidadMiembro[] = ["presencial", "virtual"];
 
+// Una fila de la lista de asistencia. `enGrupo` es false para quien quedó
+// registrado en la reunión pero ya no participa del discipulado.
+type FilaAsistencia = {
+  miembro_id: string;
+  miembro: Miembro | null | undefined;
+  enGrupo: boolean;
+};
+
+// Esta pantalla registra una reunión nueva (params: discipuladoId) y también
+// edita una ya registrada (params: reunionId). Es el mismo formulario porque
+// es el mismo dato; lo único propio de la edición es de dónde salen los
+// valores iniciales y que la fecha ya no crea una reunión aparte (ver 0023).
 export default function NuevaReunion() {
   const router = useRouter();
-  const { discipuladoId } = useLocalSearchParams<{ discipuladoId: string }>();
-  const grupoId = String(discipuladoId);
+  const { discipuladoId, reunionId } = useLocalSearchParams<{
+    discipuladoId?: string;
+    reunionId?: string;
+  }>();
+  const editandoId = reunionId ? String(reunionId) : null;
 
-  const { data: participaciones = [], isLoading } = useParticipaciones(grupoId);
+  const { data: reunion, isLoading: cargandoReunion } = useReunion(editandoId ?? "");
+  // Al editar, el grupo lo manda la reunión guardada, no la navegación.
+  const grupoId = editandoId ? reunion?.discipulado_id ?? "" : String(discipuladoId ?? "");
+
+  const { data: participaciones = [], isLoading: cargandoParticipaciones } =
+    useParticipaciones(grupoId);
   const { data: discipulado } = useDiscipulado(grupoId);
   const registrar = useRegistrarReunion();
 
@@ -29,10 +49,6 @@ export default function NuevaReunion() {
   const [showPicker, setShowPicker] = useState(false);
   const [tema, setTema] = useState("");
   const [modalidad, setModalidad] = useState<Modalidad>("presencial");
-  // Default: la modalidad configurada en el discipulado (se aplica al cargar).
-  useEffect(() => {
-    if (discipulado?.modalidad) setModalidad(discipulado.modalidad);
-  }, [discipulado?.modalidad]);
   const [ofrenda, setOfrenda] = useState("");
   const [notas, setNotas] = useState("");
   const [presentes, setPresentes] = useState<Record<string, boolean>>({});
@@ -40,13 +56,57 @@ export default function NuevaReunion() {
   // modalidad de la reunión (presencial/ambos → presencial, virtual → virtual).
   const [modalidadesMiembro, setModalidadesMiembro] = useState<Record<string, ModalidadMiembro>>({});
 
-  // Al cambiar la modalidad de la reunión, se resetean los overrides para que
-  // todos vuelvan al default de esa modalidad.
+  // Valores iniciales, una sola vez: al editar salen de la reunión guardada;
+  // al dar de alta, la modalidad por defecto es la configurada en el grupo.
+  const cargado = useRef(false);
   useEffect(() => {
-    setModalidadesMiembro({});
-  }, [modalidad]);
+    if (cargado.current) return;
+    if (editandoId) {
+      if (!reunion) return;
+      setFecha(reunion.fecha);
+      setTema(reunion.tema ?? "");
+      setModalidad(reunion.modalidad_usada ?? "presencial");
+      const monto = Number(reunion.ofrenda_total ?? 0);
+      setOfrenda(monto ? String(monto) : "");
+      setNotas(reunion.notas ?? "");
+      const pres: Record<string, boolean> = {};
+      const mods: Record<string, ModalidadMiembro> = {};
+      for (const a of reunion.asistencias ?? []) {
+        pres[a.miembro_id] = a.presente;
+        if (a.modalidad === "presencial" || a.modalidad === "virtual") {
+          mods[a.miembro_id] = a.modalidad;
+        }
+      }
+      setPresentes(pres);
+      setModalidadesMiembro(mods);
+      cargado.current = true;
+    } else if (discipulado?.modalidad) {
+      setModalidad(discipulado.modalidad);
+      cargado.current = true;
+    }
+  }, [editandoId, reunion, discipulado?.modalidad]);
 
-  const presenteDe = (mid: string) => presentes[mid] ?? true;
+  // Lista de asistencia: los participantes activos del grupo más, al editar,
+  // quienes figuran en la reunión aunque ya no estén en el grupo. Sacarlos
+  // sería reescribir el historial — y como el backend borra las asistencias
+  // que no vengan en el payload (0023), directamente los perdería.
+  const roster = useMemo<FilaAsistencia[]>(() => {
+    const filas = new Map<string, FilaAsistencia>();
+    for (const p of participaciones) {
+      filas.set(p.miembro_id, { miembro_id: p.miembro_id, miembro: p.miembro, enGrupo: true });
+    }
+    for (const a of reunion?.asistencias ?? []) {
+      if (filas.has(a.miembro_id)) continue;
+      filas.set(a.miembro_id, { miembro_id: a.miembro_id, miembro: a.miembro, enGrupo: false });
+    }
+    return [...filas.values()].sort((a, b) =>
+      (a.miembro?.nombre ?? "").localeCompare(b.miembro?.nombre ?? "")
+    );
+  }, [participaciones, reunion]);
+
+  // En el alta todos arrancan presentes. Al editar manda lo registrado: quien
+  // no tiene asistencia (se sumó al grupo después) arranca ausente.
+  const presenteDe = (mid: string) => presentes[mid] ?? !editandoId;
   const toggle = (mid: string) => setPresentes((p) => ({ ...p, [mid]: !presenteDe(mid) }));
 
   const modalidadPorDefecto: ModalidadMiembro = modalidad === "virtual" ? "virtual" : "presencial";
@@ -56,9 +116,16 @@ export default function NuevaReunion() {
   // Solo para presencial/ambos ofrecemos elegir quién estuvo online vs presencial.
   const permiteElegirModalidad = modalidad !== "virtual";
 
+  // Cambiar la modalidad de la reunión resetea los overrides por miembro para
+  // que todos vuelvan al default de esa modalidad.
+  const elegirModalidad = (m: Modalidad) => {
+    setModalidad(m);
+    setModalidadesMiembro({});
+  };
+
   const totalPresentes = useMemo(
-    () => participaciones.filter((p) => presenteDe(p.miembro_id)).length,
-    [participaciones, presentes]
+    () => roster.filter((f) => presenteDe(f.miembro_id)).length,
+    [roster, presentes, editandoId]
   );
 
   const onSubmit = async () => {
@@ -66,13 +133,18 @@ export default function NuevaReunion() {
       Alert.alert("Fecha inválida", "Usá el formato AAAA-MM-DD.");
       return;
     }
-    const asistencias: AsistenciaInput[] = participaciones.map((p) => ({
-      miembro_id: p.miembro_id,
-      presente: presenteDe(p.miembro_id),
-      modalidad: presenteDe(p.miembro_id) ? modalidadDe(p.miembro_id) : null,
+    if (!grupoId) {
+      Alert.alert("Error", "No se pudo determinar el discipulado de la reunión.");
+      return;
+    }
+    const asistencias: AsistenciaInput[] = roster.map((f) => ({
+      miembro_id: f.miembro_id,
+      presente: presenteDe(f.miembro_id),
+      modalidad: presenteDe(f.miembro_id) ? modalidadDe(f.miembro_id) : null,
     }));
     try {
       await registrar.mutateAsync({
+        reunion_id: editandoId,
         discipulado_id: grupoId,
         fecha,
         tema: tema.trim() || null,
@@ -82,14 +154,38 @@ export default function NuevaReunion() {
         notas: notas.trim() || null,
         asistencias,
       });
-      Alert.alert("Listo", "Reunión registrada.", [{ text: "OK", onPress: () => router.back() }]);
+      Alert.alert("Listo", editandoId ? "Reunión actualizada." : "Reunión registrada.", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
     } catch (e: any) {
-      Alert.alert("Error", e.message ?? "No se pudo registrar la reunión.");
+      Alert.alert("Error", e.message ?? "No se pudo guardar la reunión.");
     }
   };
 
+  if (editandoId && cargandoReunion) {
+    return (
+      <View className="flex-1 items-center justify-center bg-cream">
+        <Stack.Screen options={{ title: "Editar reunión" }} />
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (editandoId && !reunion) {
+    return (
+      <View className="flex-1 items-center justify-center bg-cream p-8">
+        <Stack.Screen options={{ title: "Editar reunión" }} />
+        <Muted>No se encontró la reunión.</Muted>
+      </View>
+    );
+  }
+
+  const cargandoRoster = cargandoParticipaciones && roster.length === 0;
+
   return (
     <KeyboardScrollView>
+      <Stack.Screen options={{ title: editandoId ? "Editar reunión" : "Registrar reunión" }} />
+
       <Label className="mb-1.5">Fecha</Label>
         <View className="mb-4 flex-row items-center gap-2">
           <Pressable
@@ -120,7 +216,7 @@ export default function NuevaReunion() {
         <View className="mb-4 flex-row gap-2">
           {MODALIDADES.map((m) => (
             <View key={m} className="flex-1">
-              <Button title={m} variant={modalidad === m ? "primary" : "outline"} size="sm" onPress={() => setModalidad(m)} />
+              <Button title={m} variant={modalidad === m ? "primary" : "outline"} size="sm" onPress={() => elegirModalidad(m)} />
             </View>
           ))}
         </View>
@@ -131,29 +227,29 @@ export default function NuevaReunion() {
         <View className="mb-2.5 mt-2 flex-row items-center justify-between">
           <Label>Asistencia</Label>
           <Muted className="text-gold">
-            {totalPresentes}/{participaciones.length} presentes
+            {totalPresentes}/{roster.length} presentes
           </Muted>
         </View>
 
-        {isLoading ? (
+        {cargandoRoster ? (
           <Muted>Cargando discípulos…</Muted>
-        ) : participaciones.length === 0 ? (
+        ) : roster.length === 0 ? (
           <Card>
             <Muted>Este grupo no tiene discípulos. Agregalos desde el detalle del discipulado.</Muted>
           </Card>
         ) : (
           <View className="gap-2.5">
-            {participaciones.map((p) => {
-              const presente = presenteDe(p.miembro_id);
+            {roster.map((f) => {
+              const presente = presenteDe(f.miembro_id);
               return (
                 <View
-                  key={p.id}
+                  key={f.miembro_id}
                   className={`rounded-lg border p-3.5 ${
                     presente ? "border-navy bg-navy/5" : "border-black/10 bg-surface"
                   }`}
                 >
                   <Pressable
-                    onPress={() => toggle(p.miembro_id)}
+                    onPress={() => toggle(f.miembro_id)}
                     className="flex-row items-center gap-3 active:opacity-70"
                   >
                     <Ionicons
@@ -161,20 +257,23 @@ export default function NuevaReunion() {
                       size={24}
                       color={presente ? colors.primary : colors.outlineVariant}
                     />
-                    <Body className="flex-1 text-ink">
-                      {p.miembro?.nombre} {p.miembro?.apellido ?? ""}
-                    </Body>
+                    <View className="flex-1">
+                      <Body className="text-ink">
+                        {f.miembro?.nombre} {f.miembro?.apellido ?? ""}
+                      </Body>
+                      {!f.enGrupo ? <Muted>Ya no está en el grupo</Muted> : null}
+                    </View>
                   </Pressable>
 
                   {/* Presencial vs. virtual por miembro (presencial/ambos) */}
                   {presente && permiteElegirModalidad && (
                     <View className="mt-2.5 flex-row gap-2 pl-9">
                       {MODALIDADES_MIEMBRO.map((m) => {
-                        const sel = modalidadDe(p.miembro_id) === m;
+                        const sel = modalidadDe(f.miembro_id) === m;
                         return (
                           <Pressable
                             key={m}
-                            onPress={() => setModalidadMiembro(p.miembro_id, m)}
+                            onPress={() => setModalidadMiembro(f.miembro_id, m)}
                             className={`flex-row items-center gap-1.5 rounded-full px-3 py-1.5 ${
                               sel ? "bg-navy" : "bg-surface-mid"
                             }`}
@@ -206,7 +305,11 @@ export default function NuevaReunion() {
         </View>
 
         <View className="mt-2">
-          <Button title="Guardar reunión" onPress={onSubmit} loading={registrar.isPending} />
+          <Button
+            title={editandoId ? "Guardar cambios" : "Guardar reunión"}
+            onPress={onSubmit}
+            loading={registrar.isPending}
+          />
         </View>
     </KeyboardScrollView>
   );

@@ -22,7 +22,14 @@ export type ReunionConGrupo = Reunion & {
 export type AsistenciaConMiembro = Asistencia & { miembro?: Miembro | null };
 
 // Reunión con grupo y asistencias (miembro embebido) — para el detalle.
-export type ReunionDetalle = ReunionConGrupo & {
+// Trae además el `discipulador_id` del grupo: es lo que decide si esta reunión
+// se puede editar (la RLS ya lo garantiza; acá es solo para mostrar el botón).
+export type ReunionDetalle = Reunion & {
+  discipulado?: {
+    nombre: string | null;
+    descripcion_etaria: string | null;
+    discipulador_id: string | null;
+  } | null;
   asistencias?: AsistenciaConMiembro[];
 };
 
@@ -35,7 +42,7 @@ export function useReunion(reunionId: string) {
       const { data, error } = await supabase
         .from("reuniones")
         .select(
-          "*, discipulado:discipulados(nombre, descripcion_etaria), asistencias(*, miembro:miembros(*))"
+          "*, discipulado:discipulados(nombre, descripcion_etaria, discipulador_id), asistencias(*, miembro:miembros(*))"
         )
         .eq("id", reunionId)
         .single();
@@ -113,6 +120,9 @@ export function useReunionesSemana(desde: string, hasta: string) {
 }
 
 export type RegistrarReunionInput = {
+  // Presente solo al editar una reunión existente; en el alta va null y el
+  // backend resuelve por (discipulado_id, fecha).
+  reunion_id?: string | null;
   discipulado_id: string;
   fecha: string;
   tema: string | null;
@@ -123,7 +133,7 @@ export type RegistrarReunionInput = {
   asistencias: AsistenciaInput[];
 };
 
-// Llama al RPC transaccional registrar_reunion.
+// Llama al RPC transaccional registrar_reunion (alta y edición, 0023).
 export function useRegistrarReunion() {
   const qc = useQueryClient();
   return useMutation({
@@ -137,15 +147,19 @@ export function useRegistrarReunion() {
         p_ofrenda: input.ofrenda,
         p_notas: input.notas,
         p_asistencias: input.asistencias,
+        p_reunion_id: input.reunion_id ?? null,
       });
       if (error) throw error;
       return data as string; // reunion_id
     },
-    onSuccess: (_data, vars) => {
-      qc.invalidateQueries({
-        queryKey: reunionesKeys.byDiscipulado(vars.discipulado_id),
-      });
-      qc.invalidateQueries({ queryKey: ["reuniones", "semana"] });
+    onSuccess: () => {
+      // Editar puede mover la fecha y cambiar la ofrenda, así que no alcanza
+      // con el historial del grupo: también quedan viejos el calendario, el
+      // mes y el desglose de ofrendas. Todas esas claves cuelgan de
+      // "reuniones", así que se invalidan de una. `refetchType: "all"` alcanza
+      // además a las pantallas en segundo plano (mismo motivo que en
+      // discipulados: al volver, los datos ya están al día).
+      qc.invalidateQueries({ queryKey: ["reuniones"], refetchType: "all" });
     },
   });
 }

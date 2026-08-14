@@ -124,7 +124,7 @@ Leyenda de alcance en las matrices siguientes:
 | Crear grupo / asignar líder | ✗ | ✗ | ✗ | ✓ |
 | Editar su propio grupo | ✗ | ✗ | Su grupo | ✓ |
 | Gestionar participantes (sumar/quitar) | ✗ | ✗ | Su grupo | ✓ |
-| Registrar reuniones y asistencia | ✗ | ✗ | Su grupo | ✓ |
+| Registrar y editar reuniones y asistencia | ✗ | ✗ | Su grupo | ✓ |
 | Registrar/ver ofrendas, notas y material | ✗ | ✗² | Su grupo | ✓ (todas) |
 
 > ² El `miembro` **ve** su grupo pero no lo **gestiona**. Lectura por dos RPC
@@ -137,6 +137,12 @@ Leyenda de alcance en las matrices siguientes:
 > (cuentas previas a `0018`) ambas devuelven vacío.
 > Registrar reunión + asistencias + ofrenda se hace en una sola RPC transaccional
 > (`registrar_reunion`), que valida `es_admin() or es_discipulador_de(grupo)`.
+> La misma RPC edita una reunión ya cargada si se le pasa `p_reunion_id`
+> (`0023`): ahí la fecha también es editable y el permiso se chequea contra el
+> `discipulado_id` **guardado en la reunión**, no contra el que venga por
+> parámetro. Editar no está separado de registrar como permiso: quien puede
+> cargar la reunión de su grupo puede corregirla. **Borrar no existe** para
+> nadie, ni admin.
 >
 > **Nota de PII**: la lista de presentes es la única superficie donde un
 > `miembro` ve a un **menor de edad** (el `directorio` los excluye desde `0017`).

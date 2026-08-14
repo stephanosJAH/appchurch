@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo } from "react";
-import { ActivityIndicator, ScrollView, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import {
   Avatar,
   Body,
@@ -12,6 +12,7 @@ import {
   Muted,
   Title,
 } from "../../components/ui";
+import { useAuth } from "../../lib/auth";
 import { formatMoneda } from "../../lib/date";
 import { colors } from "../../lib/theme";
 import { useReunion } from "../../lib/queries/reuniones";
@@ -29,7 +30,14 @@ function fechaLarga(iso: string): string {
 
 export default function ReunionDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const { isAdmin, profile } = useAuth();
   const { data: reunion, isLoading } = useReunion(String(id));
+
+  // Puede editarla el admin o el discipulador a cargo del grupo — el mismo
+  // corte que hace la RPC. Acá es solo para mostrar u ocultar el lápiz.
+  const canManage =
+    isAdmin || (!!profile && profile.id === reunion?.discipulado?.discipulador_id);
 
   const asistencias = useMemo(
     () =>
@@ -66,6 +74,24 @@ export default function ReunionDetalle() {
       contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
       showsVerticalScrollIndicator={false}
     >
+      {canManage && (
+        <Stack.Screen
+          options={{
+            headerRight: () => (
+              <Pressable
+                onPress={() =>
+                  router.push({ pathname: "/reunion/nueva", params: { reunionId: String(id) } })
+                }
+                className="active:opacity-60"
+                hitSlop={12}
+              >
+                <Ionicons name="create-outline" size={22} color={colors.primary} />
+              </Pressable>
+            ),
+          }}
+        />
+      )}
+
       {/* Encabezado */}
       <Card className="mb-4 bg-navy">
         <Muted >{grupo}</Muted>
