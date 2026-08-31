@@ -36,6 +36,45 @@
 Los **discipulados** siguen siendo una entidad **aparte** (grupo con roster, líder
 y asistencia), aunque también sean recurrentes. No se fusionan con `actividades`.
 
+## `descripcion` con formato (marcas tipo markdown)
+
+La `descripcion` de **actividades y eventos** admite formato. Se guarda como
+**texto plano con marcas**, en la misma columna `text` de las dos tablas: no hubo
+migración, no cambió ninguna policy y **las descripciones cargadas antes siguen
+siendo válidas** (son texto sin ninguna marca).
+
+Marcas soportadas (la lista viva está en la cabecera de `lib/richText.ts`):
+
+```
+# Título      ## Subtítulo    ### Sub-subtítulo
+- viñeta      1. numerada     > cita
+**negrita**   _cursiva_       __subrayado__
+~~tachado~~   `código`        [texto](https://…)
+```
+
+- **Escritura** — `components/RichTextEditor.tsx`: un `TextInput` común con una
+  barra que inserta las marcas sobre lo seleccionado, más un botón **"Vista
+  previa"** que renderiza con el mismo componente que usa la app. Sin dependencias
+  nuevas y sin WebView.
+- **Lectura** — `components/RichTextView.tsx`: parsea a bloques y dibuja con
+  `<Text>`/`<View>` con la tipografía del design system. Los enlaces salen por
+  `abrirAdjunto()`, que solo abre `https://`.
+- **Previews y buscador** — todo lo que corta con `numberOfLines` (feed, cards del
+  home, listas del admin) y el buscador del tab pasan por `aTextoPlano()`. Si se
+  agrega otro lugar que muestre `descripcion` recortada, **tiene que usarlo**: sin
+  eso se ven los asteriscos y los `#` crudos.
+- `estaVacio()` detecta una descripción que quedó solo con marcas o espacios y en
+  ese caso se guarda `null`.
+
+> **Se evaluó un editor WYSIWYG** (tiptap dentro de un WebView, vía
+> `@10play/tentap-editor`) y se descartó: sumaba dos dependencias nativas, obligaba
+> a guardar HTML y a mantener un parser de HTML para poder mostrarlo sin WebView.
+> Si se retoma, tener presente que el paquete arrastra `react-dom` al árbol —
+> conflicto conocido con el React 19 del proyecto.
+
+`discipulados.descripcion_etaria` **no** entra acá: sigue siendo texto plano corto
+(un rótulo tipo "Jóvenes 18-25"), con su `Field` de siempre.
+
 ## Superficie en la app
 
 - **Feed** (`app/(tabs)/actividades.tsx`): dos secciones — "Actividades semanales"

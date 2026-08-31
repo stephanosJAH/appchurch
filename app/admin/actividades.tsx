@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Alert, Image, Pressable, View } from "react-native";
+import { RichTextEditor } from "../../components/RichTextEditor";
 import { Body, Button, Card, Chip, Field, KeyboardScrollView, Label, Muted, Title } from "../../components/ui";
 import { formatDiasSemana, formatHora } from "../../lib/date";
+import { aTextoPlano, estaVacio } from "../../lib/richText";
 import { colors } from "../../lib/theme";
 import { Actividad, AdjuntoTipo, Modalidad } from "../../lib/types";
 import {
@@ -144,7 +146,8 @@ export default function AdminActividades() {
       await upsert.mutateAsync({
         ...(editId ? { id: editId } : {}),
         titulo: titulo.trim(),
-        descripcion: descripcion.trim() || null,
+        // Solo marcas sueltas o espacios no son una descripción: va null.
+        descripcion: estaVacio(descripcion) ? null : descripcion.trim(),
         dias_semana: dias,
         hora_inicio: hi,
         hora_fin: hf,
@@ -187,7 +190,12 @@ export default function AdminActividades() {
             {editId ? "Editar actividad" : "Nueva actividad semanal"}
           </Title>
           <Field label="Título" value={titulo} onChangeText={setTitulo} />
-          <Field label="Descripción" value={descripcion} onChangeText={setDescripcion} multiline />
+          <RichTextEditor
+            label="Descripción"
+            valor={descripcion}
+            onChange={setDescripcion}
+            ayuda="Usá la barra para dar formato. Tocá «Vista previa» para ver cómo queda publicado."
+          />
 
           <Label className="mb-1.5">Días de la semana</Label>
           <View className="mb-4 flex-row flex-wrap gap-2">
@@ -308,7 +316,7 @@ export default function AdminActividades() {
             </View>
             {a.descripcion ? (
               <Body className="mt-2" numberOfLines={2}>
-                {a.descripcion}
+                {aTextoPlano(a.descripcion)}
               </Body>
             ) : null}
             <View className="mt-3 flex-row gap-2">

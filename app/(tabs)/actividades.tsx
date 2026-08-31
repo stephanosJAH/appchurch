@@ -21,6 +21,7 @@ import {
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { formatDiasSemana, formatFechaLarga, formatHora, formatRangoFechas, mismoDia, proximaOcurrencia } from "../../lib/date";
+import { aTextoPlano } from "../../lib/richText";
 import { colors, fonts } from "../../lib/theme";
 import { Actividad, Evento } from "../../lib/types";
 import { useActividadesActivas } from "../../lib/queries/actividades";
@@ -90,8 +91,10 @@ export default function Actividades() {
   const [q, setQ] = useState("");
 
   const t = q.trim().toLowerCase();
+  // La descripción guarda marcas de formato: se busca sobre el texto ya limpio,
+  // si no "**oración**" no aparecería buscando "oración".
   const matches = (titulo: string, desc: string | null) =>
-    !t || titulo.toLowerCase().includes(t) || (desc ?? "").toLowerCase().includes(t);
+    !t || titulo.toLowerCase().includes(t) || aTextoPlano(desc).toLowerCase().includes(t);
 
   const eventosFiltrados = useMemo(() => {
     // El feed muestra solo eventos generales, no las reuniones de discipulado.
@@ -211,7 +214,7 @@ export default function Actividades() {
                     </Title>
                     {destacado.descripcion ? (
                       <Body className="mt-1" numberOfLines={2}>
-                        {destacado.descripcion}
+                        {aTextoPlano(destacado.descripcion)}
                       </Body>
                     ) : null}
                     <View className="mt-4 flex-row items-center justify-between">
@@ -267,7 +270,7 @@ export default function Actividades() {
                     </View>
                     {e.descripcion ? (
                       <Body className="mt-2" numberOfLines={2}>
-                        {e.descripcion}
+                        {aTextoPlano(e.descripcion)}
                       </Body>
                     ) : null}
                     {e.ubicacion ? (

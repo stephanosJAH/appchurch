@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { ActivityIndicator, Image, ScrollView, View } from "react-native";
+import { RichTextView } from "../../components/RichTextView";
 import { Body, Button, Card, Chip, Muted, Title } from "../../components/ui";
 import { formatFechaHoraCorta, formatHora, mismoDia } from "../../lib/date";
 import { colors } from "../../lib/theme";
@@ -101,7 +102,7 @@ export default function ActividadDetalle() {
       {/* Descripción */}
       {evento.descripcion ? (
         <Card className="mt-4">
-          <Body className="text-ink">{evento.descripcion}</Body>
+          <RichTextView descripcion={evento.descripcion} />
         </Card>
       ) : null}
 

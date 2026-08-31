@@ -2,8 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useState } from "react";
 import { Alert, Image, Platform, Pressable, View } from "react-native";
+import { RichTextEditor } from "../../components/RichTextEditor";
 import { Body, Button, Card, Chip, Field, KeyboardScrollView, Label, Muted, Title } from "../../components/ui";
 import { dateToFecha, fechaLabel, fechaToDate, formatFechaLarga, formatRangoFechas, mismoDia } from "../../lib/date";
+import { aTextoPlano, estaVacio } from "../../lib/richText";
 import { colors } from "../../lib/theme";
 import { AdjuntoTipo, Evento, TipoEvento } from "../../lib/types";
 import { useDeleteEvento, useEventosAdmin, useUpsertEvento } from "../../lib/queries/eventos";
@@ -138,7 +140,8 @@ export default function AdminEventos() {
       await upsert.mutateAsync({
         ...(editId ? { id: editId } : {}),
         titulo: titulo.trim(),
-        descripcion: descripcion.trim() || null,
+        // Solo marcas sueltas o espacios no son una descripción: va null.
+        descripcion: estaVacio(descripcion) ? null : descripcion.trim(),
         tipo,
         discipulado_id: null,
         fecha_inicio: toISO(fecha, horaInicio),
@@ -179,7 +182,12 @@ export default function AdminEventos() {
             {editId ? "Editar evento" : "Nuevo evento"}
           </Title>
           <Field label="Título" value={titulo} onChangeText={setTitulo} />
-          <Field label="Descripción" value={descripcion} onChangeText={setDescripcion} multiline />
+          <RichTextEditor
+            label="Descripción"
+            valor={descripcion}
+            onChange={setDescripcion}
+            ayuda="Usá la barra para dar formato. Tocá «Vista previa» para ver cómo queda publicado."
+          />
 
           <Label className="mb-1.5">Tipo</Label>
           <View className="mb-4 flex-row gap-2">
@@ -334,7 +342,7 @@ export default function AdminEventos() {
               </View>
               {e.descripcion ? (
                 <Body className="mt-2" numberOfLines={2}>
-                  {e.descripcion}
+                  {aTextoPlano(e.descripcion)}
                 </Body>
               ) : null}
               <View className="mt-3 flex-row gap-2">
