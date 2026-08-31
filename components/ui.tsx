@@ -1,13 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
-import { PropsWithChildren, useState } from "react";
+import { PropsWithChildren, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  DimensionValue,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   PressableProps,
   ScrollView,
   ScrollViewProps,
+  StyleProp,
   Switch,
   Text,
   TextInput,
@@ -15,7 +17,15 @@ import {
   TextProps,
   View,
   ViewProps,
+  ViewStyle,
 } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { cardShadow, colors, fonts } from "../lib/theme";
 
@@ -322,6 +332,110 @@ export function SwitchField({
         ios_backgroundColor={colors.outlineVariant}
       />
     </Pressable>
+  );
+}
+
+/* ============================ Skeletons ============================ */
+
+// Bloque gris que late mientras se resuelve una consulta. La animación corre en
+// el hilo de UI (Reanimated), así el pulso no se traba mientras el JS trabaja.
+// Todos los bloques montados a la vez arrancan en el mismo frame, así que laten
+// sincronizados sin necesidad de compartir un valor animado.
+export function Skeleton({
+  width = "100%",
+  height = 12,
+  radius = 6,
+  style,
+}: {
+  width?: DimensionValue;
+  height?: DimensionValue;
+  radius?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const pulso = useSharedValue(0.55);
+
+  useEffect(() => {
+    pulso.value = withRepeat(
+      withTiming(1, { duration: 800, easing: Easing.inOut(Easing.quad) }),
+      -1, // sin fin
+      true // ida y vuelta
+    );
+  }, [pulso]);
+
+  const anim = useAnimatedStyle(() => ({ opacity: pulso.value }));
+
+  return (
+    <Animated.View
+      style={[
+        {
+          width,
+          height,
+          borderRadius: radius,
+          backgroundColor: colors.surfaceContainerHigh,
+        },
+        anim,
+        style,
+      ]}
+    />
+  );
+}
+
+// Placeholder de una tarjeta del feed (portada + fecha + título + bajada).
+// Copia la silueta de las diapositivas de eventos/actividades y de la tarjeta
+// destacada del discipulado, para que al llegar los datos no salte el layout.
+// `accion`: "enlace" imita el "Ver detalles" del carrusel; "boton", el botón
+// ancho de la tarjeta destacada.
+export function SkeletonCard({
+  accion = "enlace",
+  style,
+}: {
+  accion?: "enlace" | "boton";
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <Card className="overflow-hidden p-0" style={style}>
+      {/* Portada (donde va el flyer o el ícono sobre navy) */}
+      <Skeleton height={112} radius={0} />
+      <View className="p-5">
+        <Skeleton width={128} height={11} />
+        <Skeleton width="85%" height={19} style={{ marginTop: 12 }} />
+        <Skeleton width="55%" height={13} style={{ marginTop: 10 }} />
+        {accion === "boton" ? (
+          <Skeleton height={46} radius={8} style={{ marginTop: 18 }} />
+        ) : (
+          <View className="mt-5 flex-row items-center justify-between">
+            <Skeleton width={140} height={12} />
+            <Skeleton width={78} height={12} />
+          </View>
+        )}
+      </View>
+    </Card>
+  );
+}
+
+// Placeholder de una fila-tarjeta (cumpleaños, directorio): avatar + dos
+// líneas + un accesorio a la derecha (chip o botones de contacto).
+export function SkeletonRow({ accesorio = 64 }: { accesorio?: number }) {
+  return (
+    <Card className="flex-row items-center gap-3 py-3.5">
+      <Skeleton width={40} height={40} radius={20} />
+      <View className="flex-1">
+        <Skeleton width="60%" height={13} />
+        <Skeleton width="38%" height={11} style={{ marginTop: 8 }} />
+      </View>
+      <Skeleton width={accesorio} height={22} radius={8} />
+    </Card>
+  );
+}
+
+// Varias filas apiladas, con el mismo espaciado que las listas reales.
+export function SkeletonRows({ count = 3, accesorio }: { count?: number; accesorio?: number }) {
+  return (
+    <View className="gap-2.5">
+      {Array.from({ length: count }, (_, i) => (
+        <SkeletonRow key={i} accesorio={accesorio} />
+      ))}
+    </View>
   );
 }
 

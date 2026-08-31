@@ -19,9 +19,10 @@ import {
   startOfWeek,
   toISODate,
 } from "../lib/date";
+import { aTextoPlano } from "../lib/richText";
 import { colors } from "../lib/theme";
 import { DIAS_SEMANA, Evento } from "../lib/types";
-import { Body, Card, Chip, Label, LinkAction, Muted, Title } from "./ui";
+import { Body, Card, Chip, Label, LinkAction, Muted, SkeletonCard, Title } from "./ui";
 
 // Padding horizontal del contenedor del feed (16 por lado): la diapositiva ocupa
 // el ancho de pantalla menos ese margen.
@@ -93,7 +94,7 @@ function EventoSlide({
             </Title>
             {e.descripcion ? (
               <Body className="mt-1" numberOfLines={2}>
-                {e.descripcion}
+                {aTextoPlano(e.descripcion)}
               </Body>
             ) : null}
             <View className="mt-4 flex-row items-center justify-between">
@@ -120,14 +121,21 @@ function EventoSlide({
 // `swipeGesture`: gesto nativo del carrusel, para que la pantalla que lo monta
 // pueda declarar prioridad frente a sus propios gestos horizontales (el feed
 // pasa el suyo para que arrastrar entre eventos no salte a "Nosotros").
+//
+// `cargando`: mientras la consulta trae los eventos se muestra el encabezado
+// (el rango de la semana sale del reloj, no de la base) con una tarjeta
+// fantasma debajo. Si al final la semana no tiene eventos, la sección
+// desaparece.
 export function EventosSemana({
   eventos,
   className,
   swipeGesture,
+  cargando,
 }: {
   eventos: Evento[];
   className?: string;
   swipeGesture?: NativeGesture;
+  cargando?: boolean;
 }) {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -138,7 +146,7 @@ export function EventosSemana({
 
   const semana = useMemo(() => eventosDeLaSemana(eventos), [eventos]);
 
-  if (semana.length === 0) return null;
+  if (semana.length === 0 && !cargando) return null;
 
   const inicioSemana = startOfWeek();
   const rango = formatRangoFechas(
@@ -151,12 +159,25 @@ export function EventosSemana({
     if (i !== index) setIndex(i);
   };
 
+  const encabezado = (
+    <View className="mb-2 flex-row items-end justify-between">
+      <Label>Eventos de la semana</Label>
+      <Muted className="text-xs capitalize">{rango}</Muted>
+    </View>
+  );
+
+  if (semana.length === 0) {
+    return (
+      <View className={className}>
+        {encabezado}
+        <SkeletonCard />
+      </View>
+    );
+  }
+
   return (
     <View className={className}>
-      <View className="mb-2 flex-row items-end justify-between">
-        <Label>Eventos de la semana</Label>
-        <Muted className="text-xs capitalize">{rango}</Muted>
-      </View>
+      {encabezado}
 
       {/* GestureDetector + Gesture.Native(): mete el scroll horizontal nativo en
           el sistema de gestos de RNGH, así quien monta el carrusel puede darle

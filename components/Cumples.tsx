@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { View } from "react-native";
 import { diasHastaCumple, etiquetaCumple, formatCumple } from "../lib/date";
 import { colors } from "../lib/theme";
-import { Body, Card, Chip, Label, Muted } from "./ui";
+import { Body, Card, Chip, Label, Muted, SkeletonRows } from "./ui";
 
 // Forma mínima para calcular/mostrar cumpleaños. La satisfacen tanto `Miembro`
 // (participaciones) como `DirectorioEntry` (vista directorio).
@@ -54,27 +54,35 @@ export function CumpleRow({ miembro, dias }: { miembro: PersonaCumple; dias: num
 }
 
 // Sección "Cumpleaños" reutilizable. No renderiza nada si no hay próximos.
+// Con `cargando` muestra filas fantasma hasta que llegan los miembros (y se
+// esconde igual si al final no hay ninguno dentro del plazo).
 export function CumplesSection({
   miembros,
   titulo = "Cumpleaños",
   dentroDe = 30,
   className,
+  cargando,
 }: {
   miembros: (PersonaCumple | undefined | null)[];
   titulo?: string;
   dentroDe?: number;
   className?: string;
+  cargando?: boolean;
 }) {
   const items = proximosCumples(miembros, dentroDe);
-  if (items.length === 0) return null;
+  if (items.length === 0 && !cargando) return null;
   return (
     <View className={className}>
       <Label className="mb-2">{titulo}</Label>
-      <View className="gap-2.5">
-        {items.map(({ miembro, dias }) => (
-          <CumpleRow key={miembro.id} miembro={miembro} dias={dias} />
-        ))}
-      </View>
+      {items.length === 0 ? (
+        <SkeletonRows count={2} accesorio={72} />
+      ) : (
+        <View className="gap-2.5">
+          {items.map(({ miembro, dias }) => (
+            <CumpleRow key={miembro.id} miembro={miembro} dias={dias} />
+          ))}
+        </View>
+      )}
     </View>
   );
 }

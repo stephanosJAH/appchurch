@@ -12,9 +12,10 @@ import {
 } from "react-native";
 import { Gesture, GestureDetector, type NativeGesture } from "react-native-gesture-handler";
 import { formatDiasSemana, formatFechaLarga, formatHora } from "../lib/date";
+import { aTextoPlano } from "../lib/richText";
 import { colors } from "../lib/theme";
 import { Actividad, DIAS_SEMANA } from "../lib/types";
-import { Body, Card, Chip, Label, LinkAction, Muted, Title } from "./ui";
+import { Body, Card, Chip, Label, LinkAction, Muted, SkeletonCard, Title } from "./ui";
 
 // Padding horizontal del contenedor del feed (16 por lado): la diapositiva ocupa
 // el ancho de pantalla menos ese margen.
@@ -74,7 +75,7 @@ function ActividadSlide({
             </Title>
             {a.descripcion ? (
               <Body className="mt-1" numberOfLines={2}>
-                {a.descripcion}
+                {aTextoPlano(a.descripcion)}
               </Body>
             ) : null}
             <View className="mt-4 flex-row items-center justify-between">
@@ -104,14 +105,20 @@ function ActividadSlide({
 // `swipeGesture`: gesto nativo del carrusel, para que la pantalla que lo monta
 // pueda declarar prioridad frente a sus propios gestos horizontales (el feed
 // pasa el suyo para que arrastrar entre actividades no salte a "Nosotros").
+//
+// `cargando`: mientras la consulta trae las actividades se muestra el
+// encabezado (día y fecha son de reloj, no de la base) con una tarjeta
+// fantasma debajo. Si al final hoy no hay ninguna, la sección desaparece.
 export function ActividadesHoy({
   actividades,
   className,
   swipeGesture,
+  cargando,
 }: {
   actividades: Actividad[];
   className?: string;
   swipeGesture?: NativeGesture;
+  cargando?: boolean;
 }) {
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -122,7 +129,7 @@ export function ActividadesHoy({
 
   const hoy = useMemo(() => actividadesDeHoy(actividades), [actividades]);
 
-  if (hoy.length === 0) return null;
+  if (hoy.length === 0 && !cargando) return null;
 
   const fecha = formatFechaLarga(new Date().toISOString());
   const diaHoy = DIAS_SEMANA[new Date().getDay()];
@@ -132,12 +139,25 @@ export function ActividadesHoy({
     if (i !== index) setIndex(i);
   };
 
+  const encabezado = (
+    <View className="mb-2 flex-row items-end justify-between">
+      <Label>Actividades de hoy</Label>
+      <Muted className="text-xs capitalize">{fecha}</Muted>
+    </View>
+  );
+
+  if (hoy.length === 0) {
+    return (
+      <View className={className}>
+        {encabezado}
+        <SkeletonCard />
+      </View>
+    );
+  }
+
   return (
     <View className={className}>
-      <View className="mb-2 flex-row items-end justify-between">
-        <Label>Actividades de hoy</Label>
-        <Muted className="text-xs capitalize">{fecha}</Muted>
-      </View>
+      {encabezado}
 
       {/* GestureDetector + Gesture.Native(): mete el scroll horizontal nativo en
           el sistema de gestos de RNGH, así quien monta el carrusel puede darle

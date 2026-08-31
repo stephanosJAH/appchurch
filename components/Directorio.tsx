@@ -5,7 +5,7 @@ import { diasHastaCumple, formatCumple } from "../lib/date";
 import { useDirectorio } from "../lib/queries/directorio";
 import { colors } from "../lib/theme";
 import { DirectorioEntry } from "../lib/types";
-import { Avatar, Body, Card, Field, Label, Muted } from "./ui";
+import { Avatar, Body, Card, Field, Label, Muted, SkeletonRows } from "./ui";
 
 const soloDigitos = (tel: string) => tel.replace(/\D/g, "");
 
@@ -86,13 +86,20 @@ export function DirectorioList() {
         keyExtractor={(p) => p.id}
         renderItem={renderItem}
         keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={<Label className="mb-2">Directorio ({filtradas.length})</Label>}
+        ListHeaderComponent={
+          // Sin el contador mientras carga: "Directorio (0)" sería mentira.
+          <Label className="mb-2">Directorio{isLoading ? "" : ` (${filtradas.length})`}</Label>
+        }
         ListEmptyComponent={
-          !isLoading ? (
+          isLoading ? (
+            // Filas fantasma con la silueta de la ficha (avatar, nombre,
+            // cumpleaños y los botones de contacto a la derecha).
+            <SkeletonRows count={6} accesorio={88} />
+          ) : (
             <Card>
               <Muted>{q ? "Nadie coincide con la búsqueda." : "El directorio está vacío."}</Muted>
             </Card>
-          ) : null
+          )
         }
       />
     </View>
