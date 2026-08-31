@@ -115,6 +115,7 @@ function AuthGate() {
       <Stack.Screen name="pendiente" options={{ headerShown: false }} />
       <Stack.Screen name="aprobaciones" options={{ title: "Aprobar cuentas" }} />
       <Stack.Screen name="directorio" options={{ title: "Directorio" }} />
+      <Stack.Screen name="contenido" options={{ title: "Contenido" }} />
       <Stack.Screen name="mis-datos" options={{ title: "Mis datos" }} />
       <Stack.Screen name="ofrendas" options={{ title: "Ofrendas" }} />
       <Stack.Screen name="anuncios" options={{ title: "Anuncios" }} />
