@@ -207,8 +207,18 @@ y un líder de ministerio **puede ser `miembro`**. Ver [`MINISTERIOS.md`](./MINI
 |---|:---:|:---:|:---:|:---:|
 | Ver eventos vigentes | ✗³ | ✓ | ✓ | ✓ |
 | Crear / editar / borrar eventos | ✗ | ✗ | ✗⁴ | ✓ |
-| Ver anuncios *(planificado, Fase 5)* | ✗ | ✓ | ✓ | ✓ |
-| Publicar anuncios *(planificado, Fase 5)* | ✗ | ✗ | ✓ | ✓ |
+| Ver anuncios generales (toda la iglesia) | ✗ | ✓ | ✓ | ✓ |
+| Ver anuncios de un ministerio | ✗ | Solo su gente | Solo su gente | ✓ |
+| Publicar anuncios generales | ✗ | ✗ | ✗ | ✓ |
+| Publicar / editar / borrar anuncios de un ministerio | ✗ | ✗⁷ | ✗⁷ | ✓ |
+
+> ⁷ No es una cuestión de rol: los anuncios de un ministerio los publica
+> **cualquiera de sus líderes** (sea `miembro` u `obrero`), y los generales, solo
+> el admin. La policy `anun_write` (`0026`) ramifica por `ministerio_id`: null
+> exige `es_admin()`, con uuid acepta `es_lider_de_ministerio()`. El aviso es
+> **in-app** (sección en el feed + badge contra `profiles.anuncios_leidos_hasta`);
+> el push al celular con la app cerrada quedó fuera de alcance a propósito
+> (exige salir de Expo Go).
 
 > ³ El bloqueo del `pendiente` para contenido no sensible (eventos) es a nivel de
 > **UI** (el shell muestra la pantalla de espera). El PII (miembros/directorio) sí
@@ -259,17 +269,20 @@ Este cuadro describe el **modelo objetivo**. Hoy:
   (`0018`: `candidatos_para_perfil` + `resolver_identidad_pendiente`,
   `profiles.miembro_id` `unique`). `0019` suma la lectura del grupo propio
   para el `miembro` (`mi_grupo` + `reuniones_de_mi_grupo`), que es lo que
-  alimenta el tab "Mi grupo" cuando quien mira no lidera nada.
-- **Escrita, pendiente de aplicar**: `0020` (`miembros.mostrar_contacto` +
-  vista `directorio` publicando el teléfono solo con consentimiento). La app
-  ya manda `p_mostrar_contacto`: hasta que corra la migración, guardar desde
-  "Mis datos" falla, porque la función vieja no acepta ese argumento.
+  alimenta el tab "Mi grupo" para cualquier rol: esa pantalla es personal
+  (lo que uno lidera + lo que cursa como discípulo), y el padrón completo
+  de discipulados vive solo en Admin > Discipulados.
+- **Escrita, pendiente de aplicar**: `0024`-`0026` (ministerios, su libro de
+  reuniones y los anuncios). El cliente ya las consume: hasta que corran, el hub
+  "Mi grupo" y la campana de anuncios van a fallar con *function does not exist*.
+  Regla de siempre: **migración primero, app después**.
 - **Pendiente en la app**: gate de `pendiente` en el shell más allá del
-  redirect a `/pendiente`, y separar la UI de `miembro` de la de `obrero`
-  (hoy buena parte de la navegación todavía gatea con `isAdmin`/`esObrero`
-  sin un tier propio para `miembro`).
-- **Follow-ups** (Fase 5): anuncios, reset de contraseña por admin (Edge
-  Function), config de dashboard (mínimo de contraseña, HaveIBeenPwned).
+  redirect a `/pendiente`, y terminar de separar la UI de `miembro` de la de
+  `obrero` (fuera de ministerios, buena parte de la navegación todavía gatea con
+  `isAdmin`/`esObrero` sin un tier propio para `miembro`).
+- **Follow-ups**: reset de contraseña por admin (Edge Function), config de
+  dashboard (mínimo de contraseña, HaveIBeenPwned) y push real de anuncios
+  (Fase D de `MINISTERIOS.md`, exige development build).
 
 Cuando se complete la separación de UI por tier, esta matriz pasa a reflejar
 lo efectivamente vigente end-to-end.

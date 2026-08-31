@@ -176,6 +176,11 @@ export default function Perfil() {
             icon="person-outline"
             label="Mis datos personales"
             onPress={() => router.push("/mis-datos")}
+          />
+          <Row
+            icon="megaphone-outline"
+            label="Anuncios"
+            onPress={() => router.push("/anuncios")}
             last
           />
         </Card>

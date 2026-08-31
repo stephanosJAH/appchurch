@@ -40,6 +40,9 @@ export type Profile = {
   rol: RolApp;
   username: string | null;
   nombre_completo: string | null;
+  // Marca de agua de lectura de anuncios (0026): lo creado después está sin
+  // leer. La escribe el propio cliente; null = nunca abrió los anuncios.
+  anuncios_leidos_hasta: string | null;
   created_at: string;
 };
 
@@ -209,6 +212,20 @@ export type ReunionDeMiMinisterio = {
   fecha: string;
   tema: string | null;
   participantes: string[];
+};
+
+// Anuncio (0026). `ministerio_id` null = toda la iglesia.
+export type Anuncio = {
+  id: string;
+  ministerio_id: string | null;
+  ministerio_nombre: string | null;
+  titulo: string;
+  cuerpo: string; // con marcas (lib/richText.ts)
+  autor_id: string | null;
+  autor: string | null;
+  fijado: boolean;
+  vence_el: string | null;
+  created_at: string;
 };
 
 export type AdjuntoTipo = "imagen" | "pdf";
