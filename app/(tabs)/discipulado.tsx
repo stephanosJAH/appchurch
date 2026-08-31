@@ -2,131 +2,244 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
-import { MiGrupoMiembro } from "../../components/MiGrupo";
+import { MiGrupoDetalle } from "../../components/MiGrupo";
 import { Body, Card, Chip, Label, Muted, Title } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { formatHora } from "../../lib/date";
 import { colors } from "../../lib/theme";
-import { Discipulado, DIAS_SEMANA } from "../../lib/types";
+import { DIAS_SEMANA, MiMinisterio } from "../../lib/types";
 import { useDiscipulados } from "../../lib/queries/discipulados";
+import { useMiGrupo } from "../../lib/queries/miGrupo";
+import { useMisMinisterios } from "../../lib/queries/ministerios";
 
-function DiscipuladoCard({ d, onPress }: { d: Discipulado; onPress: () => void }) {
+// Los dos orígenes —la tabla `discipulados` para lo que uno lidera y el RPC
+// `mi_grupo` para lo que uno cursa como discípulo— se normalizan acá para
+// pintar una sola tarjeta.
+type GrupoItem = {
+  id: string;
+  titulo: string;
+  dia_semana: number;
+  hora_inicio: string;
+  modalidad: string;
+  sexo: string;
+  discipulador: string | null;
+};
+
+function GrupoCard({ g, onPress }: { g: GrupoItem; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} className="active:opacity-80">
       <Card>
         <View className="flex-row items-start justify-between">
           <View className="flex-1 pr-3">
-            <Title numberOfLines={1}>{d.nombre ?? d.descripcion_etaria ?? "Discipulado"}</Title>
+            <Title numberOfLines={1}>{g.titulo}</Title>
             <View className="mt-1.5 flex-row items-center gap-1.5">
               <Ionicons name="calendar-outline" size={14} color={colors.tertiary} />
               <Muted className="text-gold">
-                {DIAS_SEMANA[d.dia_semana]} · {formatHora(d.hora_inicio)}
+                {DIAS_SEMANA[g.dia_semana]} · {formatHora(g.hora_inicio)}
               </Muted>
             </View>
           </View>
           <Ionicons name="chevron-forward" size={20} color={colors.outline} />
         </View>
         <View className="mt-3 flex-row items-center gap-2 border-t border-black/5 pt-3">
-          <Chip tone="neutral">{d.modalidad}</Chip>
-          <Chip tone="navy">{d.sexo}</Chip>
-          {!d.activo && <Chip tone="neutral">Inactivo</Chip>}
+          <Chip tone="neutral">{g.modalidad}</Chip>
+          <Chip tone="navy">{g.sexo}</Chip>
         </View>
         <View className="mt-2 flex-row items-center gap-1.5">
           <Ionicons name="person-outline" size={13} color={colors.outline} />
-          <Muted>{d.discipulador?.nombre_completo ?? "Sin discipulador asignado"}</Muted>
+          <Muted>{g.discipulador ?? "Sin discipulador asignado"}</Muted>
         </View>
       </Card>
     </Pressable>
   );
 }
 
-export default function MiDiscipulado() {
+// Tarjeta de ministerio: no tiene día ni horario propios (un ministerio que se
+// junta todas las semanas es una `actividad`, ver el diferido #1 de
+// docs/MINISTERIOS.md), así que muestra el ícono, los líderes y el rol propio.
+function MinisterioCard({ m, onPress }: { m: MiMinisterio; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} className="active:opacity-80">
+      <Card>
+        <View className="flex-row items-center gap-3">
+          <View className="h-11 w-11 items-center justify-center rounded-full bg-gold-container">
+            <Ionicons
+              name={(m.icono as keyof typeof Ionicons.glyphMap) ?? "sparkles-outline"}
+              size={20}
+              color={colors.onTertiaryContainer}
+            />
+          </View>
+          <View className="flex-1">
+            <Title numberOfLines={1}>{m.nombre}</Title>
+            <View className="mt-0.5 flex-row items-center gap-1.5">
+              <Ionicons name="person-outline" size={13} color={colors.outline} />
+              <Muted numberOfLines={1}>
+                {m.lideres.length ? m.lideres.join(" · ") : "Sin líderes asignados"}
+              </Muted>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.outline} />
+        </View>
+        {m.soy_lider && (
+          <View className="mt-3 flex-row items-center gap-2 border-t border-black/5 pt-3">
+            <Chip tone="gold">Liderás</Chip>
+            {m.integrantes != null ? (
+              <Muted>
+                {m.integrantes} {m.integrantes === 1 ? "integrante" : "integrantes"}
+              </Muted>
+            ) : null}
+          </View>
+        )}
+      </Card>
+    </Pressable>
+  );
+}
+
+// "Mi grupo" es el hub de pertenencia: los discipulados en los que uno está
+// metido —sea liderándolos o cursándolos— y los ministerios donde participa o
+// lidera. No se agrega un sexto tab: la barra ya tiene cinco.
+//
+// El padrón completo de discipulados y ministerios (incluido crear/editar) vive
+// en Admin, no acá — un admin ve en esta pantalla lo suyo, igual que cualquier
+// otro. Y los ministerios NO se gatean por `esObrero`: un líder de ministerio
+// puede ser `miembro` (el poder viene de la asignación, no del rol), así que la
+// pregunta se le hace a `mis_ministerios()`.
+export default function MiGrupoTab() {
   const router = useRouter();
-  const { isAdmin, esObrero, profile } = useAuth();
-  const { data: discipulados = [], isLoading } = useDiscipulados({ enabled: esObrero });
+  const { esObrero, profile } = useAuth();
 
-  const propios = discipulados.filter((d) => d.discipulador_id === profile?.id);
-  const goTo = (id: string) => router.push(`/discipulado/${id}`);
+  // La RLS ya recorta `discipulados` al grupo del obrero, pero al admin le
+  // devuelve todos: se filtra por discipulador_id para quedarse con los propios.
+  const { data: discipulados = [], isLoading: cargandoLidero } = useDiscipulados({
+    enabled: esObrero,
+  });
+  // Las participaciones van por RPC (la RLS de `discipulados` solo deja pasar
+  // al líder y al admin) — ver supabase/migrations/0019_mi_grupo.sql.
+  const { data: participaciones = [], isLoading: cargandoParticipo } = useMiGrupo();
+  // Ministerios donde participo o lidero (RPC `mis_ministerios`, 0024).
+  const { data: ministerios = [], isLoading: cargandoMinisterios } = useMisMinisterios();
 
-  // El miembro no lidera grupos: ve el suyo (participación) en modo lectura.
-  // La RLS no le deja leer `discipulados`, así que va por RPC — ver
-  // components/MiGrupo.tsx y supabase/migrations/0019_mi_grupo.sql.
-  if (!esObrero) {
+  const lidero: GrupoItem[] = discipulados
+    .filter((d) => d.discipulador_id === profile?.id)
+    .map((d) => ({
+      id: d.id,
+      titulo: d.nombre ?? d.descripcion_etaria ?? "Discipulado",
+      dia_semana: d.dia_semana,
+      hora_inicio: d.hora_inicio,
+      modalidad: d.modalidad,
+      sexo: d.sexo,
+      discipulador: d.discipulador?.nombre_completo ?? profile?.nombre_completo ?? null,
+    }));
+
+  // Si además figura como participante de un grupo que lidera, no se repite:
+  // manda la tarjeta de gestión.
+  const idsLidero = new Set(lidero.map((g) => g.id));
+  const participo: GrupoItem[] = participaciones
+    .filter((g) => !idsLidero.has(g.id))
+    .map((g) => ({
+      id: g.id,
+      titulo: g.nombre ?? g.descripcion_etaria ?? "Discipulado",
+      dia_semana: g.dia_semana,
+      hora_inicio: g.hora_inicio,
+      modalidad: g.modalidad,
+      sexo: g.sexo,
+      discipulador: g.discipulador,
+    }));
+
+  const cargando = cargandoLidero || cargandoParticipo || cargandoMinisterios;
+  const vacio = lidero.length === 0 && participo.length === 0 && ministerios.length === 0;
+
+  // Caso más común (el miembro de un único grupo y de ningún ministerio): se
+  // entra directo al detalle, sin una lista de una sola tarjeta de por medio.
+  // Con un ministerio en juego ya hay dos cosas que mostrar, así que el atajo
+  // se apaga y se ve el hub.
+  if (!cargando && lidero.length === 0 && participo.length === 1 && ministerios.length === 0) {
     return (
       <View className="flex-1 bg-cream">
         <AppBar title="Mi grupo" />
-        <MiGrupoMiembro />
+        <MiGrupoDetalle grupoId={participo[0].id} />
       </View>
     );
   }
 
   return (
     <View className="flex-1 bg-cream">
-      <AppBar title={isAdmin ? "Discipulados" : "Mi discipulado"} />
-      {isLoading ? (
+      <AppBar title="Mi grupo" />
+      {cargando ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 96 }} showsVerticalScrollIndicator={false}>
-          {discipulados.length === 0 ? (
+        <ScrollView
+          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {vacio ? (
             <Card>
-              <Body>
-                {isAdmin
-                  ? "Todavía no hay discipulados. Andá a Admin para crear uno y asignar el discipulador."
-                  : "No tenés un discipulado asignado. Pedile a un admin que te asigne uno."}
+              <Title className="text-base">Todavía no estás en un grupo</Title>
+              <Body className="mt-2">
+                {esObrero
+                  ? "No tenés un grupo a cargo ni participás de uno. Pedile a un admin que te asigne el discipulado que liderás, o que te sume a un ministerio."
+                  : "Cuando tu discipulador te sume a su grupo —o el líder de un ministerio te sume al suyo— vas a ver acá las reuniones y los temas compartidos. Consultale a un obrero de la congregación."}
               </Body>
             </Card>
-          ) : isAdmin ? (
+          ) : (
             <>
-              {/* Mi propio discipulado (si el admin lidera uno) */}
-              {propios.length > 0 && (
+              {lidero.length > 0 && (
                 <View className="mb-5">
-                  <Label className="mb-2">Mi discipulado</Label>
+                  <Label className="mb-2">
+                    {lidero.length === 1 ? "Mi discipulado" : `Mis discipulados (${lidero.length})`}
+                  </Label>
                   <View className="gap-3">
-                    {propios.map((d) => (
-                      <DiscipuladoCard key={d.id} d={d} onPress={() => goTo(d.id)} />
+                    {lidero.map((g) => (
+                      <GrupoCard
+                        key={g.id}
+                        g={g}
+                        onPress={() => router.push(`/discipulado/${g.id}`)}
+                      />
                     ))}
                   </View>
                 </View>
               )}
 
-              {/* Separador */}
-              {propios.length > 0 && <View className="mb-5 h-px bg-black/10" />}
+              {participo.length > 0 && (
+                <View className="mb-5">
+                  <Label className="mb-2">Donde participo ({participo.length})</Label>
+                  <View className="gap-3">
+                    {participo.map((g) => (
+                      <GrupoCard
+                        key={g.id}
+                        g={g}
+                        onPress={() => router.push({ pathname: "/mi-grupo/[id]", params: { id: g.id } })}
+                      />
+                    ))}
+                  </View>
+                </View>
+              )}
 
-              {/* Todos los discipulados existentes */}
-              <Label className="mb-2">Todos los discipulados ({discipulados.length})</Label>
-              <View className="gap-3">
-                {discipulados.map((d) => (
-                  <DiscipuladoCard key={d.id} d={d} onPress={() => goTo(d.id)} />
-                ))}
-              </View>
+              {ministerios.length > 0 && (
+                <View>
+                  <Label className="mb-2">
+                    {ministerios.length === 1
+                      ? "Mi ministerio"
+                      : `Mis ministerios (${ministerios.length})`}
+                  </Label>
+                  <View className="gap-3">
+                    {ministerios.map((m) => (
+                      <MinisterioCard
+                        key={m.id}
+                        m={m}
+                        onPress={() =>
+                          router.push({ pathname: "/ministerio/[id]", params: { id: m.id } })
+                        }
+                      />
+                    ))}
+                  </View>
+                </View>
+              )}
             </>
-          ) : (
-            <View className="gap-3">
-              {discipulados.map((d) => (
-                <DiscipuladoCard key={d.id} d={d} onPress={() => goTo(d.id)} />
-              ))}
-            </View>
           )}
         </ScrollView>
-      )}
-
-      {/* FAB */}
-      {isAdmin && (
-        <Pressable
-          onPress={() => router.push("/discipulado/editar")}
-          style={{
-            shadowColor: "#04162e",
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.25,
-            shadowRadius: 10,
-            elevation: 6,
-          }}
-          className="absolute bottom-5 right-5 h-14 w-14 items-center justify-center rounded-full bg-navy active:opacity-90"
-        >
-          <Ionicons name="add" size={28} color="#fff" />
-        </Pressable>
       )}
     </View>
   );

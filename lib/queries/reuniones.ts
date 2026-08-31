@@ -70,9 +70,12 @@ export function useReunionesMes(desde: string, hasta: string) {
 
 // Reuniones con ofrenda en un rango amplio, con el grupo embebido.
 // Alimenta el desglose de ofrendas (totales, por mes, por reunión).
-export function useOfrendas(desde: string, hasta: string) {
+// `enabled` para no pedirla cuando app/ofrendas.tsx está mostrando el otro
+// libro (el de ministerios, que vive en `reuniones_ministerio`).
+export function useOfrendas(desde: string, hasta: string, enabled = true) {
   return useQuery({
     queryKey: reunionesKeys.ofrendas(desde, hasta),
+    enabled,
     queryFn: async (): Promise<ReunionConGrupo[]> => {
       const { data, error } = await supabase
         .from("reuniones")

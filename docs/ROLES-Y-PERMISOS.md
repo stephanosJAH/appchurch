@@ -149,6 +149,58 @@ Leyenda de alcance en las matrices siguientes:
 > Se acota a nombre y apellido — sin teléfono, sin cumpleaños, sin edad — y solo
 > entre gente del mismo grupo.
 
+### Ministerios — `ministerios`, `ministerio_lideres`, `ministerio_miembros`, `reuniones_ministerio`
+
+Un ministerio es un **área o departamento** (jóvenes, alabanza, acción social).
+Acá el rol casi no interviene: **la columna que manda es "líder del ministerio"**,
+y un líder de ministerio **puede ser `miembro`**. Ver [`MINISTERIOS.md`](./MINISTERIOS.md).
+
+| Acción | `miembro` | Participante | **Cualquier líder** | `admin` |
+|---|:---:|:---:|:---:|:---:|
+| Ver que el ministerio existe | ✓ | ✓ | ✓ | ✓ |
+| Ver quiénes lo lideran | ✓ | ✓ | ✓ | ✓ |
+| Ver el roster | ✗ | ✗ | ✓ | ✓ |
+| Crear ministerio / darlo de baja | ✗ | ✗ | ✗ | ✓ |
+| Sumar / quitar líderes | ✗ | ✗ | ✗⁵ | ✓ |
+| Editar nombre, ícono y descripción | ✗ | ✗ | ✓ | ✓ |
+| Sumar / quitar integrantes | ✗ | ✗ | ✓ | ✓ |
+| Registrar reuniones + ofrenda | ✗ | ✗ | ✓ | ✓ |
+| **Editar una reunión o anuncio de otro líder** | ✗ | ✗ | **✓** | ✓ |
+| Ver el historial de reuniones | ✗ | ✓⁶ | ✓ | ✓ |
+| Publicar anuncios del ministerio | ✗ | ✗ | ✓ | ✓ |
+
+> **La diferencia de fondo con `discipulados`**: allá el permiso es una
+> **igualdad** contra un dueño único (`discipulador_id = auth.uid()`); acá es
+> **pertenencia a un conjunto** (`es_lider_de_ministerio()`, `0024`). De ahí sale,
+> sin lógica extra, que todo lo que puede hacer un líder lo pueden hacer todos.
+> Lo que sí se conserva es **quién hizo cada cosa**, como dato y no como candado:
+> `reuniones_ministerio.registrado_por` y `anuncios.autor_id` guardan al autor
+> original y no se pisan cuando otro líder edita (el trigger
+> `trg_anuncios_conserva_autor` lo garantiza para anuncios). **Si aparece un
+> `registrado_por = auth.uid()` en una condición de permiso de ministerio, está mal.**
+>
+> ⁵ Único punto donde los líderes **no** son autosuficientes: quién entra al
+> conjunto lo decide el admin (`minlid_admin`), para que un líder no se vuelva
+> administrador de hecho de su área sumando cuentas. Es el diferido #6 de
+> `MINISTERIOS.md`.
+> ⁶ Fecha, tema y presentes — **sin ofrenda ni notas**, igual que
+> `reuniones_de_mi_grupo()`. El corte va en el `returns table` del RPC
+> (`reuniones_de_mi_ministerio`), no en la UI.
+>
+> **Roster y padrón**: el líder no puede leer `miembros` (la RLS de `0014` lo
+> reserva a admin y al discipulador de esa persona) ni usar `directorio` (excluye
+> menores desde `0017`, justo la población de jóvenes y adolescentes). Por eso el
+> roster, la búsqueda de candidatos y el alta de una ficha nueva van por RPC
+> definer: `integrantes_de_mi_ministerio`, `candidatos_para_ministerio` y
+> `agregar_integrante_ministerio`. Lo que el líder ve del padrón es **nombre,
+> apellido y teléfono según `mostrar_contacto`** — sin email, sin notas, sin
+> fecha de nacimiento.
+>
+> **Contabilidad separada**: las ofrendas de ministerio viven en
+> `reuniones_ministerio`, no en `reuniones` (decisión de producto, `0025`). Son
+> dos libros y no se mezclan; `app/ofrendas.tsx` los muestra con un parámetro
+> `origen`.
+
 ### Contenido de la red — `eventos` / actividades, `anuncios`
 
 | Acción | `pendiente` | `miembro` | `obrero` | `admin` |
@@ -181,7 +233,10 @@ Leyenda de alcance en las matrices siguientes:
 1. **La autorización vive en el backend (RLS + RPCs), no en el cliente.** El
    `isAdmin`/`esObrero` del cliente es solo para mostrar/ocultar UI.
 2. **Gestión = asignación, no rol.** Ser `obrero` no da acceso global; da acceso a
-   *tus* grupos y *tu* gente. El admin es el único con alcance total.
+   *tus* grupos y *tu* gente. El admin es el único con alcance total. Con
+   ministerios el principio se lleva hasta el final: un líder de ministerio
+   **puede ser `miembro`**, así que la UI tampoco se gatea por rol — se pregunta
+   por el resultado de `mis_ministerios()` (`soy_lider`), no por `esObrero`.
 3. **PII en capas.** Directorio (nombre+cumple+tel) para todo miembro; email/notas
    solo para el obrero de esa persona y el admin. El teléfono del directorio,
    además, es del que lo comparte: se publica solo si la persona lo habilita

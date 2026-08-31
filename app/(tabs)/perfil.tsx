@@ -10,6 +10,10 @@ import { usePendientes } from "../../lib/queries/profiles";
 import { useDiscipulados } from "../../lib/queries/discipulados";
 import { useEventosVigentes } from "../../lib/queries/eventos";
 import { useMiembros } from "../../lib/queries/miembros";
+import {
+  useMisMinisterios,
+  useReunionesMinisterioMes,
+} from "../../lib/queries/ministerios";
 import { useParticipaciones } from "../../lib/queries/participaciones";
 import { useReunionesMes } from "../../lib/queries/reuniones";
 import { colors } from "../../lib/theme";
@@ -129,6 +133,23 @@ export default function Perfil() {
   // ofrenda_total llega como string (numeric de Postgres): coercionar antes de sumar.
   const ofrendasMes = reunionesMes.reduce((s, r) => s + Number(r.ofrenda_total ?? 0), 0);
 
+  // Ministerios: NO se gatean por rol. Un líder de ministerio puede ser
+  // `miembro` (el poder viene de la asignación), así que la pregunta se le hace
+  // a `mis_ministerios()` y no a `esObrero`.
+  const { data: misMinisterios = [] } = useMisMinisterios();
+  const ministeriosQueLidero = misMinisterios.filter((m) => m.soy_lider);
+  const gestionaMinisterios = isAdmin || ministeriosQueLidero.length > 0;
+  // Libro de ofrendas separado del de discipulados (dos tablas, ver 0025).
+  const { data: reunionesMinMes = [] } = useReunionesMinisterioMes(
+    desde,
+    hasta,
+    gestionaMinisterios
+  );
+  const ofrendasMinisterioMes = reunionesMinMes.reduce(
+    (s, r) => s + Number(r.ofrenda_total ?? 0),
+    0
+  );
+
   const confirmSignOut = () => {
     Alert.alert("Cerrar sesión", "¿Querés salir de tu cuenta?", [
       { text: "Cancelar", style: "cancel" },
@@ -159,6 +180,24 @@ export default function Perfil() {
           />
         </Card>
 
+        {/* Ministerios propios — el corte lo da mis_ministerios(), no el rol */}
+        {misMinisterios.length > 0 && (
+          <Card className="mb-5">
+            <Label className="mb-1">
+              {misMinisterios.length === 1 ? "Mi ministerio" : "Mis ministerios"}
+            </Label>
+            {misMinisterios.map((m, i) => (
+              <Row
+                key={m.id}
+                icon={(m.icono as keyof typeof Ionicons.glyphMap) ?? "sparkles-outline"}
+                label={m.soy_lider ? `${m.nombre} · liderás` : m.nombre}
+                onPress={() => router.push({ pathname: "/ministerio/[id]", params: { id: m.id } })}
+                last={i === misMinisterios.length - 1}
+              />
+            ))}
+          </Card>
+        )}
+
         {esObrero && (
           <Card className="mb-5">
             <Label className="mb-1">Aprobaciones</Label>
@@ -175,19 +214,37 @@ export default function Perfil() {
           </Card>
         )}
 
-        {esObrero && (
+        {/* El resumen mensual es de gestión, y "gestión" ya no equivale a
+            obrero: un líder de ministerio puede ser `miembro`. Cada tarjeta
+            aparece según lo que la persona realmente administra. */}
+        {(esObrero || gestionaMinisterios) && (
           <View className="mb-6">
             <View className="mb-3 flex-row items-end justify-between">
               <Headline>Resumen mensual</Headline>
               <Muted className="capitalize">{mesLabel}</Muted>
             </View>
             <View className="gap-3">
+              {gestionaMinisterios && (
+                <StatCard
+                  icon="sparkles-outline"
+                  label="Ofrendas de ministerios"
+                  value={formatMoneda(ofrendasMinisterioMes)}
+                  hint={`${reunionesMinMes.length} reuniones este mes`}
+                  onPress={() =>
+                    router.push({ pathname: "/ofrendas", params: { origen: "ministerio" } })
+                  }
+                />
+              )}
+              {esObrero && (
+              <>
               <StatCard
                 icon="wallet-outline"
-                label="Total ofrendas"
+                label="Ofrendas de discipulados"
                 value={formatMoneda(ofrendasMes)}
                 hint={`${reunionesMes.length} reuniones este mes`}
-                onPress={() => router.push("/ofrendas")}
+                onPress={() =>
+                  router.push({ pathname: "/ofrendas", params: { origen: "discipulado" } })
+                }
               />
               {isAdmin ? (
                 <StatCard
@@ -209,6 +266,8 @@ export default function Perfil() {
                 label="Actividades vigentes"
                 value={String(eventos.length)}
               />
+              </>
+              )}
             </View>
           </View>
         )}
@@ -216,10 +275,11 @@ export default function Perfil() {
         {isAdmin && (
           <Card className="mb-5">
             <Label className="mb-1">Administración</Label>
-            <Row icon="person-circle-outline" label="Cuentas" onPress={() => router.push("/admin/usuarios")} />
+            {/* <Row icon="person-circle-outline" label="Cuentas" onPress={() => router.push("/admin/usuarios")} /> */}
             <Row icon="people-outline" label="Miembros" onPress={() => router.push("/admin/miembros")} />
             <Row icon="git-network-outline" label="Discipulados" onPress={() => router.push("/admin/discipulados")} />
             <Row icon="archive-outline" label="Discipulados dados de baja" onPress={() => router.push("/admin/bajas")} />
+            <Row icon="sparkles-outline" label="Ministerios" onPress={() => router.push("/admin/ministerios")} />
             <Row icon="megaphone-outline" label="Actividades / Eventos" onPress={() => router.push("/admin/eventos")} last />
           </Card>
         )}

@@ -101,13 +101,14 @@ function ReunionCard({ r, abiertaPorDefecto }: { r: ReunionDeMiGrupo; abiertaPor
   );
 }
 
-// Vista de "Mi grupo" para un miembro: el discipulado del que participa y el
-// historial de reuniones (fecha, tema y quiénes estuvieron). Todo llega por las
-// RPC de 0019_mi_grupo.sql — la RLS no le deja leer esas tablas directo.
-export function MiGrupoMiembro() {
+// Detalle de lectura de un grupo del que se participa (no se lidera): el
+// encabezado y el historial de reuniones con fecha, tema y quiénes estuvieron.
+// Todo llega por las RPC de 0019_mi_grupo.sql — la RLS no le deja leer esas
+// tablas directo. La lista de grupos vive en app/(tabs)/discipulado.tsx; acá
+// se resuelve el grupo por id contra esa misma query (ya cacheada).
+export function MiGrupoDetalle({ grupoId }: { grupoId?: string }) {
   const { data: grupos = [], isLoading } = useMiGrupo();
-  const [seleccionado, setSeleccionado] = useState(0);
-  const grupo = grupos[seleccionado] ?? grupos[0];
+  const grupo = grupos.find((g) => g.id === grupoId);
   const { data: reuniones = [], isLoading: cargandoReuniones } = useReunionesDeMiGrupo(grupo?.id);
 
   if (isLoading) {
@@ -118,14 +119,16 @@ export function MiGrupoMiembro() {
     );
   }
 
+  // Solo se llega acá con un id que ya no está entre sus participaciones
+  // (lo dieron de baja del grupo mientras miraba, o un link viejo).
   if (!grupo) {
     return (
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <Card>
-          <Title className="text-base">Todavía no estás en un discipulado</Title>
+          <Title className="text-base">No estás en este discipulado</Title>
           <Body className="mt-2">
-            Cuando tu discipulador te sume a su grupo vas a ver acá las reuniones y
-            los temas compartidos. Consultale a un obrero de la congregación.
+            Puede que te hayan dado de baja del grupo. Consultale a un obrero de
+            la congregación.
           </Body>
         </Card>
       </ScrollView>
@@ -137,25 +140,6 @@ export function MiGrupoMiembro() {
       contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
       showsVerticalScrollIndicator={false}
     >
-      {/* Selector solo si participa de más de un grupo (caso poco común). */}
-      {grupos.length > 1 && (
-        <View className="mb-4 flex-row flex-wrap gap-2">
-          {grupos.map((g, i) => (
-            <Pressable
-              key={g.id}
-              onPress={() => setSeleccionado(i)}
-              className={`rounded-full border px-3.5 py-2 active:opacity-80 ${
-                i === seleccionado ? "border-navy bg-navy" : "border-black/10 bg-surface"
-              }`}
-            >
-              <Muted className={i === seleccionado ? "text-white" : undefined}>
-                {g.nombre ?? g.descripcion_etaria ?? DIAS_SEMANA[g.dia_semana]}
-              </Muted>
-            </Pressable>
-          ))}
-        </View>
-      )}
-
       <GrupoHeader g={grupo} />
 
       <Label className="mb-2">Reuniones ({reuniones.length})</Label>

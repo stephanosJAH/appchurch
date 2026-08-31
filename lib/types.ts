@@ -119,6 +119,98 @@ export type Asistencia = {
   modalidad: Modalidad | null;
 };
 
+/* ============================ Ministerios ============================ */
+// Un área o departamento de la iglesia (jóvenes, alabanza, acción social):
+// varios líderes equivalentes, gente que participa, reuniones y anuncios
+// propios. Es una cuarta "cosa" del dominio, no un `discipulado` con un tipo —
+// ver docs/MINISTERIOS.md y supabase/migrations/0024_ministerios.sql.
+
+export type Ministerio = {
+  id: string;
+  nombre: string;
+  descripcion: string | null; // con marcas (lib/richText.ts)
+  icono: string | null; // nombre de ionicon
+  activo: boolean;
+  motivo_baja: string | null;
+  fecha_baja: string | null;
+  created_at: string;
+  // Se resuelve aparte (vista `ministerios_lideres`): `ministerio_lideres`
+  // guarda profile_id y la RLS de `profiles` no deja leer el ajeno.
+  lideres?: LiderMinisterio[];
+};
+
+export type LiderMinisterio = {
+  ministerio_id: string;
+  profile_id: string;
+  nombre_completo: string | null;
+};
+
+// Un ministerio propio, visto por el RPC `mis_ministerios()`. `soy_lider` es lo
+// que gatea la gestión en la UI: el rol no sirve, porque un líder de ministerio
+// puede ser `miembro`. `integrantes` llega null para quien no lidera.
+export type MiMinisterio = {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  icono: string | null;
+  soy_lider: boolean;
+  lideres: string[];
+  integrantes: number | null;
+};
+
+// Integrante del roster (RPC `integrantes_de_mi_ministerio`, solo para líderes
+// y admin). `telefono` respeta `mostrar_contacto`; sin email ni notas.
+// `activo` en false = dado de baja del ministerio: se sigue devolviendo para
+// poder ponerle nombre a quien figura en una reunión vieja.
+export type IntegranteMinisterio = {
+  miembro_id: string;
+  nombre: string;
+  apellido: string | null;
+  telefono: string | null;
+  activo: boolean;
+};
+
+// Candidato del padrón para sumar al roster (RPC `candidatos_para_ministerio`).
+// Espejo de `CandidatoMiembro` (aprobaciones): teléfono ya enmascarado.
+export type CandidatoMinisterio = {
+  id: string;
+  nombre: string;
+  apellido: string | null;
+  telefono_parcial: string | null;
+  similitud: number;
+};
+
+// Reunión de ministerio. Espejo de `Reunion` sin `material_url` — la
+// contabilidad va en tablas separadas por decisión de producto (0025).
+export type ReunionMinisterio = {
+  id: string;
+  ministerio_id: string;
+  fecha: string; // "YYYY-MM-DD"
+  tema: string | null;
+  modalidad_usada: Modalidad | null;
+  ofrenda_total: number | null;
+  notas: string | null;
+  registrado_por: string | null;
+  created_at: string;
+};
+
+export type AsistenciaMinisterio = {
+  id: string;
+  reunion_id: string;
+  miembro_id: string;
+  presente: boolean;
+  modalidad: Modalidad | null;
+};
+
+// Reunión vista por un participante (RPC `reuniones_de_mi_ministerio`):
+// fecha, tema y quiénes estuvieron. Sin ofrenda ni notas.
+export type ReunionDeMiMinisterio = {
+  id: string;
+  fecha: string;
+  tema: string | null;
+  participantes: string[];
+};
+
 export type AdjuntoTipo = "imagen" | "pdf";
 
 export type Evento = {

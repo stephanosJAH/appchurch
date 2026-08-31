@@ -14,8 +14,29 @@ import {
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { formatMoneda } from "../../lib/date";
-import { colors } from "../../lib/theme";
+import {
+  useIntegrantesMinisterio,
+  useMinisterio,
+  useReunionMinisterio,
+  useSoyLiderDe,
+} from "../../lib/queries/ministerios";
 import { useReunion } from "../../lib/queries/reuniones";
+import { colors } from "../../lib/theme";
+import { Modalidad } from "../../lib/types";
+
+// Detalle de una reunión, compartido por los dos orígenes (ver el comentario de
+// reunion/nueva.tsx: dos libros en la base, una sola UI). El parámetro `origen`
+// decide de qué tabla se lee y quién puede editarla.
+
+type Origen = "discipulado" | "ministerio";
+
+// Fila de asistencia ya normalizada entre los dos orígenes.
+type FilaAsistencia = {
+  id: string;
+  nombre: string;
+  presente: boolean;
+  modalidad: Modalidad | null;
+};
 
 function fechaLarga(iso: string): string {
   // iso "YYYY-MM-DD": forzamos hora local para no correrse un día por UTC.
@@ -29,24 +50,59 @@ function fechaLarga(iso: string): string {
 }
 
 export default function ReunionDetalle() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, origen: origenParam } = useLocalSearchParams<{ id: string; origen?: string }>();
   const router = useRouter();
   const { isAdmin, profile } = useAuth();
-  const { data: reunion, isLoading } = useReunion(String(id));
+  const origen: Origen = origenParam === "ministerio" ? "ministerio" : "discipulado";
+  const esMinisterio = origen === "ministerio";
+  const reunionId = String(id);
 
-  // Puede editarla el admin o el discipulador a cargo del grupo — el mismo
-  // corte que hace la RPC. Acá es solo para mostrar u ocultar el lápiz.
-  const canManage =
-    isAdmin || (!!profile && profile.id === reunion?.discipulado?.discipulador_id);
+  const disc = useReunion(!esMinisterio ? reunionId : "");
+  const min = useReunionMinisterio(esMinisterio ? reunionId : "");
+  const isLoading = esMinisterio ? min.isLoading : disc.isLoading;
 
-  const asistencias = useMemo(
-    () =>
-      [...(reunion?.asistencias ?? [])].sort((a, b) => {
-        if (a.presente !== b.presente) return a.presente ? -1 : 1;
-        return (a.miembro?.nombre ?? "").localeCompare(b.miembro?.nombre ?? "");
-      }),
-    [reunion]
+  const ministerioId = min.data?.ministerio_id ?? "";
+  const { data: ministerio } = useMinisterio(esMinisterio ? ministerioId : "");
+  const { soyLider } = useSoyLiderDe(esMinisterio ? ministerioId : undefined);
+  // Las asistencias de ministerio no traen el nombre embebido: la RLS de
+  // `miembros` no deja al líder leer el padrón. Se resuelven contra el roster,
+  // que el RPC devuelve completo (incluidos los dados de baja) justamente para
+  // poder ponerle nombre a una reunión vieja.
+  const { data: integrantes = [] } = useIntegrantesMinisterio(
+    ministerioId,
+    esMinisterio && (isAdmin || soyLider)
   );
+
+  // Puede editarla el admin, el discipulador a cargo del grupo o CUALQUIER
+  // líder del ministerio — el mismo corte que hacen las RPC. Acá es solo para
+  // mostrar u ocultar el lápiz.
+  const canManage = esMinisterio
+    ? isAdmin || soyLider
+    : isAdmin || (!!profile && profile.id === disc.data?.discipulado?.discipulador_id);
+
+  const asistencias = useMemo<FilaAsistencia[]>(() => {
+    const filas: FilaAsistencia[] = esMinisterio
+      ? (min.data?.asistencias ?? []).map((a) => {
+          const i = integrantes.find((x) => x.miembro_id === a.miembro_id);
+          return {
+            id: a.id,
+            nombre: i ? `${i.nombre} ${i.apellido ?? ""}`.trim() : "Sin nombre",
+            presente: a.presente,
+            modalidad: a.modalidad,
+          };
+        })
+      : (disc.data?.asistencias ?? []).map((a) => ({
+          id: a.id,
+          nombre: `${a.miembro?.nombre ?? ""} ${a.miembro?.apellido ?? ""}`.trim() || "Sin nombre",
+          presente: a.presente,
+          modalidad: a.modalidad,
+        }));
+    return filas.sort((a, b) => {
+      if (a.presente !== b.presente) return a.presente ? -1 : 1;
+      return a.nombre.localeCompare(b.nombre);
+    });
+  }, [esMinisterio, min.data, disc.data, integrantes]);
+
   const presentes = asistencias.filter((a) => a.presente).length;
 
   if (isLoading) {
@@ -57,6 +113,7 @@ export default function ReunionDetalle() {
     );
   }
 
+  const reunion = esMinisterio ? min.data : disc.data;
   if (!reunion) {
     return (
       <View className="flex-1 items-center justify-center bg-cream p-8">
@@ -65,8 +122,9 @@ export default function ReunionDetalle() {
     );
   }
 
-  const grupo =
-    reunion.discipulado?.nombre ?? reunion.discipulado?.descripcion_etaria ?? "Discipulado";
+  const dueno = esMinisterio
+    ? ministerio?.nombre ?? "Ministerio"
+    : disc.data?.discipulado?.nombre ?? disc.data?.discipulado?.descripcion_etaria ?? "Discipulado";
 
   return (
     <ScrollView
@@ -80,7 +138,10 @@ export default function ReunionDetalle() {
             headerRight: () => (
               <Pressable
                 onPress={() =>
-                  router.push({ pathname: "/reunion/nueva", params: { reunionId: String(id) } })
+                  router.push({
+                    pathname: "/reunion/nueva",
+                    params: { reunionId, origen },
+                  })
                 }
                 className="active:opacity-60"
                 hitSlop={12}
@@ -94,7 +155,7 @@ export default function ReunionDetalle() {
 
       {/* Encabezado */}
       <Card className="mb-4 bg-navy">
-        <Muted >{grupo}</Muted>
+        <Muted>{dueno}</Muted>
         <Title className="mt-1 capitalize">{fechaLarga(reunion.fecha)}</Title>
         {reunion.modalidad_usada ? (
           <View className="mt-3">
@@ -153,14 +214,8 @@ export default function ReunionDetalle() {
               key={a.id}
               className={`flex-row items-center gap-3 py-3.5 ${a.presente ? "" : "opacity-60"}`}
             >
-              <Avatar
-                name={a.miembro?.nombre}
-                size={38}
-                tone={a.presente ? "navy" : "gold"}
-              />
-              <Body className="flex-1 text-ink">
-                {a.miembro?.nombre} {a.miembro?.apellido ?? ""}
-              </Body>
+              <Avatar name={a.nombre} size={38} tone={a.presente ? "navy" : "gold"} />
+              <Body className="flex-1 text-ink">{a.nombre}</Body>
               {a.presente && a.modalidad && a.modalidad !== "ambos" ? (
                 <View className="flex-row items-center gap-1">
                   <Ionicons

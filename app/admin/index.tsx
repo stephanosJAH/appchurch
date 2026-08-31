@@ -54,6 +54,12 @@ export default function AdminIndex() {
         onPress={() => router.push("/admin/discipulados")}
       />
       <MenuItem
+        icon="sparkles-outline"
+        title="Ministerios"
+        subtitle="Áreas de la iglesia, sus líderes y su gente"
+        onPress={() => router.push("/admin/ministerios")}
+      />
+      <MenuItem
         icon="archive-outline"
         title="Dados de baja"
         subtitle="Discipulados inactivos · reactivar"

@@ -44,8 +44,11 @@ app/
   pendiente.tsx             Pantalla de espera para rol `pendiente`
   aprobaciones.tsx          Obrero/admin activa cuentas pendientes
   discipulado/[id].tsx      Detalle de grupo: discípulos + historial
-  reunion/nueva.tsx         Registrar reunión (asistencia + ofrenda + tema), vía RPC
-  admin/                    ABM de miembros, discipulados, eventos, actividades, usuarios (solo admin)
+  ministerio/               Detalle, alta/edición y roster de un ministerio (área de la iglesia)
+  anuncios.tsx              Avisos de la iglesia y de cada ministerio
+  reunion/nueva.tsx         Registrar reunión (asistencia + ofrenda + tema), vía RPC.
+                            Compartida por discipulados y ministerios (param `origen`)
+  admin/                    ABM de miembros, discipulados, ministerios, eventos, actividades, usuarios (solo admin)
 lib/
   supabase.ts               Cliente Supabase + LargeSecureStore (sesión cifrada)
   auth.tsx                  AuthProvider / useAuth (sesión + perfil + rol, vía React Query)
@@ -69,6 +72,16 @@ Authorization lives in the backend (RLS policies + `security definer` RPCs),
 never in the client. `isAdmin`/`esObrero` in `lib/auth.tsx` are for hiding/showing
 UI only — do not treat them as a security boundary when writing queries or RPCs.
 
+For **ministerios** `esObrero` isn't even the right UI gate: a ministry leader can
+be a plain `miembro`, so asking about the role hides the screens from exactly the
+person who has to manage them. Gate on `useMisMinisterios()` / `useSoyLiderDe(id)`
+(backed by the `mis_ministerios()` RPC) instead. And because the permission is
+**set membership** (`es_lider_de_ministerio()`), not equality against one owner,
+every leader can do everything — including editing a meeting or announcement
+someone else created. `registrado_por` / `autor_id` record who did it; they are
+never part of a permission check. If you write `registrado_por = auth.uid()` into
+a ministerio condition, it's a bug.
+
 Activating a `pendiente` account is **identity resolution, not a role toggle**:
 the RPC `resolver_identidad_pendiente` links the account to an existing padrón
 record (via `candidatos_para_perfil`) or creates one; `profiles.miembro_id` is
@@ -83,20 +96,32 @@ synthetic `...@u.appchurch.app` address for Supabase's email/password provider.
 This depends on **email confirmation being OFF** in the Supabase Auth dashboard
 (intentional product decision, not a bug) — see `supabase/README.md`.
 
-### Domain model: three kinds of "thing on the calendar"
+### Domain model: four separate "things", not one polymorphic one
 
-- **`discipulados`** — a standing group with a roster, one leader, and tracked
+- **`discipulados`** — a standing group with a roster, **one** leader, and tracked
   attendance/offerings per meeting (`reuniones` + `asistencias`, written via the
   transactional RPC `registrar_reunion`).
+- **`ministerios`** — an area/department of the church (youth, worship, outreach)
+  with **several equally-powered leaders** (`ministerio_lideres`), its own roster
+  (`ministerio_miembros`) and its **own, deliberately separate accounting book**
+  (`reuniones_ministerio` + `asistencias_ministerio`, via
+  `registrar_reunion_ministerio`). No fixed day/time — a ministry that meets every
+  week is an `actividad`.
 - **`actividades`** — recurring weekly activity (e.g. "prayer meeting, Tuesdays
   8pm"), informative only, no attendance tracking. `dias_semana` is an array —
   one activity can repeat on multiple days with one shared time.
 - **`eventos`** — one-off event with a concrete start/end date.
 
 These are intentionally separate tables/screens, not a shared "activity" model.
-See `docs/ACTIVIDADES-Y-EVENTOS.md` for the open design questions before
-extending any of the three (audience scoping, attendance-per-occurrence, who can
-write them).
+See `docs/ACTIVIDADES-Y-EVENTOS.md` and `docs/MINISTERIOS.md` for the open design
+questions before extending any of them (audience scoping,
+attendance-per-occurrence, who can write them).
+
+**`registrar_reunion` and `registrar_reunion_ministerio` are declared mirrors** —
+the SQL is duplicated because the two ledgers are separate by product decision.
+A fix to one goes into the other, always; both headers say so. The *UI* is not
+duplicated: `reunion/nueva.tsx`, `reunion/[id].tsx` and `ofrendas.tsx` are shared
+and branch on an `origen` param.
 
 `miembros` (full PII: email, notes) vs. the `directorio` view (safe subset:
 name, birthday, phone — adults only, filtered by RLS) are different exposure
@@ -143,10 +168,16 @@ these over raw `Text`/`View` + Tailwind classes when a matching primitive exists
 
 ## Reference docs
 
+- `docs/SDD.md` — software design document: architecture, data model, security
+  model, key flows, deployment and implementation status. Start here for the
+  whole picture; each section points at the doc that owns the detail
 - `docs/ROLES-Y-PERMISOS.md` — authoritative permissions matrix by role/resource
 - `docs/SECURITY.md` — security review log; several findings are deliberately
   **deferred by product decision** (open registration, no email verification) —
   check `docs/SECURITY-DIFERIDOS.md` before treating those as bugs to fix
 - `docs/ACTIVIDADES-Y-EVENTOS.md` — actividades/eventos data model + open questions
+- `docs/MINISTERIOS.md` — ministerios (areas/departments): data model,
+  authorization, phases, and what shipped vs. what was designed. Phases A-C are
+  implemented (`0024`-`0026`); push notifications (D) are out of scope
 - `docs/BUGS.md` — known issues log, template included for new entries
 - `supabase/README.md` — migration order and first-admin bootstrap steps
