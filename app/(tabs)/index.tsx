@@ -5,10 +5,12 @@ import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { ActividadesHoy, actividadesDeHoy } from "../../components/ActividadesHoy";
+import { AnunciosFeed } from "../../components/AnunciosFeed";
 import { AppBar, FeedTab } from "../../components/AppBar";
 import { CumplesSection } from "../../components/Cumples";
 import { DirectorioList } from "../../components/Directorio";
 import { EventosSemana, eventosDeLaSemana } from "../../components/EventosSemana";
+import { UltimaPredicacion } from "../../components/Predicaciones";
 import {
   Body,
   Button,
@@ -16,10 +18,12 @@ import {
   Chip,
   Display,
   Muted,
+  SkeletonCard,
   Title,
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { formatHora } from "../../lib/date";
+import { saludoDelDia } from "../../lib/saludos";
 import { colors } from "../../lib/theme";
 import { DIAS_SEMANA } from "../../lib/types";
 import { useActividadesActivas } from "../../lib/queries/actividades";
@@ -115,12 +119,18 @@ export default function Dashboard() {
     transform: [{ translateX: translateX.value }],
   }));
 
-  const { data: discipulados = [] } = useDiscipulados();
-  const { data: eventosVigentes = [] } = useEventosVigentes();
+  // `isLoading` = primera carga sin nada en caché: es lo que enciende los
+  // skeletons. Cada sección se destapa por su cuenta al resolver su consulta,
+  // no se espera a que estén las cuatro.
+  const { data: discipulados = [], isLoading: cargandoDiscipulados } = useDiscipulados();
+  const { data: eventosVigentes = [], isLoading: cargandoEventos } = useEventosVigentes();
   // Solo actividades/anuncios, sin las reuniones de discipulado (igual que el feed).
   const eventos = eventosVigentes.filter((e) => e.tipo !== "discipulado" && !e.discipulado_id);
-  const { data: actividades = [] } = useActividadesActivas();
-  const { data: directorio = [] } = useDirectorio();
+  const { data: actividades = [], isLoading: cargandoActividades } = useActividadesActivas();
+  const { data: directorio = [], isLoading: cargandoDirectorio } = useDirectorio();
+
+  // Saludo del día: cambia solo, uno por fecha (ver lib/saludos.ts).
+  const saludo = useMemo(() => saludoDelDia(nombre), [nombre]);
 
   const hoy = new Date().getDay();
   const proximo = useMemo(() => {
@@ -129,8 +139,17 @@ export default function Dashboard() {
       .sort((a, b) => a.offset - b.offset || a.hora_inicio.localeCompare(b.hora_inicio))[0];
   }, [discipulados, hoy]);
   // ¿Hay eventos esta semana / actividades hoy? (para decidir separadores).
-  const hayEventos = useMemo(() => eventosDeLaSemana(eventos).length > 0, [eventos]);
-  const hayActividadesHoy = useMemo(() => actividadesDeHoy(actividades).length > 0, [actividades]);
+  // Mientras carga se cuentan como presentes: el separador acompaña al skeleton
+  // en vez de aparecer de golpe cuando llegan los datos.
+  const hayDestacado = cargandoDiscipulados || !!proximo;
+  const hayEventos = useMemo(
+    () => cargandoEventos || eventosDeLaSemana(eventos).length > 0,
+    [cargandoEventos, eventos]
+  );
+  const hayActividadesHoy = useMemo(
+    () => cargandoActividades || actividadesDeHoy(actividades).length > 0,
+    [cargandoActividades, actividades]
+  );
 
   // Cumpleaños de toda la congregación (directorio, visible a todo miembro activo).
   const miembrosCumple = directorio;
@@ -149,15 +168,22 @@ export default function Dashboard() {
               contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
               showsVerticalScrollIndicator={false}
             >
-              {/* Saludo */}
+              {/* Saludo del día */}
               <View className="mb-6">
-                <Display>Paz sea con vosotros, {nombre}.</Display>
-                <Body className="mt-2">
-                  Bienvenido al panel de gestión de tu congregación.
-                </Body>
+                <Display>{saludo.texto}</Display>
+                <View className="mt-2 flex-row items-center gap-1.5">
+                  <Ionicons name="book-outline" size={14} color={colors.tertiary} />
+                  <Muted className="text-gold">{saludo.cita}</Muted>
+                </View>
               </View>
 
-              {/* Próxima actividad destacada */}
+              {/* Anuncios: lo que la iglesia o el ministerio quiere avisar.
+                  Va arriba de todo porque es lo más perecedero del feed; la
+                  sección se esconde sola cuando no hay ninguno. */}
+              <AnunciosFeed className="mb-6" />
+
+              {/* Próxima actividad destacada — con su fantasma mientras carga */}
+              {cargandoDiscipulados && <SkeletonCard accion="boton" style={{ marginBottom: 24 }} />}
               {proximo && (
                 <Card className="mb-6 overflow-hidden p-0">
                   <View className="h-28 justify-end bg-navy p-4">
@@ -192,10 +218,15 @@ export default function Dashboard() {
               )}
 
               {/* Separador de sección */}
-              {proximo && hayEventos && <View className="mb-5 h-px bg-black/10" />}
+              {hayDestacado && hayEventos && <View className="mb-5 h-px bg-black/10" />}
 
               {/* Cumpleaños próximos */}
-              <CumplesSection miembros={miembrosCumple} titulo="Cumpleaños" className="mb-6" />
+              <CumplesSection
+                miembros={miembrosCumple}
+                titulo="Cumpleaños"
+                className="mb-6"
+                cargando={cargandoDirectorio}
+              />
 
               {/* Separador de sección Cumpleaños próximos */}
               {miembrosCumple && <View className="mb-5 h-px bg-black/10" />}
@@ -205,6 +236,7 @@ export default function Dashboard() {
                 actividades={actividades}
                 swipeGesture={carruselActividades}
                 className="mb-6"
+                cargando={cargandoActividades}
               />
 
               {/* Separador entre "hoy" y "esta semana" */}
@@ -215,12 +247,19 @@ export default function Dashboard() {
                 eventos={eventos}
                 swipeGesture={carruselEventos}
                 className="mb-6"
+                cargando={cargandoEventos}
               />
 
-              {/* Separador de sección */}
-              {proximo && (hayEventos || hayActividadesHoy) && (
+              {/* Separador antes de las predicaciones */}
+              {(hayEventos || hayActividadesHoy) && (
                 <View className="mb-5 h-px bg-black/10" />
               )}
+
+              {/* Última predicación del canal de YouTube */}
+              <UltimaPredicacion className="mb-6" />
+
+              {/* Separador de sección */}
+              {(esObrero || isAdmin) && <View className="mb-5 h-px bg-black/10" />}
 
               {/* Accesos rápidos */}
               <View className="mb-6 gap-3">
