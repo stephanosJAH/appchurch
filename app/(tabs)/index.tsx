@@ -7,7 +7,7 @@ import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming
 import { ActividadesHoy, actividadesDeHoy } from "../../components/ActividadesHoy";
 import { AnunciosFeed } from "../../components/AnunciosFeed";
 import { AppBar, FeedTab } from "../../components/AppBar";
-import { CumplesSection } from "../../components/Cumples";
+import { CumplesSection, proximosCumples } from "../../components/Cumples";
 import { DirectorioList } from "../../components/Directorio";
 import { EventosSemana, eventosDeLaSemana } from "../../components/EventosSemana";
 import { UltimaPredicacion } from "../../components/Predicaciones";
@@ -27,9 +27,59 @@ import { saludoDelDia } from "../../lib/saludos";
 import { colors } from "../../lib/theme";
 import { DIAS_SEMANA } from "../../lib/types";
 import { useActividadesActivas } from "../../lib/queries/actividades";
+import { useDirectorio } from "../../lib/queries/directorio";
 import { useDiscipulados } from "../../lib/queries/discipulados";
 import { useEventosVigentes } from "../../lib/queries/eventos";
-import { useDirectorio } from "../../lib/queries/directorio";
+import { useMiGrupo } from "../../lib/queries/miGrupo";
+
+// Ventana de cumpleaños del feed. La miran dos cosas —la sección y el separador
+// que la precede— y tienen que coincidir, si no el separador aparece solo sobre
+// una sección que decidió no dibujarse.
+const VENTANA_CUMPLES = 30;
+
+// El discipulado propio son dos orígenes distintos —la tabla `discipulados`
+// para el que uno lidera y el RPC `mi_grupo` para el que uno cursa como
+// discípulo— normalizados acá, igual que en la pestaña "Mi grupo".
+type GrupoDelFeed = {
+  id: string;
+  titulo: string;
+  dia_semana: number;
+  hora_inicio: string;
+  ubicacion: string | null;
+  lidero: boolean;
+};
+
+function GrupoDestacado({ g, onPress }: { g: GrupoDelFeed; onPress: () => void }) {
+  return (
+    <Card className="mb-4 overflow-hidden p-0">
+      <View className="h-28 justify-end bg-navy p-4">
+        <View className="absolute right-4 top-4 opacity-20">
+          <Ionicons name="book" size={72} color={colors.tertiaryDim} />
+        </View>
+        <Chip tone="gold">{g.lidero ? "Tu discipulado" : "Donde participás"}</Chip>
+      </View>
+      <View className="p-5">
+        <View className="mb-2 flex-row items-center gap-1.5">
+          <Ionicons name="calendar-outline" size={15} color={colors.tertiary} />
+          <Muted className="text-gold">
+            {DIAS_SEMANA[g.dia_semana]}, {formatHora(g.hora_inicio)}
+          </Muted>
+        </View>
+        <Title numberOfLines={2} className="text-xl">
+          {g.titulo}
+        </Title>
+        {g.ubicacion ? (
+          <Body className="mt-1" numberOfLines={2}>
+            {g.ubicacion}
+          </Body>
+        ) : null}
+        <View className="mt-4">
+          <Button title="Ver detalles" onPress={onPress} />
+        </View>
+      </View>
+    </Card>
+  );
+}
 
 function QuickAction({
   icon,
@@ -56,6 +106,13 @@ function QuickAction({
       </Card>
     </Pressable>
   );
+}
+
+// Separador entre secciones del feed. Arriba siempre hay algo —el bloque del
+// discipulado se dibuja incluso vacío, con su tarjeta explicativa—, así que
+// cada separador solo depende de que la sección que sigue tenga contenido.
+function Separador() {
+  return <View className="mb-5 h-px bg-black/10" />;
 }
 
 export default function Dashboard() {
@@ -121,38 +178,83 @@ export default function Dashboard() {
 
   // `isLoading` = primera carga sin nada en caché: es lo que enciende los
   // skeletons. Cada sección se destapa por su cuenta al resolver su consulta,
-  // no se espera a que estén las cuatro.
-  const { data: discipulados = [], isLoading: cargandoDiscipulados } = useDiscipulados();
+  // no se espera a que estén todas.
+  //
+  // Lo que lidero: la RLS ya recorta `discipulados` al grupo del obrero, pero
+  // al admin le devuelve TODOS —de ahí el filtro por discipulador_id, si no el
+  // feed le mostraría el grupo de cualquier otro. Para un `miembro` la consulta
+  // ni se dispara (la RLS le devolvería [] igual).
+  const { data: discipulados = [], isLoading: cargandoLidero } = useDiscipulados({
+    enabled: esObrero,
+  });
+  // Lo que curso como discípulo: va por RPC porque la RLS de `discipulados`
+  // solo deja pasar al líder y al admin (supabase/migrations/0019_mi_grupo.sql).
+  const { data: participaciones = [], isLoading: cargandoParticipo } = useMiGrupo();
   const { data: eventosVigentes = [], isLoading: cargandoEventos } = useEventosVigentes();
   // Solo actividades/anuncios, sin las reuniones de discipulado (igual que el feed).
   const eventos = eventosVigentes.filter((e) => e.tipo !== "discipulado" && !e.discipulado_id);
   const { data: actividades = [], isLoading: cargandoActividades } = useActividadesActivas();
+  // Cumpleaños de toda la congregación (directorio, visible a todo miembro activo).
   const { data: directorio = [], isLoading: cargandoDirectorio } = useDirectorio();
 
   // Saludo del día: cambia solo, uno por fecha (ver lib/saludos.ts).
   const saludo = useMemo(() => saludoDelDia(nombre), [nombre]);
 
   const hoy = new Date().getDay();
-  const proximo = useMemo(() => {
-    return [...discipulados]
-      .map((d) => ({ ...d, offset: (d.dia_semana - hoy + 7) % 7 }))
-      .sort((a, b) => a.offset - b.offset || a.hora_inicio.localeCompare(b.hora_inicio))[0];
-  }, [discipulados, hoy]);
-  // ¿Hay eventos esta semana / actividades hoy? (para decidir separadores).
-  // Mientras carga se cuentan como presentes: el separador acompaña al skeleton
-  // en vez de aparecer de golpe cuando llegan los datos.
-  const hayDestacado = cargandoDiscipulados || !!proximo;
-  const hayEventos = useMemo(
-    () => cargandoEventos || eventosDeLaSemana(eventos).length > 0,
-    [cargandoEventos, eventos]
+  const misGrupos = useMemo<GrupoDelFeed[]>(() => {
+    const lidero: GrupoDelFeed[] = discipulados
+      .filter((d) => d.discipulador_id === profile?.id)
+      .map((d) => ({
+        id: d.id,
+        titulo: d.nombre ?? d.descripcion_etaria ?? "Discipulado",
+        dia_semana: d.dia_semana,
+        hora_inicio: d.hora_inicio,
+        ubicacion: d.ubicacion,
+        lidero: true,
+      }));
+    // Si además figura como participante de un grupo que lidera, no se repite:
+    // manda la tarjeta de gestión.
+    const idsLidero = new Set(lidero.map((g) => g.id));
+    const participo: GrupoDelFeed[] = participaciones
+      .filter((g) => !idsLidero.has(g.id))
+      .map((g) => ({
+        id: g.id,
+        titulo: g.nombre ?? g.descripcion_etaria ?? "Discipulado",
+        dia_semana: g.dia_semana,
+        hora_inicio: g.hora_inicio,
+        ubicacion: g.ubicacion,
+        lidero: false,
+      }));
+    // Primero el que toca antes: el día de la semana más cercano a hoy.
+    return [...lidero, ...participo].sort(
+      (a, b) =>
+        ((a.dia_semana - hoy + 7) % 7) - ((b.dia_semana - hoy + 7) % 7) ||
+        a.hora_inicio.localeCompare(b.hora_inicio)
+    );
+  }, [discipulados, participaciones, profile?.id, hoy]);
+
+  // Con la consulta de líder deshabilitada (miembro) `cargandoLidero` da false.
+  const cargando = cargandoLidero || cargandoParticipo;
+  // Para "Registrar reunión": el RPC valida es_discipulador_de, así que el
+  // acceso rápido apunta al primero que lidera, no a uno donde solo participa.
+  const primeroQueLidero = misGrupos.find((g) => g.lidero);
+
+  // ¿Qué secciones van a dibujar algo? Mientras cargan se cuentan como
+  // presentes: el separador acompaña al skeleton en vez de aparecer de golpe
+  // cuando llegan los datos.
+  const hayCumples = useMemo(
+    () => cargandoDirectorio || proximosCumples(directorio, VENTANA_CUMPLES).length > 0,
+    [cargandoDirectorio, directorio]
   );
   const hayActividadesHoy = useMemo(
     () => cargandoActividades || actividadesDeHoy(actividades).length > 0,
     [cargandoActividades, actividades]
   );
-
-  // Cumpleaños de toda la congregación (directorio, visible a todo miembro activo).
-  const miembrosCumple = directorio;
+  const hayEventos = useMemo(
+    () => cargandoEventos || eventosDeLaSemana(eventos).length > 0,
+    [cargandoEventos, eventos]
+  );
+  const hayAccesos = esObrero || isAdmin;
 
   return (
     <View className="flex-1 bg-cream">
@@ -182,56 +284,46 @@ export default function Dashboard() {
                   sección se esconde sola cuando no hay ninguno. */}
               <AnunciosFeed className="mb-6" />
 
-              {/* Próxima actividad destacada — con su fantasma mientras carga */}
-              {cargandoDiscipulados && <SkeletonCard accion="boton" style={{ marginBottom: 24 }} />}
-              {proximo && (
-                <Card className="mb-6 overflow-hidden p-0">
-                  <View className="h-28 justify-end bg-navy p-4">
-                    <View className="absolute right-4 top-4 opacity-20">
-                      <Ionicons name="book" size={72} color={colors.tertiaryDim} />
-                    </View>
-                    <Chip tone="gold">Tu discipulado</Chip>
-                  </View>
-                  <View className="p-5">
-                    <View className="mb-2 flex-row items-center gap-1.5">
-                      <Ionicons name="calendar-outline" size={15} color={colors.tertiary} />
-                      <Muted className="text-gold">
-                        {DIAS_SEMANA[proximo.dia_semana]}, {formatHora(proximo.hora_inicio)}
-                      </Muted>
-                    </View>
-                    <Title numberOfLines={2} className="text-xl">
-                      {proximo.nombre ?? proximo.descripcion_etaria ?? "Discipulado"}
-                    </Title>
-                    {proximo.ubicacion ? (
-                      <Body className="mt-1" numberOfLines={2}>
-                        {proximo.ubicacion}
-                      </Body>
-                    ) : null}
-                    <View className="mt-4">
-                      <Button
-                        title="Ver detalles"
-                        onPress={() => router.push(`/discipulado/${proximo.id}`)}
-                      />
-                    </View>
-                  </View>
+              {/* El discipulado propio — con su fantasma mientras carga */}
+              {cargando && <SkeletonCard accion="boton" style={{ marginBottom: 24 }} />}
+
+              {!cargando &&
+                misGrupos.map((g) => (
+                  <GrupoDestacado
+                    key={g.id}
+                    g={g}
+                    onPress={() =>
+                      g.lidero
+                        ? router.push(`/discipulado/${g.id}`)
+                        : router.push({ pathname: "/mi-grupo/[id]", params: { id: g.id } })
+                    }
+                  />
+                ))}
+
+              {/* Sin grupo, el bloque quedaría en blanco: se explica por qué. */}
+              {!cargando && misGrupos.length === 0 && (
+                <Card className="mb-6">
+                  <Title className="text-base">Todavía no estás en un discipulado</Title>
+                  <Body className="mt-2">
+                    {esObrero
+                      ? "No tenés un grupo a cargo ni participás de uno. Pedile a un admin que te asigne el discipulado que liderás."
+                      : "Cuando tu discipulador te sume a su grupo vas a ver acá el día, el horario y el lugar de la próxima reunión."}
+                  </Body>
                 </Card>
               )}
 
-              {/* Separador de sección */}
-              {hayDestacado && hayEventos && <View className="mb-5 h-px bg-black/10" />}
-
-              {/* Cumpleaños próximos */}
+              {/* Cumpleaños próximos de toda la congregación */}
+              {hayCumples && <Separador />}
               <CumplesSection
-                miembros={miembrosCumple}
+                miembros={directorio}
                 titulo="Cumpleaños"
+                dentroDe={VENTANA_CUMPLES}
                 className="mb-6"
                 cargando={cargandoDirectorio}
               />
 
-              {/* Separador de sección Cumpleaños próximos */}
-              {miembrosCumple && <View className="mb-5 h-px bg-black/10" />}
-
               {/* Actividades semanales que tocan hoy (carrusel) */}
+              {hayActividadesHoy && <Separador />}
               <ActividadesHoy
                 actividades={actividades}
                 swipeGesture={carruselActividades}
@@ -239,10 +331,8 @@ export default function Dashboard() {
                 cargando={cargandoActividades}
               />
 
-              {/* Separador entre "hoy" y "esta semana" */}
-              {hayActividadesHoy && hayEventos && <View className="mb-5 h-px bg-black/10" />}
-
               {/* Eventos de la semana (carrusel lunes→domingo) */}
+              {hayEventos && <Separador />}
               <EventosSemana
                 eventos={eventos}
                 swipeGesture={carruselEventos}
@@ -250,35 +340,28 @@ export default function Dashboard() {
                 cargando={cargandoEventos}
               />
 
-              {/* Separador antes de las predicaciones */}
-              {(hayEventos || hayActividadesHoy) && (
-                <View className="mb-5 h-px bg-black/10" />
-              )}
-
-              {/* Última predicación del canal de YouTube */}
+              {/* Última predicación del canal de YouTube. Es un punto fijo del
+                  feed —se dibuja siempre, con datos o sin ellos—, por eso su
+                  separador no va condicionado a nada. */}
+              <Separador />
               <UltimaPredicacion className="mb-6" />
 
-              {/* Separador de sección */}
-              {(esObrero || isAdmin) && <View className="mb-5 h-px bg-black/10" />}
-
               {/* Accesos rápidos */}
+              {hayAccesos && <Separador />}
               <View className="mb-6 gap-3">
-                {/* <QuickAction
-                  icon="people-circle-outline"
-                  title="Directorio"
-                  subtitle="Contactos y cumpleaños de la iglesia"
-                  onPress={() => router.push("/directorio")}
-                /> */}
-                {/* Registrar reunión es gestión de grupo (RPC valida es_discipulador_de):
-                    solo obrero/admin, nunca un miembro. */}
+                {/* Registrar reunión es gestión de grupo (el RPC valida
+                    es_discipulador_de): solo obrero/admin, nunca un miembro. */}
                 {esObrero && (
                   <QuickAction
                     icon="add-circle-outline"
                     title="Registrar reunión"
                     subtitle="Asistencia, ofrenda y tema"
                     onPress={() =>
-                      proximo
-                        ? router.push({ pathname: "/reunion/nueva", params: { discipuladoId: proximo.id } })
+                      primeroQueLidero
+                        ? router.push({
+                            pathname: "/reunion/nueva",
+                            params: { discipuladoId: primeroQueLidero.id },
+                          })
                         : router.push("/(tabs)/discipulado")
                     }
                   />
