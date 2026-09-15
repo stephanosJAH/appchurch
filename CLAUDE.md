@@ -14,7 +14,7 @@ accounts are approved by a human before they can do anything.
 ## Commands
 
 ```bash
-npm start          # dev server — scan the QR with Expo Go 54
+npm start          # dev server — scan the QR with Expo Go 57
 npm run android    # emulator/device
 npm run ios        # simulator (macOS only)
 npm run web        # web target

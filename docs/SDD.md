@@ -57,7 +57,7 @@ acceso distintos sobre ella.
 | O2 | Que el PII quede en capas y no se filtre por descuido del cliente | Autorización 100% en Postgres (RLS + `security definer`), nunca en la app |
 | O3 | Que entre gente sin correo electrónico | Identificador sintético (`lib/authIdentity.ts`): login por teléfono o usuario |
 | O4 | Que una cuenta recién creada sea inofensiva | Rol `pendiente` por defecto; activar = resolver identidad contra el padrón |
-| O5 | Que corra en el dispositivo de cualquiera sin build nativo | Expo SDK 54 / Expo Go 54; ninguna dependencia fuera del runtime de Expo Go |
+| O5 | Que corra en el dispositivo de cualquiera sin build nativo | Expo SDK 57 / Expo Go 57; ninguna dependencia fuera del runtime de Expo Go |
 | O6 | Que no haya un backend que mantener | Supabase como única infraestructura (Postgres + Auth + Storage) |
 
 ### 1.3 Fuera de alcance (explícito)
@@ -101,7 +101,7 @@ permisos. Asume familiaridad con React Native y con RLS de Postgres.
                     ┌──────────────────────────────┐
                     │   Dispositivo del usuario     │
                     │  ┌────────────────────────┐   │
-                    │  │  PDApp (Expo Go 54     │   │
+                    │  │  PDApp (Expo Go 57     │   │
                     │  │  o APK de EAS)         │   │
                     │  │                        │   │
                     │  │  expo-router           │   │
@@ -140,8 +140,8 @@ permisos. Asume familiaridad con React Native y con RLS de Postgres.
 
 ### 2.3 Restricciones del entorno
 
-- **Expo Go 54 es el piso**: el usuario corre la app en Expo Go 54, que no ejecuta
-  apps de SDK 55+. **No se sube el SDK sin confirmar** (ver `AGENTS.md`). De ahí
+- **Expo Go 57 es el piso**: el usuario corre la app en Expo Go 57, que no ejecuta
+  apps de otro SDK. **No se sube el SDK sin confirmar** (ver `AGENTS.md`). De ahí
   que no haya módulos nativos propios: `expo-secure-store`, `expo-crypto`,
   `aes-js` y `expo-document-picker` se eligieron por correr en Expo Go.
 - **npm falla por intercepción TLS corporativa** (`UNABLE_TO_VERIFY_LEAF_SIGNATURE`).
@@ -181,10 +181,10 @@ autorización en su primera línea. Ese patrón se repite y está estandarizado 
 
 | Capa | Elección | Versión | Nota |
 |---|---|---|---|
-| Runtime | Expo SDK | `~54.0.0` | Expo Go 54; `newArchEnabled: true` |
-| | React Native | `0.81.5` | |
-| | React | `19.1.0` | `react-dom` pineado a la misma versión (rompe el build de EAS si divergen) |
-| Routing | expo-router | `~6.0.24` | File-based; `typedRoutes` activado |
+| Runtime | Expo SDK | `~57.0.21` | Expo Go 57; nueva arquitectura (ya no es opcional desde SDK 55) |
+| | React Native | `0.86.3` | |
+| | React | `19.2.3` | `react-dom` pineado a la misma versión (rompe el build de EAS si divergen) |
+| Routing | expo-router | `~57.0.20` | File-based; `typedRoutes` activado |
 | Estado servidor | TanStack Query | `^5.101.2` | Única fuente de estado remoto |
 | Backend | supabase-js | `^2.110.0` | Postgres + Auth + Storage |
 | Estilos | NativeWind / Tailwind | `^4.2.6` / `^3.4.17` | Tokens en `tailwind.config.js` y `lib/theme.ts` |
@@ -980,7 +980,7 @@ Y el admin no pierde nada — es el ABM del padrón y quien corrige por quien no
 ### 8.1 Comandos
 
 ```bash
-npm start          # dev server — escanear el QR con Expo Go 54
+npm start          # dev server — escanear el QR con Expo Go 57
 npm run android    # emulador/dispositivo
 npm run ios        # simulador (solo macOS)
 npm run web        # target web
@@ -1168,7 +1168,7 @@ un integrante, y si un líder puede sumar colíderes.
 - **¿Tocás `registrar_reunion`?** El mismo cambio va en
   `registrar_reunion_ministerio`, y viceversa.
 - **¿Nuevo lugar que muestre una descripción recortada?** Pasala por `aTextoPlano()`.
-- **¿Dependencia nueva?** Verificá que corra en **Expo Go 54**. Si exige un módulo
+- **¿Dependencia nueva?** Verificá que corra en **Expo Go 57**. Si exige un módulo
   nativo, es una decisión de producto (salir de Expo Go), no un detalle técnico.
 
 ---
