@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useState } from "react";
 import { Alert, FlatList, Platform, Pressable, View } from "react-native";
-import { Avatar, Body, Button, Card, Field, KeyboardScrollView, Label, Muted } from "../components/ui";
+import { Avatar, Body, Button, Card, Field, KeyboardScrollView, Label, Muted, Screen } from "../components/ui";
 import { dateToFecha, fechaLabel, fechaToDate } from "../lib/date";
 import {
   CandidatoMiembro,
@@ -49,7 +49,7 @@ export default function Aprobaciones() {
   );
 
   return (
-    <View className="flex-1 bg-cream">
+    <Screen>
       <FlatList
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         data={pendientes}
@@ -69,7 +69,7 @@ export default function Aprobaciones() {
           ) : null
         }
       />
-    </View>
+    </Screen>
   );
 }
 
@@ -108,7 +108,7 @@ function ResolverIdentidad({ profile, onVolver }: { profile: Profile; onVolver: 
   }
 
   return (
-    <View className="flex-1 bg-cream">
+    <Screen>
       <FlatList
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         data={candidatos}
@@ -186,7 +186,7 @@ function ResolverIdentidad({ profile, onVolver }: { profile: Profile; onVolver: 
           )
         }
       />
-    </View>
+    </Screen>
   );
 }
 

@@ -39,11 +39,17 @@ export type Profile = {
   miembro_id: string | null;
   rol: RolApp;
   username: string | null;
+  // Lo que la persona tipeó al registrarse: sirve como fallback, no como el
+  // nombre bueno. El nombre real es el de su ficha del padrón (`miembro`).
   nombre_completo: string | null;
   // Marca de agua de lectura de anuncios (0026): lo creado después está sin
   // leer. La escribe el propio cliente; null = nunca abrió los anuncios.
   anuncios_leidos_hasta: string | null;
   created_at: string;
+  // Embed opcional de la ficha del padrón enlazada (profiles.miembro_id, 0018).
+  // Solo viene si la consulta lo pidió (ver `useProfiles`); null si la cuenta
+  // todavía no tiene ficha o si la RLS de `miembros` no la deja ver.
+  miembro?: { nombre: string; apellido: string | null } | null;
 };
 
 export type Discipulado = {

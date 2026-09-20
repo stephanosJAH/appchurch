@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Pressable, ScrollView, View } from "react-native";
-import { Card, Muted, Title } from "../../components/ui";
+import { Card, Muted, Screen, Title } from "../../components/ui";
 import { colors } from "../../lib/theme";
 
 function MenuItem({
@@ -34,49 +34,51 @@ function MenuItem({
 export default function AdminIndex() {
   const router = useRouter();
   return (
-    <ScrollView className="flex-1 bg-cream" contentContainerStyle={{ padding: 16, gap: 12 }}>
-      <MenuItem
-        icon="person-circle-outline"
-        title="Usuarios"
-        subtitle="Cuentas con login y sus roles"
-        onPress={() => router.push("/admin/usuarios")}
-      />
-      <MenuItem
-        icon="people-outline"
-        title="Miembros"
-        subtitle="Personas de la iglesia (sin login)"
-        onPress={() => router.push("/admin/miembros")}
-      />
-      <MenuItem
-        icon="git-network-outline"
-        title="Discipulados"
-        subtitle="Crear grupos y asignar discipulador"
-        onPress={() => router.push("/admin/discipulados")}
-      />
-      <MenuItem
-        icon="sparkles-outline"
-        title="Ministerios"
-        subtitle="Áreas de la iglesia, sus líderes y su gente"
-        onPress={() => router.push("/admin/ministerios")}
-      />
-      <MenuItem
-        icon="archive-outline"
-        title="Dados de baja"
-        subtitle="Discipulados inactivos · reactivar"
-        onPress={() => router.push("/admin/bajas")}
-      />
-      <MenuItem
-        icon="calendar-outline"
-        title="Eventos"
-        subtitle="Actividades únicas con fecha"
-        onPress={() => router.push("/admin/eventos")}
-      />
-      <MenuItem
-        icon="repeat-outline"
-        title="Actividades semanales"
-        subtitle="Reuniones recurrentes (día y horario fijo)"
-        onPress={() => router.push("/admin/actividades")}
-      />
-    </ScrollView>
+    <Screen>
+      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16, gap: 12 }}>
+        <MenuItem
+          icon="person-circle-outline"
+          title="Usuarios"
+          subtitle="Cuentas con login y sus roles"
+          onPress={() => router.push("/admin/usuarios")}
+        />
+        <MenuItem
+          icon="people-outline"
+          title="Miembros"
+          subtitle="Personas de la iglesia (sin login)"
+          onPress={() => router.push("/admin/miembros")}
+        />
+        <MenuItem
+          icon="git-network-outline"
+          title="Discipulados"
+          subtitle="Crear grupos y asignar discipulador"
+          onPress={() => router.push("/admin/discipulados")}
+        />
+        <MenuItem
+          icon="sparkles-outline"
+          title="Ministerios"
+          subtitle="Áreas de la iglesia, sus líderes y su gente"
+          onPress={() => router.push("/admin/ministerios")}
+        />
+        <MenuItem
+          icon="archive-outline"
+          title="Dados de baja"
+          subtitle="Discipulados inactivos · reactivar"
+          onPress={() => router.push("/admin/bajas")}
+        />
+        <MenuItem
+          icon="calendar-outline"
+          title="Eventos"
+          subtitle="Actividades únicas con fecha"
+          onPress={() => router.push("/admin/eventos")}
+        />
+        <MenuItem
+          icon="repeat-outline"
+          title="Actividades semanales"
+          subtitle="Reuniones recurrentes (día y horario fijo)"
+          onPress={() => router.push("/admin/actividades")}
+        />
+      </ScrollView>
+    </Screen>
   );
 }

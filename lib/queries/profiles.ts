@@ -10,14 +10,26 @@ export const profilesKeys = {
   deMiembro: (miembroId: string) => ["profiles", "de-miembro", miembroId] as const,
 };
 
+// El nombre que hay que mostrar de una cuenta: el de su ficha del padrón
+// (`miembros`), que es el dato que mantiene la iglesia. `nombre_completo` es lo
+// que la persona tipeó al registrarse — queda de fallback para las cuentas sin
+// ficha enlazada (o cuando la consulta no pidió el embed).
+export function nombreDePerfil(p: Profile): string | null {
+  const m = p.miembro;
+  if (m) return `${m.nombre} ${m.apellido ?? ""}`.trim();
+  return p.nombre_completo;
+}
+
 // Lista de perfiles (solo admin por RLS). Útil para asignar discipulador.
+// Trae embebida la ficha del padrón enlazada (nombre y apellido, nada de PII):
+// la RLS de `miembros` (0014) se la muestra al admin, que es quien usa esto.
 export function useProfiles() {
   return useQuery({
     queryKey: profilesKeys.all,
     queryFn: async (): Promise<Profile[]> => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("*")
+        .select("*, miembro:miembros(nombre, apellido)")
         .order("nombre_completo", { nullsFirst: false });
       if (error) throw error;
       return data as Profile[];

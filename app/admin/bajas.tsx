@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Alert, FlatList, View } from "react-native";
-import { Body, Button, Card, Label, Muted, Title } from "../../components/ui";
+import { Body, Button, Card, Label, Muted, Screen, Title } from "../../components/ui";
 import { formatHora } from "../../lib/date";
 import { colors } from "../../lib/theme";
 import { DIAS_SEMANA, Discipulado } from "../../lib/types";
@@ -30,7 +30,7 @@ export default function AdminBajas() {
   };
 
   return (
-    <View className="flex-1 bg-cream">
+    <Screen>
       <FlatList
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         data={inactivos}
@@ -71,6 +71,6 @@ export default function AdminBajas() {
           ) : null
         }
       />
-    </View>
+    </Screen>
   );
 }

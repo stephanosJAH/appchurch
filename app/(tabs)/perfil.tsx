@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { useMemo } from "react";
 import { Alert, Pressable, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
-import { Avatar, Body, Button, Card, Chip, Display, Headline, Label, Muted, Title } from "../../components/ui";
+import { Avatar, Body, Button, Card, Chip, Display, Headline, Label, Muted, Screen, Title } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { formatMoneda, toISODate } from "../../lib/date";
 import { usePendientes } from "../../lib/queries/profiles";
@@ -158,7 +158,7 @@ export default function Perfil() {
   };
 
   return (
-    <View className="flex-1 bg-cream">
+    <Screen>
       <AppBar title="Perfil" />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         <Card className="mb-5 items-center py-7">
@@ -291,6 +291,6 @@ export default function Perfil() {
 
         <Button title="Cerrar sesión" variant="danger" onPress={confirmSignOut} />
       </ScrollView>
-    </View>
+    </Screen>
   );
 }

@@ -13,6 +13,7 @@ import {
   KeyboardScrollView,
   Label,
   Muted,
+  Screen,
   Title,
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
@@ -139,17 +140,17 @@ export default function MiembroDetalle() {
 
   if (isLoading || cargandoCuenta) {
     return (
-      <View className="flex-1 items-center justify-center bg-cream">
+      <Screen className="items-center justify-center">
         <Muted>Cargando…</Muted>
-      </View>
+      </Screen>
     );
   }
 
   if (!miembro) {
     return (
-      <View className="flex-1 items-center justify-center bg-cream p-6">
+      <Screen className="items-center justify-center p-6">
         <Muted>No se encontró el miembro.</Muted>
-      </View>
+      </Screen>
     );
   }
 

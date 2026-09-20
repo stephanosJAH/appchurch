@@ -5,6 +5,11 @@
 // palabra—. Están escritos en singular ("contigo", no "con vosotros") porque le
 // hablan a la persona que abrió la app, y sin adjetivos con género para que
 // sirvan igual a cualquier nombre.
+//
+// Ninguno abre saludando ("hola", "bienvenido", "buen día", "qué bueno verte"):
+// el saludo ya lo pone la tarjeta que los muestra (components/SaludoCard.tsx,
+// "Hola, bienvenido! Hoy recordá"), y si además lo trae la frase se saluda dos
+// veces. Acá va sólo lo que hay que recordar.
 
 export type Saludo = {
   /** Texto con el marcador `{nombre}`; resolverlo con `saludoDelDia`. */
@@ -29,8 +34,8 @@ export const SALUDOS: Saludo[] = [
   { texto: "Nada podrá separarte del amor de Cristo, {nombre}.", cita: "Romanos 8:39" },
   { texto: "El Señor peleará por ti, {nombre}; tú puedes estar tranquilo.", cita: "Éxodo 14:14" },
   { texto: "Echa sobre Él toda tu ansiedad, {nombre}: Él tiene cuidado de ti.", cita: "1 Pedro 5:7" },
-  { texto: "Qué bueno verte, {nombre}: ¡mira cuán bueno es habitar los hermanos juntos!", cita: "Salmo 133:1" },
-  { texto: "Bienvenido, {nombre}: donde dos o tres se reúnen, allí está Él.", cita: "Mateo 18:20" },
+  { texto: "Mira cuán bueno es, {nombre}, habitar los hermanos juntos.", cita: "Salmo 133:1" },
+  { texto: "Donde dos o tres se reúnen en su nombre, {nombre}, allí está Él.", cita: "Mateo 18:20" },
   { texto: "Que la gracia del Señor Jesús sea contigo, {nombre}.", cita: "Apocalipsis 22:21" },
   { texto: "Grande es su fidelidad contigo, {nombre}.", cita: "Lamentaciones 3:23" },
   { texto: "Él renueva tus fuerzas hoy, {nombre}: levantarás alas como las águilas.", cita: "Isaías 40:31" },
@@ -41,13 +46,13 @@ export const SALUDOS: Saludo[] = [
   { texto: "Él tiene para ti pensamientos de paz y un porvenir, {nombre}.", cita: "Jeremías 29:11" },
   { texto: "Permanece en la vid, {nombre}: sin Él nada podemos hacer.", cita: "Juan 15:5" },
   { texto: "Que tu amor abunde hoy, {nombre}, en ciencia y en todo conocimiento.", cita: "Filipenses 1:9" },
-  { texto: "Buen día, {nombre}: de mañana Él oye tu voz.", cita: "Salmo 5:3" },
+  { texto: "De mañana Él oye tu voz, {nombre}.", cita: "Salmo 5:3" },
   { texto: "Da gracias hoy, {nombre}: bueno es cantar al nombre del Altísimo.", cita: "Salmo 92:1" },
   { texto: "El Señor guardará tu salida y tu entrada, {nombre}.", cita: "Salmo 121:8" },
   { texto: "Que la paz de Cristo gobierne en tu corazón, {nombre}.", cita: "Colosenses 3:15" },
   { texto: "Un corazón alegre es buena medicina, {nombre}.", cita: "Proverbios 17:22" },
   { texto: "Confía en el Señor de todo corazón, {nombre}: Él enderezará tus veredas.", cita: "Proverbios 3:5-6" },
-  { texto: "Bienvenido a casa, {nombre}: aquí eres de la familia de Dios.", cita: "Efesios 2:19" },
+  { texto: "Eres de la familia de Dios, {nombre}: esta casa también es tuya.", cita: "Efesios 2:19" },
   { texto: "Eres hechura suya, {nombre}: Él preparó de antemano buenas obras para ti.", cita: "Efesios 2:10" },
   { texto: "Cerca está el Señor de los que le invocan, {nombre}.", cita: "Salmo 145:18" },
   { texto: "Que todo lo que respira alabe hoy al Señor, {nombre}.", cita: "Salmo 150:6" },

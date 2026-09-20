@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
 import { MiGrupoDetalle } from "../../components/MiGrupo";
-import { Body, Card, Chip, Label, Muted, Title } from "../../components/ui";
+import { Body, Card, Chip, Label, Muted, Screen, Title } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { formatHora } from "../../lib/date";
 import { colors } from "../../lib/theme";
@@ -155,15 +155,15 @@ export default function MiGrupoTab() {
   // se apaga y se ve el hub.
   if (!cargando && lidero.length === 0 && participo.length === 1 && ministerios.length === 0) {
     return (
-      <View className="flex-1 bg-cream">
+      <Screen>
         <AppBar title="Mi grupo" />
         <MiGrupoDetalle grupoId={participo[0].id} />
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <View className="flex-1 bg-cream">
+    <Screen>
       <AppBar title="Mi grupo" />
       {cargando ? (
         <View className="flex-1 items-center justify-center">
@@ -241,6 +241,6 @@ export default function MiGrupoTab() {
           )}
         </ScrollView>
       )}
-    </View>
+    </Screen>
   );
 }

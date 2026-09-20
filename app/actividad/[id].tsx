@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { ActivityIndicator, Image, ScrollView, View } from "react-native";
 import { RichTextView } from "../../components/RichTextView";
-import { Body, Button, Card, Chip, Muted, Title } from "../../components/ui";
+import { Body, Button, Card, Chip, Muted, Screen, Title } from "../../components/ui";
 import { formatFechaHoraCorta, formatHora, mismoDia } from "../../lib/date";
 import { colors } from "../../lib/theme";
 import { useEvento } from "../../lib/queries/eventos";
@@ -34,91 +34,93 @@ export default function ActividadDetalle() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-cream">
+      <Screen className="items-center justify-center">
         <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      </Screen>
     );
   }
 
   if (!evento) {
     return (
-      <View className="flex-1 items-center justify-center bg-cream p-8">
+      <Screen className="items-center justify-center p-8">
         <Muted>No se encontró el evento.</Muted>
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-cream"
-      contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Flyer / imagen */}
-      {evento.adjunto_url && evento.adjunto_tipo === "imagen" ? (
-        <Image
-          source={{ uri: evento.adjunto_url }}
-          resizeMode="contain"
-          style={{ width: "100%", height: 380, borderRadius: 16, backgroundColor: "#04162e0d" }}
-          className="mb-4"
-        />
-      ) : null}
+    <Screen>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Flyer / imagen */}
+        {evento.adjunto_url && evento.adjunto_tipo === "imagen" ? (
+          <Image
+            source={{ uri: evento.adjunto_url }}
+            resizeMode="contain"
+            style={{ width: "100%", height: 380, borderRadius: 16, backgroundColor: "#04162e0d" }}
+            className="mb-4"
+          />
+        ) : null}
 
-      <View className="mb-3 self-start">
-        <Chip tone={TONE[evento.tipo] ?? "neutral"}>{evento.tipo}</Chip>
-      </View>
+        <View className="mb-3 self-start">
+          <Chip tone={TONE[evento.tipo] ?? "neutral"}>{evento.tipo}</Chip>
+        </View>
 
-      <Title className="text-2xl">{evento.titulo}</Title>
+        <Title className="text-2xl">{evento.titulo}</Title>
 
-      {/* Fecha y hora */}
-      {mismoDia(evento.fecha_inicio, evento.fecha_fin) ? (
-        <>
+        {/* Fecha y hora */}
+        {mismoDia(evento.fecha_inicio, evento.fecha_fin) ? (
+          <>
+            <View className="mt-3 flex-row items-center gap-1.5">
+              <Ionicons name="calendar-outline" size={16} color={colors.tertiary} />
+              <Muted className="capitalize text-gold">{fechaLarga(evento.fecha_inicio)}</Muted>
+            </View>
+            <View className="mt-1.5 flex-row items-center gap-1.5">
+              <Ionicons name="time-outline" size={16} color={colors.outline} />
+              <Muted>
+                {horaDe(evento.fecha_inicio)} – {horaDe(evento.fecha_fin)}
+              </Muted>
+            </View>
+          </>
+        ) : (
           <View className="mt-3 flex-row items-center gap-1.5">
             <Ionicons name="calendar-outline" size={16} color={colors.tertiary} />
-            <Muted className="capitalize text-gold">{fechaLarga(evento.fecha_inicio)}</Muted>
-          </View>
-          <View className="mt-1.5 flex-row items-center gap-1.5">
-            <Ionicons name="time-outline" size={16} color={colors.outline} />
-            <Muted>
-              {horaDe(evento.fecha_inicio)} – {horaDe(evento.fecha_fin)}
+            <Muted className="capitalize text-gold">
+              {formatFechaHoraCorta(evento.fecha_inicio)} – {formatFechaHoraCorta(evento.fecha_fin)}
             </Muted>
           </View>
-        </>
-      ) : (
-        <View className="mt-3 flex-row items-center gap-1.5">
-          <Ionicons name="calendar-outline" size={16} color={colors.tertiary} />
-          <Muted className="capitalize text-gold">
-            {formatFechaHoraCorta(evento.fecha_inicio)} – {formatFechaHoraCorta(evento.fecha_fin)}
-          </Muted>
-        </View>
-      )}
-      {evento.ubicacion ? (
-        <View className="mt-1.5 flex-row items-center gap-1.5">
-          <Ionicons name="location-outline" size={16} color={colors.outline} />
-          <Muted>{evento.ubicacion}</Muted>
-        </View>
-      ) : null}
-
-      {/* Descripción */}
-      {evento.descripcion ? (
-        <Card className="mt-4">
-          <RichTextView descripcion={evento.descripcion} />
-        </Card>
-      ) : null}
-
-      {/* PDF adjunto */}
-      {evento.adjunto_url && evento.adjunto_tipo === "pdf" ? (
-        <Card className="mt-4 flex-row items-center gap-3">
-          <View className="h-12 w-12 items-center justify-center rounded-lg bg-surface-mid">
-            <Ionicons name="document-text-outline" size={24} color={colors.primaryContainer} />
+        )}
+        {evento.ubicacion ? (
+          <View className="mt-1.5 flex-row items-center gap-1.5">
+            <Ionicons name="location-outline" size={16} color={colors.outline} />
+            <Muted>{evento.ubicacion}</Muted>
           </View>
-          <View className="flex-1">
-            <Body className="text-ink">Documento adjunto</Body>
-            <Muted>PDF</Muted>
-          </View>
-          <Button title="Abrir" size="sm" onPress={() => abrirAdjunto(evento.adjunto_url)} />
-        </Card>
-      ) : null}
-    </ScrollView>
+        ) : null}
+
+        {/* Descripción */}
+        {evento.descripcion ? (
+          <Card className="mt-4">
+            <RichTextView descripcion={evento.descripcion} />
+          </Card>
+        ) : null}
+
+        {/* PDF adjunto */}
+        {evento.adjunto_url && evento.adjunto_tipo === "pdf" ? (
+          <Card className="mt-4 flex-row items-center gap-3">
+            <View className="h-12 w-12 items-center justify-center rounded-lg bg-surface-mid">
+              <Ionicons name="document-text-outline" size={24} color={colors.primaryContainer} />
+            </View>
+            <View className="flex-1">
+              <Body className="text-ink">Documento adjunto</Body>
+              <Muted>PDF</Muted>
+            </View>
+            <Button title="Abrir" size="sm" onPress={() => abrirAdjunto(evento.adjunto_url)} />
+          </Card>
+        ) : null}
+      </ScrollView>
+    </Screen>
   );
 }

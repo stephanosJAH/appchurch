@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Alert, Pressable, ScrollView, View } from "react-native";
-import { Body, Button, Card, Label, Muted, Title } from "../../components/ui";
+import { Body, Button, Card, Label, Muted, Screen, Title } from "../../components/ui";
 import {
   useMinisterios,
   useMinisteriosInactivos,
@@ -46,7 +46,7 @@ export default function AdminMinisterios() {
   };
 
   return (
-    <View className="flex-1 bg-cream">
+    <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 96 }}>
         <Label className="mb-2 mt-1">Ministerios ({ministerios.length})</Label>
 
@@ -136,6 +136,6 @@ export default function AdminMinisterios() {
       >
         <Ionicons name="add" size={28} color="#fff" />
       </Pressable>
-    </View>
+    </Screen>
   );
 }

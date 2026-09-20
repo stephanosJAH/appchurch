@@ -19,7 +19,7 @@ import { useEffect } from "react";
 import { ActivityIndicator, Image, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { Body, Button } from "../components/ui";
+import { Body, Button, Screen } from "../components/ui";
 import { AuthProvider, useAuth } from "../lib/auth";
 import { attachQueryLogger } from "../lib/query-logger";
 import { colors, fonts } from "../lib/theme";
@@ -35,7 +35,7 @@ if (__DEV__) attachQueryLogger(queryClient);
 
 function Loader() {
   return (
-    <View className="flex-1 items-center justify-center gap-6 bg-cream">
+    <Screen className="items-center justify-center gap-6">
       {/* El JPG viene con esquinas blancas: el borderRadius las recorta
           para que el círculo apoye limpio sobre el crema. */}
       <Image
@@ -44,7 +44,7 @@ function Loader() {
         resizeMode="cover"
       />
       <ActivityIndicator size="large" color={colors.primary} />
-    </View>
+    </Screen>
   );
 }
 
@@ -52,7 +52,7 @@ function Loader() {
 // carga por un error real (red, servidor) y ya se agotaron los reintentos.
 function ProfileErrorScreen({ onRetry, onSignOut }: { onRetry: () => void; onSignOut: () => void }) {
   return (
-    <View className="flex-1 items-center justify-center gap-4 bg-cream px-8">
+    <Screen className="items-center justify-center gap-4 px-8">
       <Ionicons name="cloud-offline-outline" size={40} color={colors.outline} />
       <Body className="text-center text-ink">
         No pudimos cargar tu perfil. Revisá tu conexión e intentá de nuevo.
@@ -61,7 +61,7 @@ function ProfileErrorScreen({ onRetry, onSignOut }: { onRetry: () => void; onSig
         <Button title="Reintentar" onPress={onRetry} />
         <Button title="Cerrar sesión" variant="outline" onPress={onSignOut} />
       </View>
-    </View>
+    </Screen>
   );
 }
 
@@ -102,7 +102,9 @@ function AuthGate() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: colors.background },
+        // Blanco, no crema: el header continúa el arranque del degradado de
+        // las pantallas (`FondoDegradado`) en vez de cortarlo con un escalón.
+        headerStyle: { backgroundColor: colors.surfaceContainerLowest },
         headerShadowVisible: false,
         // Misma tipografía que el selector Inicio/Nosotros del AppBar.
         headerTitleStyle: { color: colors.onSurface, fontFamily: fonts.sansBold, fontSize: 16 },

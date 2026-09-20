@@ -3,7 +3,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Platform, Pressable, Text, View } from "react-native";
-import { Body, Button, Card, Field, KeyboardScrollView, Label, Muted } from "../../components/ui";
+import { Body, Button, Card, Field, KeyboardScrollView, Label, Muted, Screen } from "../../components/ui";
 import { dateToFecha, fechaLabel, fechaToDate, todayISO } from "../../lib/date";
 import { colors, fonts } from "../../lib/theme";
 import { AsistenciaInput, Modalidad } from "../../lib/types";
@@ -276,19 +276,19 @@ export default function NuevaReunion() {
 
   if (editandoId && cargandoReunion) {
     return (
-      <View className="flex-1 items-center justify-center bg-cream">
+      <Screen className="items-center justify-center">
         <Stack.Screen options={{ title: "Editar reunión" }} />
         <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      </Screen>
     );
   }
 
   if (editandoId && !reunion) {
     return (
-      <View className="flex-1 items-center justify-center bg-cream p-8">
+      <Screen className="items-center justify-center p-8">
         <Stack.Screen options={{ title: "Editar reunión" }} />
         <Muted>No se encontró la reunión.</Muted>
-      </View>
+      </Screen>
     );
   }
 

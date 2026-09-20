@@ -17,6 +17,7 @@ import {
   Label,
   LinkAction,
   Muted,
+  Screen,
   Title,
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
@@ -124,7 +125,7 @@ export default function Actividades() {
   const sinNada = !isLoading && actividadesFiltradas.length === 0 && eventosFiltrados.length === 0;
 
   return (
-    <View className="flex-1 bg-cream">
+    <Screen>
       <AppBar title="Eventos y actividades" />
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 96 }}
@@ -323,6 +324,6 @@ export default function Actividades() {
           <Ionicons name="add" size={28} color="#fff" />
         </Pressable>
       )}
-    </View>
+    </Screen>
   );
 }

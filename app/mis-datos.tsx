@@ -11,6 +11,7 @@ import {
   KeyboardScrollView,
   Label,
   Muted,
+  Screen,
   SwitchField,
 } from "../components/ui";
 import { calcularEdad, dateToFecha, fechaLabel, fechaToDate } from "../lib/date";
@@ -74,9 +75,9 @@ export default function MisDatos() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-cream">
+      <Screen className="items-center justify-center">
         <Muted>Cargando…</Muted>
-      </View>
+      </Screen>
     );
   }
 

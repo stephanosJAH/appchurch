@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
 import { CumpleRow } from "../../components/Cumples";
-import { Body, Card, Chip, Label, Muted, Title } from "../../components/ui";
+import { Body, Card, Chip, Label, Muted, Screen, Title } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import {
   addDays,
@@ -68,7 +68,7 @@ export default function Calendario() {
   const { data: miembros = [] } = useDirectorio();
 
   return (
-    <View className="flex-1 bg-cream">
+    <Screen>
       <AppBar title={isAdmin ? "Calendario general" : "Mi calendario"} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         <View className="mb-4">
@@ -101,7 +101,7 @@ export default function Calendario() {
           />
         )}
       </ScrollView>
-    </View>
+    </Screen>
   );
 }
 

@@ -78,7 +78,9 @@ export function AppBar({ title, activeTab, onTabChange }: AppBarProps = {}) {
   const { profile } = useAuth();
 
   return (
-    <View style={{ paddingTop: insets.top + 8 }} className="bg-cream px-4 pb-3 mt-3">
+    // La barra es transparente: el degradado del fondo (`FondoDegradado`)
+    // tiene que empezar en el borde de la pantalla, no debajo de la barra.
+    <View style={{ paddingTop: insets.top + 8 }} className="px-4 pb-3 mt-3">
       {activeTab && onTabChange ? (
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center gap-7">

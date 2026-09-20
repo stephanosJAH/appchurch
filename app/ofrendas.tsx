@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
-import { Body, Card, Display, Label, Muted, Title } from "../components/ui";
+import { Body, Card, Display, Label, Muted, Screen, Title } from "../components/ui";
 import { formatFechaCorta, formatMoneda, toISODate } from "../lib/date";
 import { useOfrendasMinisterio } from "../lib/queries/ministerios";
 import { useOfrendas } from "../lib/queries/reuniones";
@@ -97,87 +97,89 @@ export default function Ofrendas() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-cream">
+      <Screen className="items-center justify-center">
         <Stack.Screen options={{ title: titulo }} />
         <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      </Screen>
     );
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-cream"
-      contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-      showsVerticalScrollIndicator={false}
-    >
-      <Stack.Screen options={{ title: titulo }} />
+    <Screen>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Stack.Screen options={{ title: titulo }} />
 
-      {/* Total general */}
-      <Card className="mb-5 bg-navy">
-        <Label>Total ofrendas · últimos {MESES_ATRAS} meses</Label>
-        <Display className="mt-1">{formatMoneda(totalGeneral)}</Display>
-        <Muted className="mt-1">
-          {filas.length} reuniones · {meses.length} {meses.length === 1 ? "mes" : "meses"}
-        </Muted>
-      </Card>
-
-      <Label className="mb-2">Desglose por mes</Label>
-
-      {meses.length === 0 ? (
-        <Card>
-          <Muted>
-            {esMinisterio
-              ? "Todavía no hay ofrendas registradas en los ministerios."
-              : "Todavía no hay ofrendas registradas."}
+        {/* Total general */}
+        <Card className="mb-5 bg-navy">
+          <Label>Total ofrendas · últimos {MESES_ATRAS} meses</Label>
+          <Display className="mt-1">{formatMoneda(totalGeneral)}</Display>
+          <Muted className="mt-1">
+            {filas.length} reuniones · {meses.length} {meses.length === 1 ? "mes" : "meses"}
           </Muted>
         </Card>
-      ) : (
-        <View className="gap-3">
-          {meses.map((mes, idx) => {
-            const abierto = estaAbierto(mes.clave, idx);
-            return (
-              <Card key={mes.clave} className="p-0 overflow-hidden">
-                <Pressable
-                  onPress={() => toggle(mes.clave, idx)}
-                  className="flex-row items-center gap-3 p-4 active:opacity-80"
-                >
-                  <View className="flex-1">
-                    <Title className="text-base capitalize">{labelMes(mes.clave)}</Title>
-                    <Muted>
-                      {mes.filas.length} {mes.filas.length === 1 ? "reunión" : "reuniones"}
-                    </Muted>
-                  </View>
-                  <Title className="text-base text-gold">{formatMoneda(mes.total)}</Title>
-                  <Ionicons
-                    name={abierto ? "chevron-up" : "chevron-down"}
-                    size={18}
-                    color={colors.outline}
-                  />
-                </Pressable>
 
-                {abierto && (
-                  <View className="border-t border-black/10">
-                    {mes.filas.map((f) => (
-                      <View
-                        key={f.id}
-                        className="flex-row items-center gap-3 border-b border-black/5 px-4 py-3"
-                      >
-                        <View className="flex-1">
-                          <Body className="text-ink" numberOfLines={1}>
-                            {f.nombre}
-                          </Body>
-                          <Muted>{formatFechaCorta(f.fecha)}</Muted>
+        <Label className="mb-2">Desglose por mes</Label>
+
+        {meses.length === 0 ? (
+          <Card>
+            <Muted>
+              {esMinisterio
+                ? "Todavía no hay ofrendas registradas en los ministerios."
+                : "Todavía no hay ofrendas registradas."}
+            </Muted>
+          </Card>
+        ) : (
+          <View className="gap-3">
+            {meses.map((mes, idx) => {
+              const abierto = estaAbierto(mes.clave, idx);
+              return (
+                <Card key={mes.clave} className="p-0 overflow-hidden">
+                  <Pressable
+                    onPress={() => toggle(mes.clave, idx)}
+                    className="flex-row items-center gap-3 p-4 active:opacity-80"
+                  >
+                    <View className="flex-1">
+                      <Title className="text-base capitalize">{labelMes(mes.clave)}</Title>
+                      <Muted>
+                        {mes.filas.length} {mes.filas.length === 1 ? "reunión" : "reuniones"}
+                      </Muted>
+                    </View>
+                    <Title className="text-base text-gold">{formatMoneda(mes.total)}</Title>
+                    <Ionicons
+                      name={abierto ? "chevron-up" : "chevron-down"}
+                      size={18}
+                      color={colors.outline}
+                    />
+                  </Pressable>
+
+                  {abierto && (
+                    <View className="border-t border-black/10">
+                      {mes.filas.map((f) => (
+                        <View
+                          key={f.id}
+                          className="flex-row items-center gap-3 border-b border-black/5 px-4 py-3"
+                        >
+                          <View className="flex-1">
+                            <Body className="text-ink" numberOfLines={1}>
+                              {f.nombre}
+                            </Body>
+                            <Muted>{formatFechaCorta(f.fecha)}</Muted>
+                          </View>
+                          <Body className="text-ink">{formatMoneda(f.monto)}</Body>
                         </View>
-                        <Body className="text-ink">{formatMoneda(f.monto)}</Body>
-                      </View>
-                    ))}
-                  </View>
-                )}
-              </Card>
-            );
-          })}
-        </View>
-      )}
-    </ScrollView>
+                      ))}
+                    </View>
+                  )}
+                </Card>
+              );
+            })}
+          </View>
+        )}
+      </ScrollView>
+    </Screen>
   );
 }

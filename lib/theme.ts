@@ -4,6 +4,10 @@
 export const colors = {
   // Superficies
   background: "#fbf9f8", // crema (canvas)
+  // Extremo cálido del degradado del feed. La crema del canvas está a 4 puntos
+  // del blanco: un degradado entre esos dos no se ve. El recorrido visible sale
+  // de estirar este extremo, no de blanquear el otro.
+  backgroundWarm: "#f3efe9",
   surface: "#fbf9f8",
   surfaceContainerLowest: "#ffffff",
   surfaceContainerLow: "#f5f3f3",

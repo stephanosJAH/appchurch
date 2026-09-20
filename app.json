@@ -1,22 +1,21 @@
 {
   "expo": {
-    "name": "PDApp",
+    "name": "appchurch",
     "slug": "appchurch",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon-pda.png",
     "scheme": "appchurch",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#ffffff",
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "package": "com.ampiup.appchurch",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#1F2A39",
+        "foregroundImage": "./assets/android-icon-pda.png"
       },
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false

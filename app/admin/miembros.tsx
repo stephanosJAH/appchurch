@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, View } from "react-native";
-import { Avatar, Body, Button, Card, Chip, Field, Label, Muted } from "../../components/ui";
+import { Avatar, Body, Button, Card, Chip, Field, FondoDegradado, Label, Muted } from "../../components/ui";
 import { calcularEdad, formatHora } from "../../lib/date";
 import { colors, fonts } from "../../lib/theme";
 import { DIAS_SEMANA, Sexo } from "../../lib/types";
@@ -75,6 +75,7 @@ export default function AdminMiembros() {
       className="flex-1 bg-cream"
       behavior={Platform.OS === "android" ? "padding" : undefined}
     >
+      <FondoDegradado />
       <FlatList
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled"

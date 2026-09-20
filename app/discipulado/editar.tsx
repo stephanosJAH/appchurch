@@ -11,7 +11,7 @@ import {
   useDiscipulados,
   useUpsertDiscipulado,
 } from "../../lib/queries/discipulados";
-import { useProfiles } from "../../lib/queries/profiles";
+import { nombreDePerfil, useProfiles } from "../../lib/queries/profiles";
 
 const MODALIDADES: Modalidad[] = ["presencial", "virtual", "ambos"];
 const SEXOS: SexoDiscipulado[] = ["M", "F", "mixto"];
@@ -191,7 +191,7 @@ export default function EditarDiscipulado() {
                 }`}
               >
                 <View className="flex-row items-center justify-between">
-                  <Body className="flex-1 text-ink">{p.nombre_completo ?? p.id.slice(0, 8)}</Body>
+                  <Body className="flex-1 text-ink">{nombreDePerfil(p) ?? p.id.slice(0, 8)}</Body>
                   <Chip tone={p.rol === "admin" ? "gold" : "neutral"}>{p.rol}</Chip>
                 </View>
               </Pressable>

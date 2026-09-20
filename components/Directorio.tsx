@@ -69,8 +69,11 @@ export function DirectorioList() {
     );
   };
 
+  // Sin fondo propio: la lista se embebe en la pestaña "Nosotros" del feed y
+  // también es la pantalla `app/directorio.tsx`; el degradado lo pone quien la
+  // contiene.
   return (
-    <View className="flex-1 bg-cream">
+    <View className="flex-1">
       <View className="px-4 pt-3">
         <Field
           icon="search-outline"

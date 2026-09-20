@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useMemo } from "react";
 import { Alert, FlatList, Pressable, View } from "react-native";
-import { Avatar, Body, Button, Card, Chip, Label, Muted } from "../../components/ui";
+import { Avatar, Body, Button, Card, Chip, Label, Muted, Screen } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { colors } from "../../lib/theme";
 import { Profile, RolApp } from "../../lib/types";
@@ -102,7 +102,7 @@ export default function AdminUsuarios() {
   };
 
   return (
-    <View className="flex-1 bg-cream">
+    <Screen>
       <FlatList
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
         data={activos}
@@ -143,6 +143,6 @@ export default function AdminUsuarios() {
           ) : null
         }
       />
-    </View>
+    </Screen>
   );
 }

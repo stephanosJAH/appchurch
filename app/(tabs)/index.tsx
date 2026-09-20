@@ -11,19 +11,20 @@ import { CumplesSection, proximosCumples } from "../../components/Cumples";
 import { DirectorioList } from "../../components/Directorio";
 import { EventosSemana, eventosDeLaSemana } from "../../components/EventosSemana";
 import { UltimaPredicacion } from "../../components/Predicaciones";
+import { SaludoCard } from "../../components/SaludoCard";
 import {
   Body,
   Button,
   Card,
   Chip,
-  Display,
+  Label,
   Muted,
+  Screen,
   SkeletonCard,
   Title,
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { formatHora } from "../../lib/date";
-import { saludoDelDia } from "../../lib/saludos";
 import { colors } from "../../lib/theme";
 import { DIAS_SEMANA } from "../../lib/types";
 import { useActividadesActivas } from "../../lib/queries/actividades";
@@ -197,9 +198,6 @@ export default function Dashboard() {
   // Cumpleaños de toda la congregación (directorio, visible a todo miembro activo).
   const { data: directorio = [], isLoading: cargandoDirectorio } = useDirectorio();
 
-  // Saludo del día: cambia solo, uno por fecha (ver lib/saludos.ts).
-  const saludo = useMemo(() => saludoDelDia(nombre), [nombre]);
-
   const hoy = new Date().getDay();
   const misGrupos = useMemo<GrupoDelFeed[]>(() => {
     const lidero: GrupoDelFeed[] = discipulados
@@ -257,7 +255,10 @@ export default function Dashboard() {
   const hayAccesos = esObrero || isAdmin;
 
   return (
-    <View className="flex-1 bg-cream">
+    <Screen>
+      {/* El degradado del fondo lo pone `Screen` (components/ui.tsx), igual que
+          en el resto de la app. `AppBar` es transparente para que arranque en
+          el borde de la pantalla y no debajo de la barra. */}
       <AppBar activeTab={tab} onTabChange={setTab} />
       <View style={{ flex: 1, overflow: "hidden" }}>
         <GestureDetector gesture={panGesture}>
@@ -270,15 +271,12 @@ export default function Dashboard() {
               contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
               showsVerticalScrollIndicator={false}
             >
-              {/* Saludo del día */}
-              <View className="mb-6">
-                <Display>{saludo.texto}</Display>
-                <View className="mt-2 flex-row items-center gap-1.5">
-                  <Ionicons name="book-outline" size={14} color={colors.tertiary} />
-                  <Muted className="text-gold">{saludo.cita}</Muted>
-                </View>
-              </View>
 
+              {/* Saludo del día */}
+              <SaludoCard nombre={nombre} className="mb-6" />
+
+              <Separador />
+              
               {/* Anuncios: lo que la iglesia o el ministerio quiere avisar.
                   Va arriba de todo porque es lo más perecedero del feed; la
                   sección se esconde sola cuando no hay ninguno. */}
@@ -313,44 +311,40 @@ export default function Dashboard() {
               )}
 
               {/* Cumpleaños próximos de toda la congregación */}
-              {hayCumples && <Separador />}
               <CumplesSection
                 miembros={directorio}
                 titulo="Cumpleaños"
                 dentroDe={VENTANA_CUMPLES}
-                className="mb-6"
+                className="mb-6 mt-3"
                 cargando={cargandoDirectorio}
               />
 
               {/* Actividades semanales que tocan hoy (carrusel) */}
-              {hayActividadesHoy && <Separador />}
               <ActividadesHoy
                 actividades={actividades}
                 swipeGesture={carruselActividades}
-                className="mb-6"
+                className="mb-6 mt-3"
                 cargando={cargandoActividades}
               />
 
               {/* Eventos de la semana (carrusel lunes→domingo) */}
-              {hayEventos && <Separador />}
               <EventosSemana
                 eventos={eventos}
                 swipeGesture={carruselEventos}
-                className="mb-6"
+                className="mb-6 mt-3"
                 cargando={cargandoEventos}
               />
 
               {/* Última predicación del canal de YouTube. Es un punto fijo del
                   feed —se dibuja siempre, con datos o sin ellos—, por eso su
                   separador no va condicionado a nada. */}
-              <Separador />
-              <UltimaPredicacion className="mb-6" />
+              <UltimaPredicacion className="mb-6 mt-3" />
 
-              {/* Accesos rápidos */}
+              {/* Accesos rápidos 
               {hayAccesos && <Separador />}
               <View className="mb-6 gap-3">
                 {/* Registrar reunión es gestión de grupo (el RPC valida
-                    es_discipulador_de): solo obrero/admin, nunca un miembro. */}
+                    es_discipulador_de): solo obrero/admin, nunca un miembro. 
                 {esObrero && (
                   <QuickAction
                     icon="add-circle-outline"
@@ -382,7 +376,7 @@ export default function Dashboard() {
                     onPress={() => router.push("/admin/miembros")}
                   />
                 )}
-              </View>
+              </View>*/}
             </ScrollView>
 
             {/* Panel "Nosotros": directorio */}
@@ -392,6 +386,6 @@ export default function Dashboard() {
           </Animated.View>
         </GestureDetector>
       </View>
-    </View>
+    </Screen>
   );
 }

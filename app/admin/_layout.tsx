@@ -13,7 +13,9 @@ export default function AdminLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: colors.background },
+        // Blanco, no crema: el header continúa el arranque del degradado de
+        // las pantallas (`FondoDegradado`) en vez de cortarlo con un escalón.
+        headerStyle: { backgroundColor: colors.surfaceContainerLowest },
         headerShadowVisible: false,
         // Misma tipografía que el selector Inicio/Nosotros del AppBar.
         headerTitleStyle: { color: colors.onSurface, fontFamily: fonts.sansBold, fontSize: 16 },

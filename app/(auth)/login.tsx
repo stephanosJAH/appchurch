@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Alert, Image, KeyboardAvoidingView, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Body, Button, Card, Display, Field, Headline, Label, Muted } from "../../components/ui";
+import { Body, Button, Card, Display, Field, FondoDegradado, Headline, Label, Muted } from "../../components/ui";
 import { identifierToEmail, isValidIdentifier, normalizeIdentifier } from "../../lib/authIdentity";
 import { supabase } from "../../lib/supabase";
 import { cardShadow, fonts } from "../../lib/theme";
@@ -96,6 +96,7 @@ export default function Login() {
 
   return (
     <KeyboardAvoidingView className="flex-1 bg-cream" behavior="padding">
+      <FondoDegradado />
       <ScrollView
         contentContainerStyle={{
           flexGrow: 1,

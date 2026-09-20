@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Pressable, ScrollView, View } from "react-native";
-import { Card, Chip, Label, Muted, Title } from "../../components/ui";
+import { Card, Chip, Label, Muted, Screen, Title } from "../../components/ui";
 import { formatHora } from "../../lib/date";
 import { colors } from "../../lib/theme";
 import { DIAS_SEMANA } from "../../lib/types";
@@ -17,7 +17,7 @@ export default function AdminDiscipulados() {
     profiles.find((p) => p.id === id)?.nombre_completo ?? "Sin asignar";
 
   return (
-    <View className="flex-1 bg-cream">
+    <Screen>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 96 }}>
         <Label className="mb-2 mt-1">Discipulados ({discipulados.length})</Label>
         <View className="gap-2.5">
@@ -60,6 +60,6 @@ export default function AdminDiscipulados() {
       >
         <Ionicons name="add" size={28} color="#fff" />
       </Pressable>
-    </View>
+    </Screen>
   );
 }

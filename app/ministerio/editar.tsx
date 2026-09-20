@@ -3,7 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { RichTextEditor } from "../../components/RichTextEditor";
-import { Body, Button, Card, Chip, Field, KeyboardScrollView, Label, Muted } from "../../components/ui";
+import { Body, Button, Card, Chip, Field, KeyboardScrollView, Label, Muted, Screen } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import {
   useAsignarLideres,
@@ -136,14 +136,14 @@ export default function EditarMinisterio() {
 
   if (!puedeEditar) {
     return (
-      <View className="flex-1 items-center justify-center bg-cream p-8">
+      <Screen className="items-center justify-center p-8">
         <Stack.Screen options={{ title: "Ministerio" }} />
         <Muted className="text-center">
           {editingId
             ? "No liderás este ministerio, así que no podés editarlo."
             : "Los ministerios los crea un administrador."}
         </Muted>
-      </View>
+      </Screen>
     );
   }
 

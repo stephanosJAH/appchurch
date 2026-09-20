@@ -31,10 +31,10 @@ import { cardShadow, colors, fonts } from "../lib/theme";
 
 /* ============================ Tipografía ============================ */
 
-export function Display({ children, className }: PropsWithChildren<{ className?: string }>) {
+export function Display({ children, className, style }: PropsWithChildren<{ className?: string; style?: TextProps["style"] }>) {
   return (
     <Text
-      style={{ fontFamily: fonts.serifBold, lineHeight: 40 }}
+      style={[{ fontFamily: fonts.serifBold, lineHeight: 40 }, style]}
       className={`text-[32px] text-ink ${className ?? ""}`}
     >
       {children}
@@ -96,8 +96,41 @@ export function Label({ children, className }: PropsWithChildren<{ className?: s
 
 /* ============================ Contenedores ============================ */
 
+// Fondo de la app: blanco arriba, crema cálida (`backgroundWarm`) abajo.
+//
+// Es una capa absoluta detrás del contenido —no un `backgroundColor`— por dos
+// razones: el degradado queda fijo mientras la lista scrollea, y el contenedor
+// puede seguir declarando `bg-cream` como piso si el degradado no está.
+// `experimental_backgroundImage` es el degradado nativo de RN 0.86 (SDK 57):
+// evita sumar expo-linear-gradient.
+//
+// Va una sola vez por pantalla, en la raíz. Anidado dentro de otro (debajo de
+// un AppBar, por ejemplo) el degradado vuelve a arrancar en blanco a media
+// pantalla y se nota el escalón.
+export function FondoDegradado() {
+  return (
+    <View
+      pointerEvents="none"
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        experimental_backgroundImage: `linear-gradient(to bottom, ${colors.surfaceContainerLowest} 0%, ${colors.backgroundWarm} 100%)`,
+      }}
+    />
+  );
+}
+
+// Raíz de pantalla: el fondo de la app y, encima, el contenido.
 export function Screen({ children, className }: PropsWithChildren<{ className?: string }>) {
-  return <View className={`flex-1 bg-cream ${className ?? ""}`}>{children}</View>;
+  return (
+    <View className={`flex-1 bg-cream ${className ?? ""}`}>
+      <FondoDegradado />
+      {children}
+    </View>
+  );
 }
 
 // ScrollView para formularios: mantiene el input enfocado visible cuando abre
@@ -114,11 +147,12 @@ export function KeyboardScrollView({
     // iOS: automaticallyAdjustKeyboardInsets alcanza. Android: ese prop es no-op,
     // así que KeyboardAvoidingView con padding empuja el contenido sobre el teclado.
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      className="flex-1 bg-cream"
       behavior={Platform.OS === "android" ? "padding" : undefined}
     >
+      <FondoDegradado />
       <ScrollView
-        className={`flex-1 bg-cream ${className ?? ""}`}
+        className={`flex-1 ${className ?? ""}`}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
@@ -138,8 +172,8 @@ export function KeyboardScrollView({
 export function Card({ children, className, style, ...props }: PropsWithChildren<ViewProps> & { className?: string }) {
   return (
     <View
-      style={[cardShadow, style]}
-      className={`rounded-2xl border border-black/5 bg-surface p-5 ${className ?? ""}`}
+      style={[style]}
+      className={`rounded-2xl border border-white/5 bg-surface p-5 ${className ?? ""}`}
       {...props}
     >
       {children}

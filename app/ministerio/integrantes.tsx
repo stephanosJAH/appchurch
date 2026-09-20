@@ -11,6 +11,7 @@ import {
   KeyboardScrollView,
   Label,
   Muted,
+  Screen,
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import {
@@ -117,12 +118,12 @@ export default function IntegrantesMinisterio() {
 
   if (!puedeGestionar) {
     return (
-      <View className="flex-1 items-center justify-center bg-cream p-8">
+      <Screen className="items-center justify-center p-8">
         <Stack.Screen options={{ title: "Integrantes" }} />
         <Muted className="text-center">
           El roster de un ministerio lo gestionan sus líderes.
         </Muted>
-      </View>
+      </Screen>
     );
   }
 

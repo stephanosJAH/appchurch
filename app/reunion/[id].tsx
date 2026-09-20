@@ -10,6 +10,7 @@ import {
   Display,
   Label,
   Muted,
+  Screen,
   Title,
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
@@ -107,18 +108,18 @@ export default function ReunionDetalle() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center bg-cream">
+      <Screen className="items-center justify-center">
         <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      </Screen>
     );
   }
 
   const reunion = esMinisterio ? min.data : disc.data;
   if (!reunion) {
     return (
-      <View className="flex-1 items-center justify-center bg-cream p-8">
+      <Screen className="items-center justify-center p-8">
         <Muted>No se encontró la reunión.</Muted>
-      </View>
+      </Screen>
     );
   }
 
@@ -127,114 +128,116 @@ export default function ReunionDetalle() {
     : disc.data?.discipulado?.nombre ?? disc.data?.discipulado?.descripcion_etaria ?? "Discipulado";
 
   return (
-    <ScrollView
-      className="flex-1 bg-cream"
-      contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-      showsVerticalScrollIndicator={false}
-    >
-      {canManage && (
-        <Stack.Screen
-          options={{
-            headerRight: () => (
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: "/reunion/nueva",
-                    params: { reunionId, origen },
-                  })
-                }
-                className="active:opacity-60"
-                hitSlop={12}
-              >
-                <Ionicons name="create-outline" size={22} color={colors.primary} />
-              </Pressable>
-            ),
-          }}
-        />
-      )}
+    <Screen>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {canManage && (
+          <Stack.Screen
+            options={{
+              headerRight: () => (
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: "/reunion/nueva",
+                      params: { reunionId, origen },
+                    })
+                  }
+                  className="active:opacity-60"
+                  hitSlop={12}
+                >
+                  <Ionicons name="create-outline" size={22} color={colors.primary} />
+                </Pressable>
+              ),
+            }}
+          />
+        )}
 
-      {/* Encabezado */}
-      <Card className="mb-4 bg-navy">
-        <Muted>{dueno}</Muted>
-        <Title className="mt-1 capitalize">{fechaLarga(reunion.fecha)}</Title>
-        {reunion.modalidad_usada ? (
-          <View className="mt-3">
-            <Chip tone="gold">{reunion.modalidad_usada}</Chip>
-          </View>
-        ) : null}
-      </Card>
-
-      {/* Ofrenda */}
-      <Card className="mb-4 flex-row items-center justify-between">
-        <View>
-          <Label>Ofrenda total</Label>
-          <Display className="mt-1">{formatMoneda(Number(reunion.ofrenda_total ?? 0))}</Display>
-        </View>
-        <View className="h-12 w-12 items-center justify-center rounded-full bg-surface-mid">
-          <Ionicons name="wallet-outline" size={24} color={colors.primaryContainer} />
-        </View>
-      </Card>
-
-      {/* Tema */}
-      {reunion.tema ? (
-        <>
-          <Label className="mb-2">Tema / lección</Label>
-          <Card className="mb-4">
-            <Body className="text-ink">{reunion.tema}</Body>
-          </Card>
-        </>
-      ) : null}
-
-      {/* Notas */}
-      {reunion.notas ? (
-        <>
-          <Label className="mb-2">Notas</Label>
-          <Card className="mb-4">
-            <Body className="text-ink">{reunion.notas}</Body>
-          </Card>
-        </>
-      ) : null}
-
-      {/* Asistencia */}
-      <View className="mb-2 mt-2 flex-row items-center justify-between">
-        <Label>Asistencia</Label>
-        <Muted className="text-gold">
-          {presentes}/{asistencias.length} presentes
-        </Muted>
-      </View>
-
-      {asistencias.length === 0 ? (
-        <Card>
-          <Muted>No se registró asistencia.</Muted>
+        {/* Encabezado */}
+        <Card className="mb-4 bg-navy">
+          <Muted>{dueno}</Muted>
+          <Title className="mt-1 capitalize">{fechaLarga(reunion.fecha)}</Title>
+          {reunion.modalidad_usada ? (
+            <View className="mt-3">
+              <Chip tone="gold">{reunion.modalidad_usada}</Chip>
+            </View>
+          ) : null}
         </Card>
-      ) : (
-        <View className="gap-2.5">
-          {asistencias.map((a) => (
-            <Card
-              key={a.id}
-              className={`flex-row items-center gap-3 py-3.5 ${a.presente ? "" : "opacity-60"}`}
-            >
-              <Avatar name={a.nombre} size={38} tone={a.presente ? "navy" : "gold"} />
-              <Body className="flex-1 text-ink">{a.nombre}</Body>
-              {a.presente && a.modalidad && a.modalidad !== "ambos" ? (
-                <View className="flex-row items-center gap-1">
-                  <Ionicons
-                    name={a.modalidad === "virtual" ? "videocam-outline" : "business-outline"}
-                    size={13}
-                    color={colors.outline}
-                  />
-                  <Muted className="capitalize">{a.modalidad}</Muted>
-                </View>
-              ) : null}
-              <Ionicons
-                name={a.presente ? "checkmark-circle" : "close-circle-outline"}
-                size={22}
-                color={a.presente ? colors.primary : colors.outlineVariant}
-              />
+
+        {/* Ofrenda */}
+        <Card className="mb-4 flex-row items-center justify-between">
+          <View>
+            <Label>Ofrenda total</Label>
+            <Display className="mt-1">{formatMoneda(Number(reunion.ofrenda_total ?? 0))}</Display>
+          </View>
+          <View className="h-12 w-12 items-center justify-center rounded-full bg-surface-mid">
+            <Ionicons name="wallet-outline" size={24} color={colors.primaryContainer} />
+          </View>
+        </Card>
+
+        {/* Tema */}
+        {reunion.tema ? (
+          <>
+            <Label className="mb-2">Tema / lección</Label>
+            <Card className="mb-4">
+              <Body className="text-ink">{reunion.tema}</Body>
             </Card>
-          ))}
+          </>
+        ) : null}
+
+        {/* Notas */}
+        {reunion.notas ? (
+          <>
+            <Label className="mb-2">Notas</Label>
+            <Card className="mb-4">
+              <Body className="text-ink">{reunion.notas}</Body>
+            </Card>
+          </>
+        ) : null}
+
+        {/* Asistencia */}
+        <View className="mb-2 mt-2 flex-row items-center justify-between">
+          <Label>Asistencia</Label>
+          <Muted className="text-gold">
+            {presentes}/{asistencias.length} presentes
+          </Muted>
         </View>
-      )}
-    </ScrollView>
+
+        {asistencias.length === 0 ? (
+          <Card>
+            <Muted>No se registró asistencia.</Muted>
+          </Card>
+        ) : (
+          <View className="gap-2.5">
+            {asistencias.map((a) => (
+              <Card
+                key={a.id}
+                className={`flex-row items-center gap-3 py-3.5 ${a.presente ? "" : "opacity-60"}`}
+              >
+                <Avatar name={a.nombre} size={38} tone={a.presente ? "navy" : "gold"} />
+                <Body className="flex-1 text-ink">{a.nombre}</Body>
+                {a.presente && a.modalidad && a.modalidad !== "ambos" ? (
+                  <View className="flex-row items-center gap-1">
+                    <Ionicons
+                      name={a.modalidad === "virtual" ? "videocam-outline" : "business-outline"}
+                      size={13}
+                      color={colors.outline}
+                    />
+                    <Muted className="capitalize">{a.modalidad}</Muted>
+                  </View>
+                ) : null}
+                <Ionicons
+                  name={a.presente ? "checkmark-circle" : "close-circle-outline"}
+                  size={22}
+                  color={a.presente ? colors.primary : colors.outlineVariant}
+                />
+              </Card>
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    </Screen>
   );
 }
