@@ -25,7 +25,7 @@ import {
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { formatHora } from "../../lib/date";
-import { colors } from "../../lib/theme";
+import { cardShadow, colors } from "../../lib/theme";
 import { DIAS_SEMANA } from "../../lib/types";
 import { useActividadesActivas } from "../../lib/queries/actividades";
 import { useDirectorio } from "../../lib/queries/directorio";
@@ -50,35 +50,52 @@ type GrupoDelFeed = {
   lidero: boolean;
 };
 
+// El ancla del feed: la única tarjeta navy plena. El discipulado es el
+// compromiso fijo de la semana —lo tuyo—, y las actividades y eventos de la
+// iglesia quedan como filas claras debajo; el peso de la tinta es el que separa
+// una cosa de la otra.
+//
+// No usa `Card`: su `bg-surface` blanco chocaría con el navy (dos clases de
+// fondo en el mismo className no garantizan cuál gana), igual que en
+// components/SaludoCard.tsx. El degradado es el nativo de RN 0.86
+// (`experimental_backgroundImage`), con `bg-navy` de piso si no está.
 function GrupoDestacado({ g, onPress }: { g: GrupoDelFeed; onPress: () => void }) {
   return (
-    <Card className="mb-4 overflow-hidden p-0">
-      <View className="h-28 justify-end bg-navy p-4">
-        <View className="absolute right-4 top-4 opacity-20">
-          <Ionicons name="book" size={72} color={colors.tertiaryDim} />
-        </View>
-        <Chip tone="gold">{g.lidero ? "Tu discipulado" : "Donde participás"}</Chip>
+    <View
+      style={[
+        cardShadow,
+        {
+          experimental_backgroundImage: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryContainer} 100%)`,
+        },
+      ]}
+      className="mb-4 overflow-hidden rounded-2xl bg-navy p-5"
+    >
+      {/* El emblema que antes ocupaba la banda de 112px: ahora sangra por la
+          esquina al 10%, sin comerse un tercio de la tarjeta. */}
+      <View pointerEvents="none" style={{ position: "absolute", right: -20, bottom: -30 }} className="opacity-10">
+        <Ionicons name="book" size={150} color={colors.tertiaryDim} />
       </View>
-      <View className="p-5">
-        <View className="mb-2 flex-row items-center gap-1.5">
-          <Ionicons name="calendar-outline" size={15} color={colors.tertiary} />
-          <Muted className="text-gold">
-            {DIAS_SEMANA[g.dia_semana]}, {formatHora(g.hora_inicio)}
-          </Muted>
-        </View>
-        <Title numberOfLines={2} className="text-xl">
-          {g.titulo}
-        </Title>
-        {g.ubicacion ? (
-          <Body className="mt-1" numberOfLines={2}>
-            {g.ubicacion}
-          </Body>
-        ) : null}
-        <View className="mt-4">
-          <Button title="Ver detalles" onPress={onPress} />
-        </View>
+      <Chip tone="gold">{g.lidero ? "Tu discipulado" : "Donde participás"}</Chip>
+      <View className="mt-3.5 flex-row items-center gap-1.5">
+        <Ionicons name="calendar-outline" size={15} color={colors.tertiaryDim} />
+        <Muted className="text-gold-dim">
+          {DIAS_SEMANA[g.dia_semana]}, {formatHora(g.hora_inicio)}
+        </Muted>
       </View>
-    </Card>
+      <Title numberOfLines={2} className="mt-1 text-cream" style={{ fontSize: 23, lineHeight: 30 }}>
+        {g.titulo}
+      </Title>
+      {/* `navy-soft` y no `navy-on`: a 16px, el #8292b0 sobre el navy queda en
+          ~4.3:1, abajo del mínimo AA. */}
+      {g.ubicacion ? (
+        <Body className="mt-0.5 text-navy-soft" numberOfLines={2}>
+          {g.ubicacion}
+        </Body>
+      ) : null}
+      <View className="mt-4 self-start">
+        <Button title="Ver detalles" variant="goldContainer" onPress={onPress} />
+      </View>
+    </View>
   );
 }
 

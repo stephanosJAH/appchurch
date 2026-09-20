@@ -13,16 +13,15 @@ import {
 import { Gesture, GestureDetector, type NativeGesture } from "react-native-gesture-handler";
 import {
   addDays,
-  formatFechaLarga,
+  formatFechaCorta,
   formatRangoFechas,
   mismoDia,
   startOfWeek,
   toISODate,
 } from "../lib/date";
-import { aTextoPlano } from "../lib/richText";
-import { colors } from "../lib/theme";
+import { cardShadow, colors, fonts } from "../lib/theme";
 import { DIAS_SEMANA, Evento } from "../lib/types";
-import { Body, Card, Chip, Label, LinkAction, Muted, SkeletonCard, Title } from "./ui";
+import { Card, Label, Muted, SkeletonCard, Title } from "./ui";
 
 // Padding horizontal del contenedor del feed (16 por lado): la diapositiva ocupa
 // el ancho de pantalla menos ese margen.
@@ -53,6 +52,11 @@ function diaChip(e: Evento, ref = new Date()): string {
   return DIAS_SEMANA[new Date(e.fecha_inicio).getDay()];
 }
 
+// Fila de evento del feed, gemela de la de actividades: miniatura de 64 (el
+// flyer, o el ícono sobre navy), cuándo en dorado, título y el lugar. La línea
+// dorada absorbe lo que antes estaban el chip y la fecha: el relativo
+// ("Hoy", "Mañana", "En curso") sólo cuando aporta, porque para un día
+// cualquiera `diaChip` ya devuelve el nombre del día que abre la fecha.
 function EventoSlide({
   e,
   width,
@@ -62,53 +66,46 @@ function EventoSlide({
   width: number;
   onPress: () => void;
 }) {
+  const rel = diaChip(e);
+  const variosDias = !mismoDia(e.fecha_inicio, e.fecha_fin);
+  const cuando = variosDias
+    ? rel === "En curso"
+      ? `En curso · ${formatRangoFechas(e.fecha_inicio, e.fecha_fin)}`
+      : formatRangoFechas(e.fecha_inicio, e.fecha_fin)
+    : `${rel} · ${formatFechaCorta(e.fecha_inicio)}`;
   return (
     <View style={{ width }}>
       <Pressable onPress={onPress} className="active:opacity-90">
-        <Card className="overflow-hidden p-0">
-          <View className="h-28 justify-end bg-navy p-4">
+        <Card className="flex-row items-center gap-3" style={[cardShadow, { padding: 12 }]}>
+          <View
+            style={{ borderRadius: 12 }}
+            className="h-16 w-16 items-center justify-center overflow-hidden bg-navy"
+          >
             {e.adjunto_url && e.adjunto_tipo === "imagen" ? (
               <Image
                 source={{ uri: e.adjunto_url }}
                 resizeMode="cover"
-                style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.55 }}
+                style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
               />
             ) : (
-              <View className="absolute right-4 top-4 opacity-20">
-                <Ionicons name="megaphone" size={64} color={colors.tertiaryDim} />
-              </View>
+              <Ionicons name="megaphone" size={26} color={colors.tertiaryDim} />
             )}
-            <Chip tone="gold">{diaChip(e)}</Chip>
           </View>
-          <View className="p-5">
-            <View className="mb-2 flex-row items-center gap-1.5">
-              <Ionicons name="calendar-outline" size={15} color={colors.tertiary} />
-              <Muted className="capitalize text-gold">
-                {mismoDia(e.fecha_inicio, e.fecha_fin)
-                  ? formatFechaLarga(e.fecha_inicio)
-                  : formatRangoFechas(e.fecha_inicio, e.fecha_fin)}
-              </Muted>
-            </View>
-            <Title numberOfLines={2} className="text-xl">
-              {e.titulo}
-            </Title>
-            {e.descripcion ? (
-              <Body className="mt-1" numberOfLines={2}>
-                {aTextoPlano(e.descripcion)}
-              </Body>
+          <View className="flex-1">
+            <Muted className="text-gold" style={{ fontFamily: fonts.sansSemibold, fontSize: 13, lineHeight: 18 }}>
+              {cuando}
+            </Muted>
+            <Title numberOfLines={1}>{e.titulo}</Title>
+            {e.ubicacion ? (
+              <View className="flex-row items-center gap-1.5">
+                <Ionicons name="location-outline" size={13} color={colors.outline} />
+                <Muted numberOfLines={1} className="flex-1" style={{ fontSize: 13, lineHeight: 18 }}>
+                  {e.ubicacion}
+                </Muted>
+              </View>
             ) : null}
-            <View className="mt-4 flex-row items-center justify-between">
-              {e.ubicacion ? (
-                <View className="flex-1 flex-row items-center gap-1 pr-2">
-                  <Ionicons name="location-outline" size={15} color={colors.outline} />
-                  <Muted numberOfLines={1}>{e.ubicacion}</Muted>
-                </View>
-              ) : (
-                <View className="flex-1" />
-              )}
-              <LinkAction title="Ver detalles" onPress={onPress} />
-            </View>
           </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.outline} />
         </Card>
       </Pressable>
     </View>

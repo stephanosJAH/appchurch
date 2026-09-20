@@ -12,10 +12,9 @@ import {
 } from "react-native";
 import { Gesture, GestureDetector, type NativeGesture } from "react-native-gesture-handler";
 import { formatDiasSemana, formatFechaLarga, formatHora } from "../lib/date";
-import { aTextoPlano } from "../lib/richText";
-import { colors } from "../lib/theme";
+import { cardShadow, colors, fonts } from "../lib/theme";
 import { Actividad, DIAS_SEMANA } from "../lib/types";
-import { Body, Card, Chip, Label, LinkAction, Muted, SkeletonCard, Title } from "./ui";
+import { Card, Label, Muted, SkeletonCard, Title } from "./ui";
 
 // Padding horizontal del contenedor del feed (16 por lado): la diapositiva ocupa
 // el ancho de pantalla menos ese margen.
@@ -30,6 +29,10 @@ export function actividadesDeHoy(actividades: Actividad[], ref = new Date()): Ac
     .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio));
 }
 
+// Fila de actividad del feed: miniatura de 64 (el flyer, o el ícono sobre
+// navy), horario en dorado, título y una línea de contexto. Es deliberadamente
+// liviana —el ancla navy del discipulado es la que lleva el peso— y por eso no
+// muestra la descripción: para eso está el detalle.
 function ActividadSlide({
   a,
   dia,
@@ -45,54 +48,41 @@ function ActividadSlide({
   return (
     <View style={{ width }}>
       <Pressable onPress={onPress} className="active:opacity-90">
-        <Card className="overflow-hidden p-0">
-          <View className="h-28 justify-end bg-navy p-4">
+        <Card className="flex-row items-center gap-3" style={[cardShadow, { padding: 12 }]}>
+          <View
+            style={{ borderRadius: 12 }}
+            className="h-16 w-16 items-center justify-center overflow-hidden bg-navy"
+          >
             {a.adjunto_url && a.adjunto_tipo === "imagen" ? (
               <Image
                 source={{ uri: a.adjunto_url }}
                 resizeMode="cover"
-                style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.55 }}
+                style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
               />
             ) : (
-              <View className="absolute right-4 top-4 opacity-20">
-                <Ionicons name="repeat" size={64} color={colors.tertiaryDim} />
-              </View>
+              <Ionicons name="repeat" size={26} color={colors.tertiaryDim} />
             )}
-            <Chip tone="gold">Hoy</Chip>
           </View>
-          <View className="p-5">
-            <View className="mb-2 flex-row items-center gap-1.5">
-              <Ionicons name="time-outline" size={15} color={colors.tertiary} />
-              {/* El día siempre visible: la actividad es recurrente, se repite
-                  todos los <día> — no es un ítem con fecha como un evento. */}
-              <Muted className="text-gold">
-                {dia}
-                {horario ? ` · ${horario}` : ""}
+          <View className="flex-1">
+            {/* El día siempre visible: la actividad es recurrente, se repite
+                todos los <día> — no es un ítem con fecha como un evento. */}
+            <Muted className="text-gold" style={{ fontFamily: fonts.sansSemibold, fontSize: 13, lineHeight: 18 }}>
+              {dia}
+              {horario ? ` · ${horario}` : ""}
+            </Muted>
+            <Title numberOfLines={1}>{a.titulo}</Title>
+            <View className="flex-row items-center gap-1.5">
+              <Ionicons
+                name={a.ubicacion ? "location-outline" : "repeat-outline"}
+                size={13}
+                color={colors.outline}
+              />
+              <Muted numberOfLines={1} className="flex-1" style={{ fontSize: 13, lineHeight: 18 }}>
+                {a.ubicacion ?? formatDiasSemana(a.dias_semana)}
               </Muted>
             </View>
-            <Title numberOfLines={2} className="text-xl">
-              {a.titulo}
-            </Title>
-            {a.descripcion ? (
-              <Body className="mt-1" numberOfLines={2}>
-                {aTextoPlano(a.descripcion)}
-              </Body>
-            ) : null}
-            <View className="mt-4 flex-row items-center justify-between">
-              {a.ubicacion ? (
-                <View className="flex-1 flex-row items-center gap-1 pr-2">
-                  <Ionicons name="location-outline" size={15} color={colors.outline} />
-                  <Muted numberOfLines={1}>{a.ubicacion}</Muted>
-                </View>
-              ) : (
-                <View className="flex-1 flex-row items-center gap-1 pr-2">
-                  <Ionicons name="repeat-outline" size={15} color={colors.outline} />
-                  <Muted numberOfLines={1}>{formatDiasSemana(a.dias_semana)}</Muted>
-                </View>
-              )}
-              <LinkAction title="Ver detalles" onPress={onPress} />
-            </View>
           </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.outline} />
         </Card>
       </Pressable>
     </View>

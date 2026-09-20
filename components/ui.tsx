@@ -53,12 +53,14 @@ export function Headline({ children, className }: PropsWithChildren<{ className?
   );
 }
 
-// Título serif dentro de tarjetas.
-export function Title({ children, className, numberOfLines }: PropsWithChildren<{ className?: string; numberOfLines?: number }>) {
+// Título serif dentro de tarjetas. Acepta `style` como `Display`: con fuentes
+// custom el tamaño va por estilo y no por clase —dos `text-[..px]` en el mismo
+// className no garantizan cuál gana (ver components/SaludoCard.tsx).
+export function Title({ children, className, numberOfLines, style }: PropsWithChildren<{ className?: string; numberOfLines?: number; style?: TextProps["style"] }>) {
   return (
     <Text
       numberOfLines={numberOfLines}
-      style={{ fontFamily: fonts.serifSemibold, lineHeight: 26 }}
+      style={[{ fontFamily: fonts.serifSemibold, lineHeight: 26 }, style]}
       className={`text-[19px] text-ink ${className ?? ""}`}
     >
       {children}
@@ -215,7 +217,9 @@ export function Chip({ children, tone = "navy" }: PropsWithChildren<{ tone?: Chi
 
 type ButtonProps = PressableProps & {
   title: string;
-  variant?: "primary" | "outline" | "gold" | "danger" | "ghost";
+  // `goldContainer` es el botón para fondos navy (dorado claro + texto marrón):
+  // sobre navy, el `gold` pleno con texto blanco queda sin contraste.
+  variant?: "primary" | "outline" | "gold" | "goldContainer" | "danger" | "ghost";
   loading?: boolean;
   size?: "md" | "sm";
   icon?: keyof typeof Ionicons.glyphMap;
@@ -234,6 +238,7 @@ export function Button({
     primary: "bg-navy",
     outline: "bg-transparent border border-navy",
     gold: "bg-gold",
+    goldContainer: "bg-gold-container",
     danger: "bg-transparent border border-danger",
     ghost: "bg-transparent",
   };
@@ -241,13 +246,23 @@ export function Button({
     primary: "text-white",
     outline: "text-navy",
     gold: "text-white",
+    goldContainer: "text-gold-on",
     danger: "text-danger",
     ghost: "text-ink-variant",
   };
+  // Color del spinner y del ícono: acompañan al texto de cada variante.
+  const fgColor =
+    variant === "primary" || variant === "gold"
+      ? "#fff"
+      : variant === "goldContainer"
+        ? colors.onTertiaryContainer
+        : colors.primary;
   const pad = size === "sm" ? "px-3.5 py-2" : "px-5 py-3.5";
   return (
     <Pressable
       disabled={disabled || loading}
+      // `goldContainer` va sin sombra: vive sobre navy, donde la sombra navy al
+      // 5% no se ve.
       style={variant === "primary" || variant === "gold" ? cardShadow : undefined}
       className={`flex-row items-center justify-center rounded-lg ${pad} ${bg[variant]} ${
         disabled || loading ? "opacity-50" : "active:opacity-80"
@@ -255,7 +270,7 @@ export function Button({
       {...props}
     >
       {loading ? (
-        <ActivityIndicator color={variant === "primary" || variant === "gold" ? "#fff" : colors.primary} />
+        <ActivityIndicator color={fgColor} />
       ) : (
         <>
           <Text style={{ fontFamily: fonts.sansSemibold }} className={`text-[15px] ${fg[variant]} ${size === "sm" ? "text-sm" : ""}`}>
@@ -265,7 +280,7 @@ export function Button({
             <Ionicons
               name={icon}
               size={size === "sm" ? 16 : 18}
-              color={variant === "primary" || variant === "gold" ? "#fff" : colors.primary}
+              color={fgColor}
               style={{ marginLeft: 8 }}
             />
           ) : null}
@@ -414,11 +429,11 @@ export function Skeleton({
   );
 }
 
-// Placeholder de una tarjeta del feed (portada + fecha + título + bajada).
-// Copia la silueta de las diapositivas de eventos/actividades y de la tarjeta
-// destacada del discipulado, para que al llegar los datos no salte el layout.
-// `accion`: "enlace" imita el "Ver detalles" del carrusel; "boton", el botón
-// ancho de la tarjeta destacada.
+// Placeholder de las tarjetas del feed, para que al llegar los datos no salte
+// el layout. Son dos siluetas distintas, una por forma de tarjeta:
+// `accion="boton"` copia el ancla del discipulado (chip + horario + título +
+// lugar + botón); "enlace", la fila de actividad o evento (miniatura de 64 +
+// tres líneas + chevron).
 export function SkeletonCard({
   accion = "enlace",
   style,
@@ -426,22 +441,25 @@ export function SkeletonCard({
   accion?: "enlace" | "boton";
   style?: StyleProp<ViewStyle>;
 }) {
+  if (accion === "boton") {
+    return (
+      <Card style={style}>
+        <Skeleton width={104} height={22} radius={6} />
+        <Skeleton width={128} height={14} style={{ marginTop: 14 }} />
+        <Skeleton width="80%" height={26} style={{ marginTop: 6 }} />
+        <Skeleton width="55%" height={16} style={{ marginTop: 6 }} />
+        <Skeleton width={126} height={48} radius={16} style={{ marginTop: 18 }} />
+      </Card>
+    );
+  }
   return (
-    <Card className="overflow-hidden p-0" style={style}>
-      {/* Portada (donde va el flyer o el ícono sobre navy) */}
-      <Skeleton height={112} radius={0} />
-      <View className="p-5">
-        <Skeleton width={128} height={11} />
-        <Skeleton width="85%" height={19} style={{ marginTop: 12 }} />
-        <Skeleton width="55%" height={13} style={{ marginTop: 10 }} />
-        {accion === "boton" ? (
-          <Skeleton height={46} radius={8} style={{ marginTop: 18 }} />
-        ) : (
-          <View className="mt-5 flex-row items-center justify-between">
-            <Skeleton width={140} height={12} />
-            <Skeleton width={78} height={12} />
-          </View>
-        )}
+    <Card className="flex-row items-center gap-3" style={[{ padding: 12 }, style]}>
+      {/* Miniatura (donde va el flyer o el ícono sobre navy) */}
+      <Skeleton width={64} height={64} radius={12} />
+      <View className="flex-1 gap-2">
+        <Skeleton width="45%" height={12} />
+        <Skeleton width="80%" height={18} />
+        <Skeleton width="55%" height={12} />
       </View>
     </Card>
   );
