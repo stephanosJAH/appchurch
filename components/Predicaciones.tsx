@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { PropsWithChildren } from "react";
 import { Image, Pressable, View } from "react-native";
 import { colors } from "../lib/theme";
 import {
@@ -12,12 +13,20 @@ import {
   VideoYoutube,
 } from "../lib/youtube";
 import { useVideosCanal } from "../lib/queries/contenido";
-import { Body, Button, Card, Chip, Label, LinkAction, Muted, Skeleton, Title } from "./ui";
+import { Body, Button, Chip, Label, LinkAction, Muted, Skeleton, Title } from "./ui";
 
 // Menos de una semana: se marca como nuevo en la portada.
 function esReciente(iso: string): boolean {
   const t = new Date(iso).getTime();
   return Number.isFinite(t) && Date.now() - t < 7 * 86_400_000;
+}
+
+// Contenedor de las tarjetas con portada: la imagen llega a los bordes laterales
+// y al superior. No usa `Card`: su `p-5` de base le gana al `p-0` que se le pase
+// (dos clases de padding en el mismo className no garantizan cuál gana) y dejaba
+// un marco blanco alrededor de la miniatura — igual que en SaludoCard.
+function Marco({ children }: PropsWithChildren) {
+  return <View className="overflow-hidden rounded-2xl bg-surface">{children}</View>;
 }
 
 /* ============================ Tarjeta ============================ */
@@ -31,7 +40,7 @@ export function VideoCard({ video }: { video: VideoYoutube }) {
 
   return (
     <Pressable onPress={() => abrirVideo(video.id)} className="active:opacity-90">
-      <Card className="overflow-hidden p-0">
+      <Marco>
         {/* aspectRatio 16/9 + cover: recorta justo las bandas negras que trae
             `hqdefault` (ver comentario en lib/youtube.ts). El fondo navy tapa
             el hueco mientras la miniatura viaja por la red. */}
@@ -72,14 +81,14 @@ export function VideoCard({ video }: { video: VideoYoutube }) {
             <Muted className="text-xs">{[publicado, vistas].filter(Boolean).join(" · ")}</Muted>
           </View>
         </View>
-      </Card>
+      </Marco>
     </Pressable>
   );
 }
 
 export function VideoCardFantasma() {
   return (
-    <Card className="overflow-hidden p-0">
+    <Marco>
       <View style={{ aspectRatio: 16 / 9 }}>
         <Skeleton width="100%" height="100%" radius={0} />
       </View>
@@ -88,7 +97,7 @@ export function VideoCardFantasma() {
         <Skeleton width="60%" height={12} style={{ marginTop: 9 }} />
         <Skeleton width="45%" height={11} style={{ marginTop: 9 }} />
       </View>
-    </Card>
+    </Marco>
   );
 }
 
@@ -101,7 +110,7 @@ export function VideoCardFantasma() {
 // deja la tarjeta muerta en pantalla.
 function TarjetaSinVideo() {
   return (
-    <Card className="overflow-hidden p-0">
+    <Marco>
       <View style={{ aspectRatio: 16 / 9 }} className="items-center justify-center bg-navy">
         <View className="absolute right-4 top-4 opacity-20">
           <Ionicons name="videocam" size={64} color={colors.tertiaryDim} />
@@ -119,7 +128,7 @@ function TarjetaSinVideo() {
           </View>
         )}
       </View>
-    </Card>
+    </Marco>
   );
 }
 

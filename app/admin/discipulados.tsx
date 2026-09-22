@@ -6,7 +6,7 @@ import { formatHora } from "../../lib/date";
 import { colors } from "../../lib/theme";
 import { DIAS_SEMANA } from "../../lib/types";
 import { useDiscipulados } from "../../lib/queries/discipulados";
-import { useProfiles } from "../../lib/queries/profiles";
+import { nombreDePerfil, useProfiles } from "../../lib/queries/profiles";
 
 export default function AdminDiscipulados() {
   const router = useRouter();
@@ -14,7 +14,7 @@ export default function AdminDiscipulados() {
   const { data: profiles = [] } = useProfiles();
 
   const nombreProfile = (id: string | null) =>
-    profiles.find((p) => p.id === id)?.nombre_completo ?? "Sin asignar";
+    nombreDePerfil(profiles.find((p) => p.id === id)) ?? "Sin asignar";
 
   return (
     <Screen>

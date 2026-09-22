@@ -65,7 +65,7 @@ export function SaludoCard({ nombre, className }: { nombre: string; className?: 
               bloque `flex-1` centrado —no con márgenes— así queda en el centro
               óptico sin importar si ocupa una línea o tres. */}
           <View className="flex-column gap-2 p-6 pt-6">
-            <Label className="text-white">Hola, bienvenido! </Label>
+            <Label className="text-white">Bienvenido, que bueno verte!</Label>
             <Label className="text-white font-bold">Hoy recordá</Label>
           </View>
           <View className="flex-1 justify-center px-6 py-4">

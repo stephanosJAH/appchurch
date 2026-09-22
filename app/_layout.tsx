@@ -117,6 +117,7 @@ function AuthGate() {
       <Stack.Screen name="pendiente" options={{ headerShown: false }} />
       <Stack.Screen name="aprobaciones" options={{ title: "Aprobar cuentas" }} />
       <Stack.Screen name="directorio" options={{ title: "Directorio" }} />
+      <Stack.Screen name="cumpleanos" options={{ title: "Cumpleaños" }} />
       <Stack.Screen name="contenido" options={{ title: "Contenido" }} />
       <Stack.Screen name="mis-datos" options={{ title: "Mis datos" }} />
       <Stack.Screen name="ofrendas" options={{ title: "Ofrendas" }} />
@@ -125,6 +126,8 @@ function AuthGate() {
       <Stack.Screen name="actividad-semanal/[id]" options={{ title: "Actividad" }} />
       <Stack.Screen name="discipulado/[id]" options={{ title: "Discipulado" }} />
       <Stack.Screen name="discipulado/editar" options={{ title: "Discipulado" }} />
+      <Stack.Screen name="discipulado/discipulos" options={{ title: "Discípulos" }} />
+      <Stack.Screen name="discipulado/historial" options={{ title: "Historial" }} />
       <Stack.Screen name="mi-grupo/[id]" options={{ title: "Mi grupo" }} />
       <Stack.Screen name="ministerio/[id]" options={{ title: "Ministerio" }} />
       <Stack.Screen name="ministerio/editar" options={{ title: "Ministerio" }} />

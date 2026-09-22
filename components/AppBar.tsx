@@ -9,14 +9,25 @@ import { Avatar } from "./ui";
 
 export type FeedTab = "inicio" | "nosotros";
 
-type AppBarProps = {
+export type TabDef<K extends string = string> = { key: K; label: string };
+
+// Las del feed. Son el default para no repetirlas en app/(tabs)/index.tsx.
+const TABS_FEED: readonly TabDef<FeedTab>[] = [
+  { key: "inicio", label: "Inicio" },
+  { key: "nosotros", label: "Nosotros" },
+];
+
+type AppBarProps<K extends string> = {
   // Título de la vista (izquierda). Cada tab pasa el suyo:
   // "Calendario general", "Eventos y actividades", "Perfil"…
   title?: string;
-  // Cuando se pasan, el header muestra el selector "Inicio"/"Nosotros" del feed
-  // en lugar del título + avatar. Solo lo usa app/(tabs)/index.tsx.
-  activeTab?: FeedTab;
-  onTabChange?: (tab: FeedTab) => void;
+  // Cuando se pasan `activeTab`/`onTabChange`, el header muestra un selector de
+  // secciones en lugar del título. `tabs` define cuáles; sin él van las del
+  // feed. Lo usan app/(tabs)/index.tsx y app/(tabs)/actividades.tsx, siempre
+  // acompañado de <Paneles> para que el tap y el desliz muevan lo mismo.
+  tabs?: readonly TabDef<K>[];
+  activeTab?: K;
+  onTabChange?: (tab: K) => void;
 };
 
 function FeedTabButton({
@@ -70,9 +81,11 @@ function CampanaAnuncios({ onPress }: { onPress: () => void }) {
 }
 
 // Barra superior: título de la vista + avatar (→ perfil).
-// En el feed (index.tsx), se reemplaza por el selector Inicio/Nosotros
+// Con `activeTab`/`onTabChange` se reemplaza por el selector de secciones
 // + campana de anuncios + avatar.
-export function AppBar({ title, activeTab, onTabChange }: AppBarProps = {}) {
+export function AppBar<K extends string = FeedTab>(props: AppBarProps<K> = {}) {
+  const { title, activeTab, onTabChange } = props;
+  const tabs = (props.tabs ?? TABS_FEED) as readonly TabDef<K>[];
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { profile } = useAuth();
@@ -84,8 +97,14 @@ export function AppBar({ title, activeTab, onTabChange }: AppBarProps = {}) {
       {activeTab && onTabChange ? (
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center gap-7">
-            <FeedTabButton label="Inicio" active={activeTab === "inicio"} onPress={() => onTabChange("inicio")} />
-            <FeedTabButton label="Nosotros" active={activeTab === "nosotros"} onPress={() => onTabChange("nosotros")} />
+            {tabs.map((t) => (
+              <FeedTabButton
+                key={t.key}
+                label={t.label}
+                active={activeTab === t.key}
+                onPress={() => onTabChange(t.key)}
+              />
+            ))}
           </View>
           <View className="flex-row items-center gap-4">
             <CampanaAnuncios onPress={() => router.push("/anuncios")} />
@@ -102,7 +121,7 @@ export function AppBar({ title, activeTab, onTabChange }: AppBarProps = {}) {
             </View> */}
             {/* Misma tipografía que el selector Inicio/Nosotros del feed */}
             <Text style={{ fontFamily: fonts.sansBold }} className="text-[16px] leading-6 text-ink">
-              {title ?? "PDApp"}
+              {title ?? "pdapp"}
             </Text>
             <View className={`absolute -bottom-2 h-[3px] w-full rounded-full bg-gold`} />
           </View>

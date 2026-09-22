@@ -5,6 +5,8 @@ import { Asistencia, AsistenciaInput, Miembro, Modalidad, Reunion } from "../typ
 export const reunionesKeys = {
   byDiscipulado: (discipuladoId: string) =>
     ["reuniones", discipuladoId] as const,
+  conAsistencia: (discipuladoId: string) =>
+    ["reuniones", "asistencia", discipuladoId] as const,
   semana: (desde: string, hasta: string) =>
     ["reuniones", "semana", desde, hasta] as const,
   mes: (desde: string, hasta: string) =>
@@ -102,6 +104,35 @@ export function useReuniones(discipuladoId: string) {
         .order("fecha", { ascending: false });
       if (error) throw error;
       return data as Reunion[];
+    },
+  });
+}
+
+// Reunión con quién vino y quién no. `registrar_reunion` guarda una fila por
+// integrante del roster, presente o no: una falta es `presente = false`, y que
+// alguien no tenga fila quiere decir que todavía no era del grupo.
+export type ReunionConAsistencia = Reunion & {
+  asistencias: Pick<Asistencia, "miembro_id" | "presente">[];
+};
+
+// Historial de un discipulado con la asistencia embebida (más recientes
+// primero): alimenta el resumen del grupo y su historial. La RLS de
+// `asistencias` (0002) deja leerla al discipulador del grupo y al admin, que
+// son los mismos que llegan a esas pantallas. Aparte de `useReuniones` porque
+// app/reunion/nueva.tsx solo necesita las fechas y no tiene por qué bajar la
+// asistencia de todo el historial.
+export function useReunionesConAsistencia(discipuladoId: string) {
+  return useQuery({
+    queryKey: reunionesKeys.conAsistencia(discipuladoId),
+    enabled: !!discipuladoId,
+    queryFn: async (): Promise<ReunionConAsistencia[]> => {
+      const { data, error } = await supabase
+        .from("reuniones")
+        .select("*, asistencias(miembro_id, presente)")
+        .eq("discipulado_id", discipuladoId)
+        .order("fecha", { ascending: false });
+      if (error) throw error;
+      return data as ReunionConAsistencia[];
     },
   });
 }

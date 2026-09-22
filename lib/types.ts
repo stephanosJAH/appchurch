@@ -69,7 +69,12 @@ export type Discipulado = {
   fecha_baja: string | null;
   created_at: string;
   // Embed opcional del líder (se resuelve vía RLS; null si no es visible/asignado).
-  discipulador?: { nombre_completo: string | null } | null;
+  // Con su ficha del padrón adentro: el nombre bueno es ese, no el de registro
+  // (usar `nombreDePerfil`, en lib/queries/profiles.ts).
+  discipulador?: {
+    nombre_completo: string | null;
+    miembro?: { nombre: string; apellido: string | null } | null;
+  } | null;
 };
 
 // El grupo propio visto por un participante (RPC `mi_grupo`, 0019): subset de
@@ -179,14 +184,25 @@ export type IntegranteMinisterio = {
   activo: boolean;
 };
 
-// Candidato del padrón para sumar al roster (RPC `candidatos_para_ministerio`).
-// Espejo de `CandidatoMiembro` (aprobaciones): teléfono ya enmascarado.
-export type CandidatoMinisterio = {
+// Candidato del padrón para sumar a un grupo. Espejo de `CandidatoMiembro`
+// (aprobaciones): teléfono ya enmascarado, sin email ni notas. Las tres RPC de
+// búsqueda devuelven la misma forma, así que el tipo es uno solo.
+export type CandidatoPadron = {
   id: string;
   nombre: string;
   apellido: string | null;
   telefono_parcial: string | null;
   similitud: number;
+};
+
+// RPC `candidatos_para_ministerio` (0024).
+export type CandidatoMinisterio = CandidatoPadron;
+
+// RPC `candidatos_para_discipulado` (0028). Suma `ya_participa`: el que ya está
+// en el roster del grupo igual se devuelve, marcado. Esconderlo hacía que la
+// pantalla dijera "no está en el padrón" sobre alguien que sí está.
+export type CandidatoDiscipulado = CandidatoPadron & {
+  ya_participa: boolean;
 };
 
 // Reunión de ministerio. Espejo de `Reunion` sin `material_url` — la

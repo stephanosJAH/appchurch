@@ -1,10 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../supabase";
-import { Participacion, Sexo } from "../types";
+import { CandidatoDiscipulado, Participacion, Sexo } from "../types";
 
 export const participacionesKeys = {
   byDiscipulado: (discipuladoId: string) =>
     ["participaciones", discipuladoId] as const,
+  // Cuelga de la key del grupo a propósito: invalidar el roster después de
+  // sumar a alguien también rehace la búsqueda, que ahora tiene que excluirlo.
+  candidatos: (discipuladoId: string, texto: string) =>
+    ["participaciones", discipuladoId, "candidatos", texto] as const,
 };
 
 // Lista de discípulos (participaciones) de un discipulado, con datos del miembro.
@@ -26,7 +30,30 @@ export function useParticipaciones(discipuladoId: string) {
   });
 }
 
-// Sumar un miembro existente al grupo.
+// Buscar en el padrón a quién sumar (RPC `candidatos_para_discipulado`, 0028).
+// Va por RPC porque la RLS de `miembros` (0014) solo deja leer al admin y al
+// discipulador de esa persona: justo a nadie que todavía no la tenga en su
+// grupo. La RPC exige 2 caracteres; acá se replica para no llamarla al primer
+// tecleo.
+export function useCandidatosDiscipulado(discipuladoId: string, texto = "") {
+  const busqueda = texto.trim();
+  return useQuery({
+    queryKey: participacionesKeys.candidatos(discipuladoId, busqueda),
+    enabled: !!discipuladoId && busqueda.length >= 2,
+    queryFn: async (): Promise<CandidatoDiscipulado[]> => {
+      const { data, error } = await supabase.rpc("candidatos_para_discipulado", {
+        p_discipulado: discipuladoId,
+        p_texto: busqueda,
+      });
+      if (error) throw error;
+      return (data ?? []) as CandidatoDiscipulado[];
+    },
+  });
+}
+
+// Sumar un miembro existente al grupo. Insert directo: la policy `part_all`
+// (0002) ya autoriza al líder del grupo, y el upsert reactiva a quien había
+// sido desasociado en vez de chocar contra el unique.
 export function useAgregarParticipacion(discipuladoId: string) {
   const qc = useQueryClient();
   return useMutation({

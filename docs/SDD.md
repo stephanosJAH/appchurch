@@ -1,6 +1,6 @@
 # SDD — Documento de Diseño de Software
 
-**Proyecto**: appchurch — "PDApp" · App de discipulados y red de la iglesia
+**Proyecto**: appchurch — "pdapp" · App de discipulados y red de la iglesia
 **Versión del documento**: 1.0 · **Fecha**: 2026-08-30
 **Estado del sistema**: en producción interna (distribución APK vía EAS `preview`)
 
@@ -101,7 +101,7 @@ permisos. Asume familiaridad con React Native y con RLS de Postgres.
                     ┌──────────────────────────────┐
                     │   Dispositivo del usuario     │
                     │  ┌────────────────────────┐   │
-                    │  │  PDApp (Expo Go 57     │   │
+                    │  │  pdapp (Expo Go 57     │   │
                     │  │  o APK de EAS)         │   │
                     │  │                        │   │
                     │  │  expo-router           │   │
@@ -210,7 +210,9 @@ app/                          Rutas (expo-router, file-based)
   directorio.tsx              Directorio de la congregación
   contenido.tsx               Predicaciones (feed de YouTube)
   ofrendas.tsx                Desglose de ofrendas
-  discipulado/[id].tsx        Gestión del grupo que se lidera
+  discipulado/[id].tsx        Resumen del grupo que se lidera
+  discipulado/discipulos.tsx  Roster del grupo: alta y baja de discípulos
+  discipulado/historial.tsx   Historial de reuniones por mes
   mi-grupo/[id].tsx           Lectura del grupo del que se participa
   reunion/nueva.tsx           Alta/edición de reunión (modal)
   reunion/[id].tsx            Detalle de reunión
@@ -236,7 +238,7 @@ lib/
   storage.ts                  Adjuntos: elegir, subir, abrir con validación
   query-logger.ts             Instrumentación de queries (solo __DEV__)
   queries/<entidad>.ts        Un archivo de hooks por entidad
-supabase/migrations/          0001–0026 · DDL + RLS + RPC + Storage
+supabase/migrations/          0001–0028 · DDL + RLS + RPC + Storage
 docs/                         Documentos de referencia y de decisión
 ```
 
@@ -544,6 +546,7 @@ RLS de las tablas que consultan (y evitar recursión de policies).
 |---|---|---|
 | `registrar_reunion(…, p_reunion_id)` | `es_admin() or es_discipulador_de(grupo)` | **Alta y edición transaccional** de reunión + asistencias + ofrenda. Con `p_reunion_id`, el grupo se lee **de la reunión guardada**, no del parámetro |
 | `agregar_discipulo(…)` | ídem | Crear ficha del padrón **y** sumarla al grupo, en un paso |
+| `candidatos_para_discipulado(grupo, texto)` | ídem | Buscar a quién sumar **antes** de crear una ficha nueva, sin abrir la RLS de `miembros`. Devuelve también a quien ya está en el roster, marcado con `ya_participa` (esconderlo hacía que la pantalla contestara "no está en el padrón" y empujara al duplicado). Umbral de similitud, para que "no hay coincidencia" sea un resultado |
 | `mis_datos()` | `auth.uid()` en el `WHERE` | Leer la ficha propia sin abrir el SELECT de `miembros`. Nunca devuelve `notas` |
 | `guardar_mis_datos(…)` | `es_miembro_activo()` + `auth.uid()` | Editar la ficha propia. **Update-only** desde `0018`: sin ficha enlazada da error, no crea duplicado. Nunca toca `notas` |
 | `guardar_notas_miembro(…)` | `es_admin() or es_discipulador_del_miembro()` | La contracara exacta: escribe **solo** `notas` |
@@ -1019,7 +1022,7 @@ Estas dos cosas no están versionadas y **el sistema no funciona sin ellas**:
 
 ### 8.4 Migraciones
 
-`supabase/migrations/0001` … `0026`, **en orden numérico**, por SQL Editor o
+`supabase/migrations/0001` … `0028`, **en orden numérico**, por SQL Editor o
 `supabase db push`. No hay CI que las aplique ni verificación automática de que la
 base esté al día.
 
@@ -1205,6 +1208,8 @@ un integrante, y si un líder puede sumar colíderes.
 | 0024 | `ministerios` | Ministerios, líderes (N:M), roster, helpers, `mis_ministerios`, roster y candidatos, vista `ministerios_lideres` |
 | 0025 | `reuniones_ministerio` | Libro contable separado + `registrar_reunion_ministerio` + `reuniones_de_mi_ministerio` |
 | 0026 | `anuncios` | Anuncios con alcance, `profiles.anuncios_leidos_hasta`, `anuncios_visibles` |
+| 0027 | `nombres_del_padron` | El nombre mostrado sale de `miembros`, no del registro: `nombre_de_perfil` + vista `ministerios_lideres`, `mis_ministerios`, `mi_grupo`, `anuncios_visibles` |
+| 0028 | `candidatos_para_discipulado` | Buscar en el padrón a quién sumar al grupo (espejo de `candidatos_para_ministerio`, con umbral de similitud) |
 
 ### B. Mapa de rutas
 
@@ -1222,7 +1227,7 @@ un integrante, y si un líder puede sumar colíderes.
 | `contenido` | Miembro+ | Predicaciones (YouTube) |
 | `mis-datos` | Miembro+ | Autogestión de la ficha propia |
 | `ofrendas` | Obrero/admin · líder | Desglose de ofrendas. Param `origen`: dos libros, un componente |
-| `discipulado/[id]` · `discipulado/editar` | Líder/admin | Gestión del grupo |
+| `discipulado/[id]` · `discipulado/discipulos` · `discipulado/historial` · `discipulado/editar` | Líder/admin | Resumen, roster, historial y edición del grupo |
 | `mi-grupo/[id]` | Participante | Lectura del grupo propio |
 | `reunion/nueva` (modal) · `reunion/[id]` | Líder/admin | Alta/edición y detalle |
 | `miembro/[id]` | Obrero/admin | Ficha del padrón + nota pastoral |

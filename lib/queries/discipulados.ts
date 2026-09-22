@@ -17,7 +17,7 @@ export function useDiscipulados({ enabled = true }: { enabled?: boolean } = {}) 
     queryFn: async (): Promise<Discipulado[]> => {
       const { data, error } = await supabase
         .from("discipulados")
-        .select("*, discipulador:profiles(nombre_completo)")
+        .select("*, discipulador:profiles(nombre_completo, miembro:miembros(nombre, apellido))")
         .eq("activo", true)
         .order("dia_semana")
         .order("hora_inicio");
@@ -34,7 +34,7 @@ export function useDiscipuladosInactivos() {
     queryFn: async (): Promise<Discipulado[]> => {
       const { data, error } = await supabase
         .from("discipulados")
-        .select("*, discipulador:profiles(nombre_completo)")
+        .select("*, discipulador:profiles(nombre_completo, miembro:miembros(nombre, apellido))")
         .eq("activo", false)
         .order("fecha_baja", { ascending: false });
       if (error) throw error;
@@ -50,7 +50,7 @@ export function useDiscipulado(id: string) {
     queryFn: async (): Promise<Discipulado | null> => {
       const { data, error } = await supabase
         .from("discipulados")
-        .select("*, discipulador:profiles(nombre_completo)")
+        .select("*, discipulador:profiles(nombre_completo, miembro:miembros(nombre, apellido))")
         .eq("id", id)
         .maybeSingle();
       if (error) throw error;

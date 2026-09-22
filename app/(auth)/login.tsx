@@ -123,8 +123,10 @@ export default function Login() {
                 resizeMode="cover"
               />
             </View>
-            <Display className="text-center">PDA FAMILIA</Display>
-            <Body className="mt-1 text-center">La red para encontrarnos</Body>
+            <Display className="text-center">pdapp familia</Display>
+            <Body className="mt-1 text-center">
+              Nuestro espacio digital
+            </Body>
           </View>
 
           {/* Tarjeta */}

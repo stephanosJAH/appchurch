@@ -1,15 +1,15 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { useCallback, useMemo, useState } from "react";
+import { Pressable, ScrollView, View } from "react-native";
+import { Gesture } from "react-native-gesture-handler";
 import { ActividadesHoy, actividadesDeHoy } from "../../components/ActividadesHoy";
 import { AnunciosFeed } from "../../components/AnunciosFeed";
 import { AppBar, FeedTab } from "../../components/AppBar";
 import { CumplesSection, proximosCumples } from "../../components/Cumples";
 import { DirectorioList } from "../../components/Directorio";
 import { EventosSemana, eventosDeLaSemana } from "../../components/EventosSemana";
+import { Paneles } from "../../components/Paneles";
 import { UltimaPredicacion } from "../../components/Predicaciones";
 import { SaludoCard } from "../../components/SaludoCard";
 import {
@@ -82,7 +82,7 @@ function GrupoDestacado({ g, onPress }: { g: GrupoDelFeed; onPress: () => void }
           {DIAS_SEMANA[g.dia_semana]}, {formatHora(g.hora_inicio)}
         </Muted>
       </View>
-      <Title numberOfLines={2} className="mt-1 text-cream" style={{ fontSize: 23, lineHeight: 30 }}>
+      <Title numberOfLines={2} className="mt-1 text-white" style={{ fontSize: 23, lineHeight: 30 }}>
         {g.titulo}
       </Title>
       {/* `navy-soft` y no `navy-on`: a 16px, el #8292b0 sobre el navy queda en
@@ -137,62 +137,19 @@ export default function Dashboard() {
   const router = useRouter();
   const { profile, isAdmin, esObrero } = useAuth();
   const nombre = (profile?.nombre_completo ?? "").split(" ")[0] || "hermano";
-  const { width } = useWindowDimensions();
 
   // Selector de header "Inicio"/"Nosotros": corre el panel activo a la vista
   // en lugar de navegar, para dar sensación de deslizamiento entre secciones.
+  // El movimiento lo maneja <Paneles>; acá sólo se traduce el tab a su índice.
   const [tab, setTab] = useState<FeedTab>("inicio");
-  const translateX = useSharedValue(0);
-  const dragStartX = useSharedValue(0);
+  const onIndexChange = useCallback((i: number) => setTab(i === 0 ? "inicio" : "nosotros"), []);
 
-  // Reanimated corre esto en el hilo de UI: el dedo mueve el panel sin pasar
-  // por el puente JS, por eso se siente tan fluido como el tap en la pestaña.
-  const settle = (target: number) => {
-    "worklet";
-    translateX.value = withTiming(target, { duration: 280, easing: Easing.inOut(Easing.cubic) });
-  };
-
-  useEffect(() => {
-    translateX.value = withTiming(tab === "inicio" ? 0 : -width, {
-      duration: 280,
-      easing: Easing.inOut(Easing.cubic),
-    });
-  }, [tab, width, translateX]);
-
-  // Los carruseles (eventos y actividades de hoy) scrollean horizontal dentro de
-  // este panel. Sin declarar la relación, el pan gana el gesto y arrastrar entre
-  // tarjetas terminaba saltando a "Nosotros": ahora el pan espera a que el
-  // carrusel falle —o ni empiece, que es lo que pasa cuando el arrastre nace
-  // fuera de él. Cada carrusel necesita su propia instancia de Gesture.Native().
-  const carruselEventos = useMemo(() => Gesture.Native(), []);
-  const carruselActividades = useMemo(() => Gesture.Native(), []);
-
-  const panGesture = Gesture.Pan()
-    .activeOffsetX([-15, 15])
-    .failOffsetY([-10, 10])
-    .requireExternalGestureToFail(carruselEventos, carruselActividades)
-    .onStart(() => {
-      dragStartX.value = translateX.value;
-    })
-    .onUpdate((e) => {
-      const next = dragStartX.value + e.translationX;
-      translateX.value = Math.min(0, Math.max(-width, next));
-    })
-    .onEnd((e) => {
-      const aNosotros = tab === "inicio" && (e.translationX < -width * 0.25 || e.velocityX < -800);
-      const aInicio = tab === "nosotros" && (e.translationX > width * 0.25 || e.velocityX > 800);
-      if (aNosotros) {
-        runOnJS(setTab)("nosotros");
-      } else if (aInicio) {
-        runOnJS(setTab)("inicio");
-      } else {
-        settle(tab === "inicio" ? 0 : -width);
-      }
-    });
-
-  const slideStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
+  // Los carruseles (eventos y actividades de hoy) scrollean horizontal dentro
+  // del panel del feed: <Paneles> necesita conocerlos para cederles el gesto.
+  // Cada uno necesita su propia instancia de Gesture.Native(), y el arreglo
+  // tiene que ser estable, de ahí el useMemo que los crea a los dos juntos.
+  const carruseles = useMemo(() => [Gesture.Native(), Gesture.Native()], []);
+  const [carruselEventos, carruselActividades] = carruseles;
 
   // `isLoading` = primera carga sin nada en caché: es lo que enciende los
   // skeletons. Cada sección se destapa por su cuenta al resolver su consulta,
@@ -277,132 +234,128 @@ export default function Dashboard() {
           en el resto de la app. `AppBar` es transparente para que arranque en
           el borde de la pantalla y no debajo de la barra. */}
       <AppBar activeTab={tab} onTabChange={setTab} />
-      <View style={{ flex: 1, overflow: "hidden" }}>
-        <GestureDetector gesture={panGesture}>
-          <Animated.View
-            style={[{ flex: 1, flexDirection: "row", width: width * 2 }, slideStyle]}
-          >
-            {/* Panel "Inicio": feed */}
-            <ScrollView
-              style={{ width }}
-              contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-              showsVerticalScrollIndicator={false}
-            >
 
-              {/* Saludo del día */}
-              <SaludoCard nombre={nombre} className="mb-6" />
+      <Paneles index={tab === "inicio" ? 0 : 1} onIndexChange={onIndexChange} carruseles={carruseles}>
+        {/* Panel "Inicio": feed */}
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+          showsVerticalScrollIndicator={false}
+        >
 
-              <Separador />
-              
-              {/* Anuncios: lo que la iglesia o el ministerio quiere avisar.
-                  Va arriba de todo porque es lo más perecedero del feed; la
-                  sección se esconde sola cuando no hay ninguno. */}
-              <AnunciosFeed className="mb-6" />
+          {/* Saludo del día */}
+          <SaludoCard nombre={nombre} className="mb-6" />
 
-              {/* El discipulado propio — con su fantasma mientras carga */}
-              {cargando && <SkeletonCard accion="boton" style={{ marginBottom: 24 }} />}
+          
+          {/* Anuncios: lo que la iglesia o el ministerio quiere avisar.
+              Va arriba de todo porque es lo más perecedero del feed; la
+              sección se esconde sola cuando no hay ninguno. */}
+          <AnunciosFeed className="mb-6 mt-3" />
 
-              {!cargando &&
-                misGrupos.map((g) => (
-                  <GrupoDestacado
-                    key={g.id}
-                    g={g}
-                    onPress={() =>
-                      g.lidero
-                        ? router.push(`/discipulado/${g.id}`)
-                        : router.push({ pathname: "/mi-grupo/[id]", params: { id: g.id } })
-                    }
-                  />
-                ))}
+          {/* El discipulado propio — con su fantasma mientras carga */}
+          {cargando && <SkeletonCard accion="boton" style={{ marginBottom: 24 }} />}
 
-              {/* Sin grupo, el bloque quedaría en blanco: se explica por qué. */}
-              {!cargando && misGrupos.length === 0 && (
-                <Card className="mb-6">
-                  <Title className="text-base">Todavía no estás en un discipulado</Title>
-                  <Body className="mt-2">
-                    {esObrero
-                      ? "No tenés un grupo a cargo ni participás de uno. Pedile a un admin que te asigne el discipulado que liderás."
-                      : "Cuando tu discipulador te sume a su grupo vas a ver acá el día, el horario y el lugar de la próxima reunión."}
-                  </Body>
-                </Card>
-              )}
-
-              {/* Cumpleaños próximos de toda la congregación */}
-              <CumplesSection
-                miembros={directorio}
-                titulo="Cumpleaños"
-                dentroDe={VENTANA_CUMPLES}
-                className="mb-6 mt-3"
-                cargando={cargandoDirectorio}
+          <Label className="mb-2 flex-row items-end">Discipulados</Label>
+          {/* Mis grupos */}
+          {!cargando &&
+            misGrupos.map((g) => (
+              <GrupoDestacado
+                key={g.id}
+                g={g}
+                onPress={() =>
+                  g.lidero
+                    ? router.push(`/discipulado/${g.id}`)
+                    : router.push({ pathname: "/mi-grupo/[id]", params: { id: g.id } })
+                }
               />
+            ))}
 
-              {/* Actividades semanales que tocan hoy (carrusel) */}
-              <ActividadesHoy
-                actividades={actividades}
-                swipeGesture={carruselActividades}
-                className="mb-6 mt-3"
-                cargando={cargandoActividades}
+          {/* Sin grupo, el bloque quedaría en blanco: se explica por qué. */}
+          {!cargando && misGrupos.length === 0 && (
+            <Card className="mb-6">
+              <Title className="text-base">Todavía no estás en un discipulado</Title>
+              <Body className="mt-2">
+                {esObrero
+                  ? "No tenés un grupo a cargo ni participás de uno. Pedile a un admin que te asigne el discipulado que liderás."
+                  : "Cuando tu discipulador te sume a su grupo vas a ver acá el día, el horario y el lugar de la próxima reunión."}
+              </Body>
+            </Card>
+          )}
+
+          {/* Cumpleaños próximos de toda la congregación */}
+          <CumplesSection
+            miembros={directorio}
+            titulo="Cumpleaños"
+            dentroDe={VENTANA_CUMPLES}
+            className="mb-6 mt-3"
+            cargando={cargandoDirectorio}
+            max={3}
+            onVerTodos={() => router.push("/cumpleanos")}
+          />
+
+          {/* Actividades semanales que tocan hoy (carrusel) */}
+          <ActividadesHoy
+            actividades={actividades}
+            swipeGesture={carruselActividades}
+            className="mb-6 mt-3"
+            cargando={cargandoActividades}
+          />
+
+          {/* Eventos de la semana (carrusel lunes→domingo) */}
+          <EventosSemana
+            eventos={eventos}
+            swipeGesture={carruselEventos}
+            className="mb-6 mt-3"
+            cargando={cargandoEventos}
+          />
+
+          {/* Última predicación del canal de YouTube. Es un punto fijo del
+              feed —se dibuja siempre, con datos o sin ellos—, por eso su
+              separador no va condicionado a nada. */}
+          <UltimaPredicacion className="mb-6 mt-3" />
+
+          {/* Accesos rápidos 
+          {hayAccesos && <Separador />}
+          <View className="mb-6 gap-3">
+            {/* Registrar reunión es gestión de grupo (el RPC valida
+                es_discipulador_de): solo obrero/admin, nunca un miembro. 
+            {esObrero && (
+              <QuickAction
+                icon="add-circle-outline"
+                title="Registrar reunión"
+                subtitle="Asistencia, ofrenda y tema"
+                onPress={() =>
+                  primeroQueLidero
+                    ? router.push({
+                        pathname: "/reunion/nueva",
+                        params: { discipuladoId: primeroQueLidero.id },
+                      })
+                    : router.push("/(tabs)/discipulado")
+                }
               />
-
-              {/* Eventos de la semana (carrusel lunes→domingo) */}
-              <EventosSemana
-                eventos={eventos}
-                swipeGesture={carruselEventos}
-                className="mb-6 mt-3"
-                cargando={cargandoEventos}
+            )}
+            {isAdmin && (
+              <QuickAction
+                icon="megaphone-outline"
+                title="Nueva actividad"
+                subtitle="Programar evento o reunión"
+                onPress={() => router.push("/admin/eventos")}
               />
+            )}
+            {isAdmin && (
+              <QuickAction
+                icon="person-add-outline"
+                title="Añadir miembro"
+                subtitle="Registrar nueva persona"
+                onPress={() => router.push("/admin/miembros")}
+              />
+            )}
+          </View>*/}
+        </ScrollView>
 
-              {/* Última predicación del canal de YouTube. Es un punto fijo del
-                  feed —se dibuja siempre, con datos o sin ellos—, por eso su
-                  separador no va condicionado a nada. */}
-              <UltimaPredicacion className="mb-6 mt-3" />
-
-              {/* Accesos rápidos 
-              {hayAccesos && <Separador />}
-              <View className="mb-6 gap-3">
-                {/* Registrar reunión es gestión de grupo (el RPC valida
-                    es_discipulador_de): solo obrero/admin, nunca un miembro. 
-                {esObrero && (
-                  <QuickAction
-                    icon="add-circle-outline"
-                    title="Registrar reunión"
-                    subtitle="Asistencia, ofrenda y tema"
-                    onPress={() =>
-                      primeroQueLidero
-                        ? router.push({
-                            pathname: "/reunion/nueva",
-                            params: { discipuladoId: primeroQueLidero.id },
-                          })
-                        : router.push("/(tabs)/discipulado")
-                    }
-                  />
-                )}
-                {isAdmin && (
-                  <QuickAction
-                    icon="megaphone-outline"
-                    title="Nueva actividad"
-                    subtitle="Programar evento o reunión"
-                    onPress={() => router.push("/admin/eventos")}
-                  />
-                )}
-                {isAdmin && (
-                  <QuickAction
-                    icon="person-add-outline"
-                    title="Añadir miembro"
-                    subtitle="Registrar nueva persona"
-                    onPress={() => router.push("/admin/miembros")}
-                  />
-                )}
-              </View>*/}
-            </ScrollView>
-
-            {/* Panel "Nosotros": directorio */}
-            <View style={{ width }}>
-              <DirectorioList />
-            </View>
-          </Animated.View>
-        </GestureDetector>
-      </View>
+        {/* Panel "Nosotros": directorio */}
+        <DirectorioList />
+      </Paneles>
     </Screen>
   );
 }

@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { View } from "react-native";
-import { diasHastaCumple, etiquetaCumple, formatCumple } from "../lib/date";
+import { diasHastaCumple, etiquetaCumple, fechaToDate, formatCumple } from "../lib/date";
 import { colors } from "../lib/theme";
-import { Body, Card, Chip, Label, Muted, SkeletonRows } from "./ui";
+import { Body, Card, Chip, Label, LinkAction, Muted, SkeletonRows } from "./ui";
 
 // Forma mínima para calcular/mostrar cumpleaños. La satisfacen tanto `Miembro`
 // (participaciones) como `DirectorioEntry` (vista directorio).
@@ -31,9 +31,38 @@ export function proximosCumples(
   return items.sort((a, b) => a.dias - b.dias);
 }
 
-export function CumpleRow({ miembro, dias }: { miembro: PersonaCumple; dias: number }) {
+// Cumpleaños del mes calendario de `ref` (todos, incluidos los que ya pasaron),
+// ordenados por día. Es otro corte que `proximosCumples`, que mira una ventana
+// de días y puede cruzar de mes: esta es la que usa app/cumpleanos.tsx.
+export function cumplesDelMes(
+  miembros: (PersonaCumple | undefined | null)[],
+  ref = new Date()
+): PersonaCumple[] {
+  return miembros
+    .filter((m): m is PersonaCumple => {
+      if (!m?.fecha_nacimiento || !/^\d{4}-\d{2}-\d{2}$/.test(m.fecha_nacimiento)) return false;
+      return fechaToDate(m.fecha_nacimiento).getMonth() === ref.getMonth();
+    })
+    .sort(
+      (a, b) =>
+        fechaToDate(a.fecha_nacimiento!).getDate() - fechaToDate(b.fecha_nacimiento!).getDate()
+    );
+}
+
+// `etiqueta` sobreescribe la cuenta regresiva del chip; con `null` no se dibuja
+// (en la vista del mes los cumpleaños que ya pasaron dirían "en 340 días").
+export function CumpleRow({
+  miembro,
+  dias,
+  etiqueta,
+}: {
+  miembro: PersonaCumple;
+  dias: number;
+  etiqueta?: string | null;
+}) {
   const nombre = `${miembro.nombre} ${miembro.apellido ?? ""}`.trim();
   const hoy = dias <= 0;
+  const chip = etiqueta === undefined ? etiquetaCumple(dias) : etiqueta;
   return (
     <Card className="flex-row items-center gap-3 py-3.5">
       <View
@@ -48,7 +77,7 @@ export function CumpleRow({ miembro, dias }: { miembro: PersonaCumple; dias: num
         </Body>
         <Muted className="capitalize">{formatCumple(miembro.fecha_nacimiento)}</Muted>
       </View>
-      <Chip tone={hoy ? "gold" : "neutral"}>{etiquetaCumple(dias)}</Chip>
+      {chip ? <Chip tone={hoy ? "gold" : "neutral"}>{chip}</Chip> : null}
     </Card>
   );
 }
@@ -56,29 +85,42 @@ export function CumpleRow({ miembro, dias }: { miembro: PersonaCumple; dias: num
 // Sección "Cumpleaños" reutilizable. No renderiza nada si no hay próximos.
 // Con `cargando` muestra filas fantasma hasta que llegan los miembros (y se
 // esconde igual si al final no hay ninguno dentro del plazo).
+//
+// `max` recorta la lista y, si quedó gente afuera, muestra "Ver todos" ->
+// `onVerTodos` (en el feed, la vista del mes). Sin `max` se listan todos, que
+// es como la usa el detalle de un discipulado.
 export function CumplesSection({
   miembros,
   titulo = "Cumpleaños",
   dentroDe = 30,
   className,
   cargando,
+  max,
+  onVerTodos,
 }: {
   miembros: (PersonaCumple | undefined | null)[];
   titulo?: string;
   dentroDe?: number;
   className?: string;
   cargando?: boolean;
+  max?: number;
+  onVerTodos?: () => void;
 }) {
   const items = proximosCumples(miembros, dentroDe);
   if (items.length === 0 && !cargando) return null;
+  const visibles = max == null ? items : items.slice(0, max);
+  const hayMas = items.length > visibles.length;
   return (
     <View className={className}>
-      <Label className="mb-2">{titulo}</Label>
+      <View className="mb-2 flex-row items-end justify-between">
+        <Label>{titulo}</Label>
+        {hayMas && onVerTodos ? <LinkAction title="Ver todos" onPress={onVerTodos} /> : null}
+      </View>
       {items.length === 0 ? (
         <SkeletonRows count={2} accesorio={72} />
       ) : (
         <View className="gap-2.5">
-          {items.map(({ miembro, dias }) => (
+          {visibles.map(({ miembro, dias }) => (
             <CumpleRow key={miembro.id} miembro={miembro} dias={dias} />
           ))}
         </View>

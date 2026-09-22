@@ -1,4 +1,4 @@
-# Revisión de seguridad — App "Discipulados" / appchurch
+# Revisión de seguridad — pdapp (appchurch)
 
 > Documento de trabajo. Estado: revisión inicial (fecha 2026-07-05).
 > Stack: Expo SDK 54 + expo-router + Supabase (sin backend propio; toda la

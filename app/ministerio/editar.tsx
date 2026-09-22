@@ -13,7 +13,7 @@ import {
   useSoyLiderDe,
   useUpsertMinisterio,
 } from "../../lib/queries/ministerios";
-import { useProfiles } from "../../lib/queries/profiles";
+import { nombreDePerfil, useProfiles } from "../../lib/queries/profiles";
 import { colors } from "../../lib/theme";
 
 // Alta y edición de un ministerio.
@@ -217,7 +217,7 @@ export default function EditarMinisterio() {
                           color={sel ? colors.primary : colors.outlineVariant}
                         />
                         <Body className="flex-1 text-ink">
-                          {p.nombre_completo ?? p.username ?? p.id.slice(0, 8)}
+                          {nombreDePerfil(p) ?? p.username ?? p.id.slice(0, 8)}
                         </Body>
                         <Chip tone={p.rol === "admin" ? "gold" : "neutral"}>{p.rol}</Chip>
                       </View>

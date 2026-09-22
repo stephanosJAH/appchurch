@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, View } from "react-native";
 import { Avatar, Body, Button, Card, Chip, Field, FondoDegradado, Label, Muted } from "../../components/ui";
 import { calcularEdad, formatHora } from "../../lib/date";
@@ -19,9 +19,25 @@ export default function AdminMiembros() {
   // Qué fichas ya tienen cuenta enlazada: sus datos personales los autogestiona
   // la persona (0021), así que el admin edita sabiendo que la ficha tiene dueño.
   const { data: conCuenta } = useMiembrosConCuenta();
-  const totalConCuenta = miembros.filter((m) => conCuenta?.has(m.id)).length;
   const crear = useCrearMiembroEnDiscipulado();
   const crearSuelto = useUpsertMiembro();
+
+  // Buscador local sobre el padrón ya cargado (mismo patrón que el directorio
+  // de "Nosotros"). Acá además busca por teléfono: es el otro dato con el que
+  // el admin identifica una ficha.
+  const [q, setQ] = useState("");
+  const filtrados = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    if (!t) return miembros;
+    const digitos = t.replace(/\D/g, "");
+    return miembros.filter((m) => {
+      if (`${m.nombre} ${m.apellido ?? ""}`.toLowerCase().includes(t)) return true;
+      return digitos.length >= 3 && (m.telefono ?? "").replace(/\D/g, "").includes(digitos);
+    });
+  }, [miembros, q]);
+
+  // Sobre lo filtrado, para que el conteo no contradiga a la lista de abajo.
+  const totalConCuenta = filtrados.filter((m) => conCuenta?.has(m.id)).length;
 
   const [showForm, setShowForm] = useState(false);
   const [nombre, setNombre] = useState("");
@@ -81,7 +97,7 @@ export default function AdminMiembros() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         automaticallyAdjustKeyboardInsets
-        data={miembros}
+        data={filtrados}
         keyExtractor={(m) => m.id}
         ListHeaderComponent={
           <View className="mb-3">
@@ -151,13 +167,22 @@ export default function AdminMiembros() {
                 <Button title="Guardar" onPress={guardar} loading={crear.isPending || crearSuelto.isPending} />
               </Card>
             )}
-            <Label className={conCuenta ? "mt-4" : "mb-2 mt-4"}>
-              Miembros ({miembros.length})
-            </Label>
+            <View className="mt-4">
+              <Field
+                icon="search-outline"
+                placeholder="Buscar por nombre o teléfono"
+                value={q}
+                onChangeText={setQ}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="search"
+              />
+            </View>
+            <Label className={conCuenta ? "" : "mb-2"}>Miembros ({filtrados.length})</Label>
             {/* Recién cuando llegó el dato: si no, diría «0 con cuenta» mientras carga. */}
             {conCuenta && (
               <Muted className="mb-2 mt-1">
-                {totalConCuenta} con cuenta en la app · {miembros.length - totalConCuenta} sin
+                {totalConCuenta} con cuenta en la app · {filtrados.length - totalConCuenta} sin
                 cuenta
               </Muted>
             )}
@@ -199,7 +224,7 @@ export default function AdminMiembros() {
         ListEmptyComponent={
           !isLoading ? (
             <Card>
-              <Muted>No hay miembros cargados.</Muted>
+              <Muted>{q ? "Nadie coincide con la búsqueda." : "No hay miembros cargados."}</Muted>
             </Card>
           ) : null
         }

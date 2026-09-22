@@ -209,7 +209,7 @@ export default function Anuncios() {
     <KeyboardScrollView>
       <Stack.Screen options={{ title: "Anuncios" }} />
 
-      {puedePublicar && !componiendo && (
+      {/* {puedePublicar && !componiendo && (
         <View className="mb-5">
           <Button
             title="Publicar un anuncio"
@@ -220,7 +220,7 @@ export default function Anuncios() {
             }}
           />
         </View>
-      )}
+      )} */}
 
       {componiendo && (
         <Card className="mb-5">

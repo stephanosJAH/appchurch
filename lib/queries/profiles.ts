@@ -10,11 +10,19 @@ export const profilesKeys = {
   deMiembro: (miembroId: string) => ["profiles", "de-miembro", miembroId] as const,
 };
 
+// Lo mínimo que hace falta para resolver el nombre: sirve tanto para un
+// `Profile` entero como para el embed `discipulador:profiles(...)`.
+export type PerfilConNombre = {
+  nombre_completo: string | null;
+  miembro?: { nombre: string; apellido: string | null } | null;
+};
+
 // El nombre que hay que mostrar de una cuenta: el de su ficha del padrón
 // (`miembros`), que es el dato que mantiene la iglesia. `nombre_completo` es lo
 // que la persona tipeó al registrarse — queda de fallback para las cuentas sin
 // ficha enlazada (o cuando la consulta no pidió el embed).
-export function nombreDePerfil(p: Profile): string | null {
+export function nombreDePerfil(p: PerfilConNombre | null | undefined): string | null {
+  if (!p) return null;
   const m = p.miembro;
   if (m) return `${m.nombre} ${m.apellido ?? ""}`.trim();
   return p.nombre_completo;

@@ -1,4 +1,4 @@
-# Bugs y mejoras — App Discipulados
+# Bugs y mejoras — pdapp
 
 Registro de problemas detectados durante las pruebas, para ir corrigiéndolos.
 
@@ -31,6 +31,20 @@ Registro de problemas detectados durante las pruebas, para ir corrigiéndolos.
   - `app/admin/miembros.tsx` → `FlatList` envuelto en `KeyboardAvoidingView`.
   - `actividades` (buscador) queda arriba de todo, no lo tapa el teclado.
 - **Estado:** 🟡 aplicado — **falta verificar en dispositivo Android**. Si con edge-to-edge algún campo sigue tapado (posible doble ajuste con `softwareKeyboardLayoutMode: resize`), la solución robusta es migrar a `react-native-keyboard-controller` (requiere dev build, no corre en Expo Go).
+
+## 🟡 BUG-03 — `column m.activo does not exist` al buscar a quién sumar al grupo
+- **Área:** Supabase / aplicación de migraciones. Se ve en `app/discipulado/[id].tsx` al buscar en el padrón (`useCandidatosDiscipulado` → RPC `candidatos_para_discipulado`, 0028).
+- **Descripción:** la búsqueda falla siempre: `[query] ✖ ["participaciones","<id>","candidatos","<texto>"] — 1800ms — column m.activo does not exist`.
+- **Reproducción:** entrar a un discipulado → "sumar discípulo" → tipear 2+ letras.
+- **Impacto:** Alto — deja sin salida el único camino que evita la ficha duplicada, que es justo lo que 0028 vino a arreglar.
+- **Causa CONFIRMADA:** **`0022_miembro_activo.sql` nunca se aplicó a la base.** El error sale de adentro del cuerpo de la RPC, o sea que la función existe y el guard `es_admin() or es_discipulador_de()` pasó: no es permisos. Su única referencia a `m.activo` es `from miembros m where m.activo`, y esa columna la agrega solo 0022.
+- **Por qué no se detectó al instalar 0028:** PL/pgSQL **no valida referencias a columnas en el `create function`**, solo la sintaxis. La función se crea perfecta contra una base sin la columna y recién falla en la primera llamada. Es la trampa general del setup: las migraciones se aplican a mano por el SQL Editor, no hay tabla de migraciones, y saltearse una no da error **hasta que la usás, desde la app, con un mensaje que no nombra ninguna migración**.
+- **Lo que rompe la misma causa:**
+  - `candidatos_para_ministerio` (0024) tiene el `from miembros m where m.activo` idéntico → buscar a quién sumar al roster de un ministerio falla igual. Sirve para confirmar el diagnóstico.
+  - `directorio` queda en la versión de 0020: la gente dada de baja sigue apareciendo en el directorio y en los cumpleaños, y falta el trigger `trg_solo_admin_da_de_baja`. Cualquier `update miembros set activo = false` falla con el mismo mensaje.
+- **Fix:** aplicar `supabase/migrations/0022_miembro_activo.sql` entero en el SQL Editor. Es idempotente y es seguro fuera de orden: recrea la vista `directorio`, pero 0022 es la última migración que la toca (0023-0028 no la redefinen), así que no pisa nada más nuevo.
+- **Prevención aplicada (`supabase/README.md`):** el listado de migraciones estaba desactualizado (llegaba hasta 0011) — así es como se saltea una. Se completó hasta 0028 y se agregó la sección "Verificar qué está aplicado", con una query que dice qué objetos faltan.
+- **Estado:** 🟡 diagnóstico cerrado, **falta aplicar 0022 en la base** y reconfirmar que la búsqueda anda (en discipulados y en ministerios).
 
 ---
 

@@ -73,6 +73,12 @@ export default function AdminIndex() {
           onPress={() => router.push("/admin/eventos")}
         />
         <MenuItem
+          icon="wallet-outline"
+          title="Ofrendas"
+          subtitle="Resumen mensual · discipulados y ministerios"
+          onPress={() => router.push("/admin/ofrendas")}
+        />
+        <MenuItem
           icon="repeat-outline"
           title="Actividades semanales"
           subtitle="Reuniones recurrentes (día y horario fijo)"

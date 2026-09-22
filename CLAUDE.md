@@ -43,7 +43,9 @@ app/
   (tabs)/                   Inicio, Calendario, Eventos y actividades, Perfil
   pendiente.tsx             Pantalla de espera para rol `pendiente`
   aprobaciones.tsx          Obrero/admin activa cuentas pendientes
-  discipulado/[id].tsx      Detalle de grupo: discípulos + historial
+  discipulado/[id].tsx      Resumen del grupo: próxima reunión, asistencia, avisos
+  discipulado/discipulos.tsx  Roster completo: alta (buscando en el padrón) y baja
+  discipulado/historial.tsx   Reuniones por mes, con ofrenda y asistencia
   ministerio/               Detalle, alta/edición y roster de un ministerio (área de la iglesia)
   anuncios.tsx              Avisos de la iglesia y de cada ministerio
   reunion/nueva.tsx         Registrar reunión (asistencia + ofrenda + tema), vía RPC.

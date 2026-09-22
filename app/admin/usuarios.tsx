@@ -7,7 +7,7 @@ import { useAuth } from "../../lib/auth";
 import { colors } from "../../lib/theme";
 import { Profile, RolApp } from "../../lib/types";
 import { useDiscipulados } from "../../lib/queries/discipulados";
-import { useProfiles, useUpdateRol } from "../../lib/queries/profiles";
+import { nombreDePerfil, useProfiles, useUpdateRol } from "../../lib/queries/profiles";
 
 export default function AdminUsuarios() {
   const router = useRouter();
@@ -34,7 +34,7 @@ export default function AdminUsuarios() {
     if (rol === "admin") {
       Alert.alert(
         "Hacer administrador",
-        `${p.nombre_completo ?? "Este usuario"} tendrá acceso total (crear discipulados, gestionar todo). ¿Confirmás?`,
+        `${nombreDePerfil(p) ?? "Este usuario"} tendrá acceso total (crear discipulados, gestionar todo). ¿Confirmás?`,
         [
           { text: "Cancelar", style: "cancel" },
           { text: "Confirmar", onPress: accion },
@@ -51,11 +51,11 @@ export default function AdminUsuarios() {
     return (
       <Card className="mb-2.5">
         <View className="flex-row items-center gap-3">
-          <Avatar name={p.nombre_completo} size={42} tone={p.rol === "admin" ? "gold" : "navy"} />
+          <Avatar name={nombreDePerfil(p)} size={42} tone={p.rol === "admin" ? "gold" : "navy"} />
           <View className="flex-1">
             <View className="flex-row items-center gap-2">
               <Body className="text-ink" numberOfLines={1}>
-                {p.nombre_completo ?? "Sin nombre"}
+                {nombreDePerfil(p) ?? "Sin nombre"}
               </Body>
               {esYo && <Chip tone="neutral">Vos</Chip>}
             </View>

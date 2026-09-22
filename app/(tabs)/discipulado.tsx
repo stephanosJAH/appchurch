@@ -11,6 +11,7 @@ import { DIAS_SEMANA, MiMinisterio } from "../../lib/types";
 import { useDiscipulados } from "../../lib/queries/discipulados";
 import { useMiGrupo } from "../../lib/queries/miGrupo";
 import { useMisMinisterios } from "../../lib/queries/ministerios";
+import { nombreDePerfil } from "../../lib/queries/profiles";
 
 // Los dos orígenes —la tabla `discipulados` para lo que uno lidera y el RPC
 // `mi_grupo` para lo que uno cursa como discípulo— se normalizan acá para
@@ -128,7 +129,7 @@ export default function MiGrupoTab() {
       hora_inicio: d.hora_inicio,
       modalidad: d.modalidad,
       sexo: d.sexo,
-      discipulador: d.discipulador?.nombre_completo ?? profile?.nombre_completo ?? null,
+      discipulador: nombreDePerfil(d.discipulador) ?? profile?.nombre_completo ?? null,
     }));
 
   // Si además figura como participante de un grupo que lidera, no se repite:

@@ -1,4 +1,4 @@
-# Roles y permisos — App Discipulados
+# Roles y permisos — pdapp
 
 > Documento de referencia. Modelo objetivo de roles y alcances de la app como red
 > de toda la iglesia. Estado: creado 2026-07-13.
@@ -81,7 +81,12 @@ Leyenda de alcance en las matrices siguientes:
 
 > ¹ El alta real pasa por la RPC `agregar_discipulo` (security definer, valida que
 > seas el líder del grupo destino o admin). La vista `directorio` expone **solo** el
-> subconjunto seguro; email y notas nunca salen por ahí.
+> subconjunto seguro; email y notas nunca salen por ahí. Antes del alta va la
+> búsqueda: `candidatos_para_discipulado` (`0028`, mismo gate) deja ver
+> **nombre, apellido y teléfono enmascarado** de gente del padrón que todavía no
+> es "su gente" — el mínimo para reconocerla y sumarla en vez de duplicarle la
+> ficha. Sumar a alguien que ya está en el padrón no es un alta: es un insert en
+> `participaciones`, que la policy del grupo ya autoriza.
 > ⁵ Autogestión desde el perfil (`app/mis-datos.tsx`) por las RPC security-definer
 > `mis_datos` / `guardar_mis_datos` (`0016`), acotadas a `auth.uid()`. Editan nombre,
 > apellido, sexo, cumpleaños, teléfono, email y `mostrar_contacto` (`0020`) —
@@ -272,10 +277,12 @@ Este cuadro describe el **modelo objetivo**. Hoy:
   alimenta el tab "Mi grupo" para cualquier rol: esa pantalla es personal
   (lo que uno lidera + lo que cursa como discípulo), y el padrón completo
   de discipulados vive solo en Admin > Discipulados.
-- **Escrita, pendiente de aplicar**: `0024`-`0026` (ministerios, su libro de
-  reuniones y los anuncios). El cliente ya las consume: hasta que corran, el hub
-  "Mi grupo" y la campana de anuncios van a fallar con *function does not exist*.
-  Regla de siempre: **migración primero, app después**.
+- **Escrita, pendiente de aplicar**: `0024`-`0028` (ministerios, su libro de
+  reuniones, los anuncios, el nombre del padrón y la búsqueda de candidatos para
+  un discipulado). El cliente ya las consume: hasta que corran, el hub "Mi grupo",
+  la campana de anuncios y el buscador del roster van a fallar con *function does
+  not exist*. Regla de siempre: **migración primero, app después**.
+  `0027` redefine objetos de `0019`/`0024`/`0026`, así que va después de ellas.
 - **Pendiente en la app**: gate de `pendiente` en el shell más allá del
   redirect a `/pendiente`, y terminar de separar la UI de `miembro` de la de
   `obrero` (fuera de ministerios, buena parte de la navegación todavía gatea con

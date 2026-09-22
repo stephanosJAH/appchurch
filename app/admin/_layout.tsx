@@ -29,6 +29,7 @@ export default function AdminLayout() {
       <Stack.Screen name="discipulados" options={{ title: "Discipulados" }} />
       <Stack.Screen name="bajas" options={{ title: "Discipulados dados de baja" }} />
       <Stack.Screen name="ministerios" options={{ title: "Ministerios" }} />
+      <Stack.Screen name="ofrendas" options={{ title: "Ofrendas" }} />
       <Stack.Screen name="eventos" options={{ title: "Eventos" }} />
       <Stack.Screen name="actividades" options={{ title: "Actividades semanales" }} />
     </Stack>
