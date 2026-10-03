@@ -29,6 +29,18 @@ export type VideoYoutube = {
   esShort: boolean;
 };
 
+// Fila de `videos_canal` (0030): el respaldo del último feed bueno, que se
+// muestra mientras el RSS de YouTube está caído. No guarda `url` ni
+// `miniatura` — ver `construirVideo`.
+export type FilaVideoCanal = {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  publicado: string;
+  vistas: number | null;
+  es_short: boolean;
+};
+
 // ID del canal (`UC…`). No es un secreto: identifica un canal público y viaja en
 // el bundle igual que la URL de Supabase. Se deja como constante para que el APK
 // de EAS salga siempre con el canal correcto sin depender de que la variable esté
@@ -85,6 +97,67 @@ function atributo(xml: string, tag: string, attr: string): string | null {
   return m ? decodificar(m[1]) : null;
 }
 
+// Único lugar donde se arma un `VideoYoutube`, lo hayamos sacado del XML o de
+// la tabla de respaldo. Valida el id y deriva de ahí la URL y la miniatura, en
+// vez de confiar en una cadena que vino de afuera: de estas dos salen un
+// `Linking.openURL` y un `<Image>`. Devuelve null si el id no tiene forma de id.
+function construirVideo(d: {
+  id: string | null;
+  titulo: string | null;
+  descripcion: string | null;
+  publicado: string | null;
+  vistas: number | null;
+  esShort: boolean;
+}): VideoYoutube | null {
+  if (!d.id || !ID_VIDEO.test(d.id)) return null;
+  return {
+    id: d.id,
+    titulo: d.titulo || "Sin título",
+    descripcion: d.descripcion ?? "",
+    url: `https://www.youtube.com/watch?v=${d.id}`,
+    // `hqdefault` existe siempre. Es 480x360 (4:3) con banda negra arriba y
+    // abajo — en un contenedor 16:9 con resizeMode "cover" el recorte cae justo
+    // sobre esas bandas y queda el cuadro limpio.
+    miniatura: `https://i.ytimg.com/vi/${d.id}/hqdefault.jpg`,
+    publicado: d.publicado ?? "",
+    vistas: d.vistas,
+    esShort: d.esShort,
+  };
+}
+
+const porFecha = (a: VideoYoutube, b: VideoYoutube) => b.publicado.localeCompare(a.publicado);
+
+// Respaldo de `videos_canal` -> lo mismo que devuelve el feed en vivo, para que
+// las pantallas no sepan de dónde salió cada video.
+export function videosDesdeFilas(filas: FilaVideoCanal[]): VideoYoutube[] {
+  return filas
+    .map((f) =>
+      construirVideo({
+        id: f.id,
+        titulo: f.titulo,
+        descripcion: f.descripcion,
+        publicado: f.publicado,
+        vistas: f.vistas,
+        esShort: f.es_short,
+      }),
+    )
+    .filter((v): v is VideoYoutube => v !== null)
+    .sort(porFecha);
+}
+
+// Lo que se le manda a `guardar_videos_canal` (0030). La RPC vuelve a validar
+// todo: esto es solo la forma de las columnas.
+export function filasDesdeVideos(videos: VideoYoutube[]): FilaVideoCanal[] {
+  return videos.map((v) => ({
+    id: v.id,
+    titulo: v.titulo,
+    descripcion: v.descripcion,
+    publicado: v.publicado,
+    vistas: v.vistas,
+    es_short: v.esShort,
+  }));
+}
+
 export function parsearFeed(xml: string): VideoYoutube[] {
   // `split` en vez de un regex global sobre todo el documento: cada <entry> se
   // procesa aislada, así un tag suelto en una entrada no arrastra a la siguiente.
@@ -93,31 +166,20 @@ export function parsearFeed(xml: string): VideoYoutube[] {
     .slice(1)
     .map((raw): VideoYoutube | null => {
       const bloque = raw.split("</entry>")[0];
-      const id = etiqueta(bloque, "yt:videoId");
-      if (!id || !ID_VIDEO.test(id)) return null;
-
       const vistasRaw = atributo(bloque, "media:statistics", "views");
-      const vistas = vistasRaw && /^\d+$/.test(vistasRaw) ? Number(vistasRaw) : null;
-      const publicado = etiqueta(bloque, "published") ?? "";
       const enlace = atributo(bloque, "link", "href") ?? "";
 
-      return {
-        id,
-        titulo: etiqueta(bloque, "title") || "Sin título",
-        descripcion: etiqueta(bloque, "media:description") ?? "",
-        url: `https://www.youtube.com/watch?v=${id}`,
-        // Se deriva del ID en vez de leer <media:thumbnail>: `hqdefault` existe
-        // siempre. Es 480x360 (4:3) con banda negra arriba y abajo — en un
-        // contenedor 16:9 con resizeMode "cover" el recorte cae justo sobre esas
-        // bandas y queda el cuadro limpio.
-        miniatura: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
-        publicado,
-        vistas,
+      return construirVideo({
+        id: etiqueta(bloque, "yt:videoId"),
+        titulo: etiqueta(bloque, "title"),
+        descripcion: etiqueta(bloque, "media:description"),
+        publicado: etiqueta(bloque, "published"),
+        vistas: vistasRaw && /^\d+$/.test(vistasRaw) ? Number(vistasRaw) : null,
         esShort: enlace.includes("/shorts/"),
-      };
+      });
     })
     .filter((v): v is VideoYoutube => v !== null)
-    .sort((a, b) => b.publicado.localeCompare(a.publicado));
+    .sort(porFecha);
 }
 
 /* ============================ Fetch ============================ */

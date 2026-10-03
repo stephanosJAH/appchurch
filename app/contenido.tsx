@@ -40,7 +40,7 @@ function Vacio({
 
 export default function Contenido() {
   const insets = useSafeAreaInsets();
-  const { data: videos = [], isLoading, isError, refetch, isRefetching } = useVideosCanal();
+  const { data: videos = [], isLoading, isError, refrescar, isRefetching } = useVideosCanal();
 
   const encabezado = (
     <View className="mb-5">
@@ -83,7 +83,7 @@ export default function Contenido() {
         refreshControl={
           <RefreshControl
             refreshing={isRefetching && !isLoading}
-            onRefresh={refetch}
+            onRefresh={refrescar}
             tintColor={colors.primary}
             colors={[colors.primary]}
           />
