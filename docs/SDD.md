@@ -69,6 +69,7 @@ acceso distintos sobre ella.
 - **Backoffice web dedicado**: diferido. Si hace falta ergonomía de admin, se
   evalúa Expo Web (mismo código) antes de comprometer un Next.js.
 - **Reset de contraseña self-service**: hoy es manual ("contactá a un admin").
+  El *cambio* sabiendo la actual sí existe, en Mis datos (`lib/password.ts`).
 - **Modo offline**: no hay persistencia de la caché de TanStack Query.
 
 ### 1.4 Audiencia
@@ -211,7 +212,7 @@ app/                          Rutas (expo-router, file-based)
   contenido.tsx               Predicaciones (feed de YouTube)
   ofrendas.tsx                Desglose de ofrendas
   discipulado/[id].tsx        Resumen del grupo que se lidera
-  discipulado/discipulos.tsx  Roster del grupo: alta y baja de discípulos
+  discipulado/discipulos.tsx  Roster: asistencia por discípulo y alta
   discipulado/historial.tsx   Historial de reuniones por mes
   mi-grupo/[id].tsx           Lectura del grupo del que se participa
   reunion/nueva.tsx           Alta/edición de reunión (modal)
@@ -238,7 +239,7 @@ lib/
   storage.ts                  Adjuntos: elegir, subir, abrir con validación
   query-logger.ts             Instrumentación de queries (solo __DEV__)
   queries/<entidad>.ts        Un archivo de hooks por entidad
-supabase/migrations/          0001–0028 · DDL + RLS + RPC + Storage
+supabase/migrations/          0001–0029 · DDL + RLS + RPC + Storage
 docs/                         Documentos de referencia y de decisión
 ```
 
@@ -680,22 +681,21 @@ Tres revisiones documentadas, con 11 hallazgos numerados:
 | 8 | MEDIA | Sin reset ni política de contraseña | Parte A **resuelta**; B y C **abiertas** |
 | 9 | BAJA | Anon key en `eas.json` | **Aceptado** (la seguridad recae en RLS) |
 | 10 | BAJA | Sin certificate pinning | **Abierto** |
-| 11 | ALTA | **`profiles.miembro_id` es auto-editable → IDOR de PII** | **ABIERTO** |
+| 11 | ALTA | `profiles.miembro_id` era auto-editable → IDOR de PII | **Resuelto** (`0029`) |
 
-> **Hallazgo #11 — el más importante de los abiertos.** `0016`/`0018` convirtieron
-> `profiles.miembro_id` en una **clave de autorización** (`mis_datos` y
-> `guardar_mis_datos` resuelven "cuál es mi ficha" por ese link), pero la policy
-> `prof_update_self` (`0002`) nunca acotó **qué columnas** se pueden editar del
-> propio perfil, y el trigger anti-escalada solo cuida `rol`. Un miembro puede
-> apuntar su `miembro_id` a la ficha de otra persona — cuyos `id` publica la vista
-> `directorio` — y leer/escribir su PII. La remediación propuesta (trigger
-> `no_reenlazar_miembro`) está redactada en
-> [`SECURITY-REVISION-RED.md`](./SECURITY-REVISION-RED.md) y **todavía no se migró**.
->
-> `0026` amplía la superficie de esa policy: `anuncios_leidos_hasta` es otra columna
-> que el cliente escribe por `prof_update_self`. No agrega riesgo nuevo (es una marca
-> de agua propia), pero refuerza que el fix correcto es un trigger que declare qué
-> columnas puede tocar cada quien, no una policy más.
+> **Hallazgo #11 — resuelto en `0029`.** `0016`/`0018` convirtieron
+> `profiles.miembro_id` en una **clave de autorización** (`mis_datos`,
+> `guardar_mis_datos`, `mi_grupo`, `participo_del_ministerio`… resuelven "cuál es
+> mi ficha" por ese link), pero `prof_update_self` (`0002`) nunca acotó **qué
+> columnas** se podían editar del propio perfil: un miembro podía apuntar su
+> `miembro_id` a la ficha de otra persona y leer/escribir su PII. `0029` revoca el
+> UPDATE de tabla sobre `profiles` y otorga solo las dos columnas que el cliente
+> escribe (`rol`, cuidada por el trigger anti-escalada, y `anuncios_leidos_hasta`,
+> de `0026`); borra `prof_obrero_activar`, así que activar un pendiente es solo por
+> `resolver_identidad_pendiente`; y exige `es_miembro_activo()` en `mis_datos()`.
+> Toda columna nueva de `profiles` que el cliente tenga que escribir necesita su
+> propio `grant update (...)`. Detalle en
+> [`SECURITY-REVISION-RED.md`](./SECURITY-REVISION-RED.md).
 
 ---
 
@@ -804,10 +804,16 @@ Android — `automaticallyAdjustKeyboardInsets` solo funciona en iOS, y con
 
 ### 6.5 Descripciones con formato
 
-`eventos.descripcion`, `actividades.descripcion`, `ministerios.descripcion` y
-`anuncios.cuerpo` admiten marcas tipo markdown. **Se guarda texto plano con marcas,
-en la misma columna `text`**: no hubo migración, no cambió ninguna policy y las
-descripciones viejas siguen siendo válidas (son markdown sin marcas).
+`eventos.descripcion`, `actividades.descripcion`, `ministerios.descripcion`,
+`anuncios.cuerpo` y `miembros.notas` admiten marcas tipo markdown. **Se guarda
+texto plano con marcas, en la misma columna `text`**: no hubo migración, no cambió
+ninguna policy y las descripciones viejas siguen siendo válidas (son markdown sin
+marcas).
+
+`miembros.notas` es la única de esas columnas que **no** es contenido publicado:
+son las notas del seguimiento pastoral, y quien las lee es el mismo que las
+escribe (su discipulador, o el admin). El formato es el mismo; la audiencia, no
+— ver §7.3.
 
 ```
 # Título      ## Subtítulo    ### Sub-subtítulo
@@ -843,6 +849,25 @@ shorts. Los shorts se filtran por el `<link>` (apuntan a `/shorts/` en vez de
 `/watch`) porque son recortes del mismo sermón y duplicaban la lista. Si algún día
 hace falta el historial completo, el camino es proxiar la Data API detrás de una
 Edge Function, no meter la key acá.
+
+**Lo que también cuesta: el feed se cae.** Durante 2026 `feeds/videos.xml` viene
+devolviendo 404 de a ratos — no es este canal ni esta app: el mismo 404 lo da el
+canal oficial de YouTube y lo firma `Server: YouTube RSS Feeds server`. Vuelve
+solo al rato. Por eso `videos_canal` (0030) guarda el **último feed bueno** y
+`useVideosCanal` resuelve en este orden:
+
+1. respaldo fresco (< 6 h) → se muestra sin tocar YouTube;
+2. respaldo vencido o vacío → se pide el feed y, si llega, se guarda;
+3. el feed falló → se muestra el respaldo aunque esté vencido;
+4. no hay ni respaldo → error, y la pantalla ofrece ir al canal.
+
+La tabla es un **espejo, no un historial**: cada refresco la reemplaza por las
+15 entradas del feed. No guarda la URL del video ni la de la miniatura —las dos
+se derivan del id validado, igual que en el parser, porque de ahí salen un
+`Linking.openURL` y un `<Image>`—, y solo la escribe la RPC
+`guardar_videos_canal` (admin), con el mismo criterio que `anuncios`: lo que ve
+toda la congregación lo escribe un admin. El respaldo se refresca, entonces,
+cuando un admin abre la app; para predicaciones semanales alcanza.
 
 ---
 
@@ -964,6 +989,19 @@ todo **menos** `notas`; `guardar_notas_miembro` edita **solo** `notas`.
 La **lectura** no cambia: el discipulador sigue viendo la PII completa de su gente.
 Y el admin no pierde nada — es el ABM del padrón y quien corrige por quien no puede.
 
+**En la pantalla** (`app/miembro/[id].tsx`): con cuenta enlazada la ficha se dibuja
+como una vista resumida de solo lectura (cumpleaños, teléfono, email), sin un solo
+input. Las notas están abajo, en su propia tarjeta, con el label **"Notas"** y el
+editor de texto enriquecido (§6.5) — **una sola tarjeta para las dos ramas**, la
+con cuenta y la sin cuenta, siempre por `guardar_notas_miembro`. El formulario de
+datos personales (rama sin cuenta, o admin) ya **no** manda `notas` en el upsert:
+dos caminos para la misma columna solo servían para que un "Guardar cambios"
+pisara lo que el otro botón acababa de guardar.
+
+Esa nota **no la ve la persona**: `mis_datos()` nunca devuelve `notas` (`0016`) y
+`miembros_select` (`0014`) solo deja leer la ficha al admin y al discipulador de
+esa persona.
+
 ### 7.4 Adjuntar un flyer
 
 ```
@@ -1022,7 +1060,7 @@ Estas dos cosas no están versionadas y **el sistema no funciona sin ellas**:
 
 ### 8.4 Migraciones
 
-`supabase/migrations/0001` … `0028`, **en orden numérico**, por SQL Editor o
+`supabase/migrations/0001` … `0029`, **en orden numérico**, por SQL Editor o
 `supabase db push`. No hay CI que las aplique ni verificación automática de que la
 base esté al día.
 
@@ -1088,7 +1126,6 @@ un usuario no deja rastro en ningún lado.
 
 | | Detalle |
 |---|---|
-| **Hallazgo #11 sin migrar** | `profiles.miembro_id` auto-editable (§5.9). Es lo más urgente del backlog de seguridad |
 | **Dependencias muertas** | `zod`, `react-hook-form` y `react-native-calendars` están en `package.json` y **no se importan en ningún lado** |
 | **Sin telemetría** | §9.2 |
 | **Sin entorno de staging** | Los tres perfiles de EAS apuntan a la misma base |
@@ -1210,6 +1247,7 @@ un integrante, y si un líder puede sumar colíderes.
 | 0026 | `anuncios` | Anuncios con alcance, `profiles.anuncios_leidos_hasta`, `anuncios_visibles` |
 | 0027 | `nombres_del_padron` | El nombre mostrado sale de `miembros`, no del registro: `nombre_de_perfil` + vista `ministerios_lideres`, `mis_ministerios`, `mi_grupo`, `anuncios_visibles` |
 | 0028 | `candidatos_para_discipulado` | Buscar en el padrón a quién sumar al grupo (espejo de `candidatos_para_ministerio`, con umbral de similitud) |
+| 0029 | `profiles_columnas_editables` | Cierra el #11: `profiles` solo editable en `rol` y `anuncios_leidos_hasta`; activar pendientes solo por RPC |
 
 ### B. Mapa de rutas
 
@@ -1230,7 +1268,7 @@ un integrante, y si un líder puede sumar colíderes.
 | `discipulado/[id]` · `discipulado/discipulos` · `discipulado/historial` · `discipulado/editar` | Líder/admin | Resumen, roster, historial y edición del grupo |
 | `mi-grupo/[id]` | Participante | Lectura del grupo propio |
 | `reunion/nueva` (modal) · `reunion/[id]` | Líder/admin | Alta/edición y detalle |
-| `miembro/[id]` | Obrero/admin | Ficha del padrón + nota pastoral |
+| `miembro/[id]` | Obrero/admin | Ficha del padrón (lectura si tiene cuenta) + notas pastorales + baja del discipulado |
 | `actividad/[id]` · `actividad-semanal/[id]` | Miembro+ | Detalle de evento / actividad |
 | `ministerio/[id]` | Miembro+ | Detalle: una pantalla, tres audiencias (ve que existe / participa / lidera) |
 | `ministerio/editar` | Líder/admin | Alta y edición. El picker de líderes es solo para admin |
