@@ -93,6 +93,13 @@ function Barra({ pct, origen }: { pct: number; origen: Origen }) {
 }
 
 // Tarjeta de un libro (discipulados / ministerios) dentro del mes elegido.
+//
+// El ícono va en línea con el label, no en un círculo arriba: a media pantalla
+// apilar círculo + label + monto + recuento estiraba la tarjeta y dejaba aire
+// muerto debajo del recuento. Tampoco lleva `h-full`: las dos tarjetas ya
+// igualan altura por el `items-stretch` implícito de la fila, y un
+// `height: "100%"` contra un padre de altura automática es justamente lo que
+// puede dejarla más alta que su contenido.
 function TarjetaOrigen({
   origen,
   label,
@@ -108,12 +115,12 @@ function TarjetaOrigen({
 }) {
   return (
     <Pressable onPress={onPress} className="flex-1 active:opacity-80">
-      <Card className="h-full p-4">
-        <View className="h-9 w-9 items-center justify-center rounded-full bg-surface-mid">
-          <Ionicons name={ICONO[origen]} size={18} color={colors.primaryContainer} />
+      <Card className="p-4">
+        <View className="flex-row items-center gap-1.5">
+          <Ionicons name={ICONO[origen]} size={14} color={colors.primaryContainer} />
+          <Label className="flex-1">{label}</Label>
         </View>
-        <Label className="mt-2.5">{label}</Label>
-        <Title className="mt-1" numberOfLines={1}>
+        <Title className="mt-1.5" numberOfLines={1}>
           {formatMoneda(total)}
         </Title>
         <Muted className="mt-0.5">
