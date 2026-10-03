@@ -13,7 +13,7 @@
 
 | # | Severidad | Hallazgo | Estado |
 |---|-----------|----------|--------|
-| 11 | ALTA | `profiles.miembro_id` es auto-editable → un miembro se enlaza a la ficha de otro (IDOR de PII, R/W) | [ ] pendiente |
+| 11 | ALTA | `profiles.miembro_id` es auto-editable → un miembro se enlaza a la ficha de otro (IDOR de PII, R/W) | [x] `0029_profiles_columnas_editables.sql` |
 
 **El patrón de fondo**: este PR convierte a `profiles.miembro_id` en una **clave
 de autorización** (las RPCs `mis_datos`/`guardar_mis_datos` de `0016`/`0018`
@@ -132,7 +132,19 @@ las columnas. El trigger anti-autoescalada solo cuida `rol`, no `miembro_id`.
   definer con privilegios de dueño (no sujeta al grant de `authenticated`), lo que
   hay que confirmar.
 
-- **Estado (2026-07-19)**: PENDIENTE.
+- **Estado (2026-09-25)**: RESUELTO en
+  `supabase/migrations/0029_profiles_columnas_editables.sql`, con una variante
+  de la Opción B. Tal como está escrita arriba, la Opción B no alcanza: en
+  Postgres, revocar un privilegio de **columna** no quita el UPDATE que
+  `authenticated` tiene a nivel **tabla** (el default de Supabase). 0029 revoca
+  el UPDATE de tabla y re-otorga solo `rol` y `anuncios_leidos_hasta`, las dos
+  columnas que el cliente escribe. Se prefirió sobre el trigger (Opción A)
+  porque cierra también el vector paralelo: la policy `prof_obrero_activar`
+  (0013) dejaba a un obrero activar un pendiente por UPDATE directo, con el
+  `miembro_id` que quisiera, salteando `resolver_identidad_pendiente`; 0029 la
+  borra. La RPC es definer y corre como su dueño, que no está sujeto a los
+  grants de `authenticated`. 0029 además agrega `es_miembro_activo()` a
+  `mis_datos()`.
 
 ---
 
@@ -170,9 +182,5 @@ Estos cambios del PR se auditaron y quedaron bien:
 
 ## Pendiente de verificar en dashboard / entorno
 
-- Confirmar que el grant por defecto de Supabase da `UPDATE` a `authenticated`
-  sobre `public.profiles` (asumido para el hallazgo #11; es el default de
-  Supabase). Si por algún motivo estuviera revocado a nivel de columna, el
-  vector #11 no aplicaría — verificarlo.
 - Que RLS siga habilitado en todas las tablas nuevas (`actividades` lo declara en
   `0015`).

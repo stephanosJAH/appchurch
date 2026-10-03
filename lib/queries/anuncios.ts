@@ -101,8 +101,8 @@ function invalidarAnuncios(qc: ReturnType<typeof useQueryClient>) {
 }
 
 // Marca todo como leído (mueve la marca de agua a ahora). El cliente puede
-// escribir su propio perfil por `prof_update_self` (0002) y el trigger
-// anti-escalada solo mira `rol`, así que no hace falta RPC.
+// escribir su propio perfil por `prof_update_self` (0002), pero desde 0029
+// solo en `rol` y en esta columna, así que no hace falta RPC.
 export function useMarcarAnunciosLeidos() {
   const qc = useQueryClient();
   return useMutation({
