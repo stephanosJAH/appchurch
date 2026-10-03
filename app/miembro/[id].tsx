@@ -3,6 +3,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, Platform, Pressable, View } from "react-native";
+import { RichTextEditor } from "../../components/RichTextEditor";
 import {
   Avatar,
   Body,
@@ -18,6 +19,7 @@ import {
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { calcularEdad, dateToFecha, fechaLabel, fechaToDate } from "../../lib/date";
+import { estaVacio } from "../../lib/richText";
 import { colors } from "../../lib/theme";
 import { RolApp, Sexo } from "../../lib/types";
 import {
@@ -26,8 +28,32 @@ import {
   useMiembroTieneCuenta,
   useUpsertMiembro,
 } from "../../lib/queries/miembros";
-import { useParticipacionesDeMiembro } from "../../lib/queries/participaciones";
+import {
+  ParticipacionDeMiembro,
+  useDesasociarParticipacion,
+  useParticipacionesDeMiembro,
+} from "../../lib/queries/participaciones";
 import { useCuentaDeMiembro, useUpdateRol } from "../../lib/queries/profiles";
+
+// Una fila de la ficha en modo lectura. Sin input: cuando la persona tiene
+// cuenta sus datos son suyos y el discipulador solo los mira.
+function Dato({
+  label,
+  valor,
+  capitalizar,
+}: {
+  label: string;
+  valor?: string | null;
+  capitalizar?: boolean;
+}) {
+  if (!valor) return null;
+  return (
+    <View>
+      <Label>{label}</Label>
+      <Body className={`mt-0.5 text-ink${capitalizar ? " capitalize" : ""}`}>{valor}</Body>
+    </View>
+  );
+}
 
 export default function MiembroDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -44,6 +70,7 @@ export default function MiembroDetalle() {
   const upsert = useUpsertMiembro();
   const guardarNotas = useGuardarNotasMiembro();
   const updateRol = useUpdateRol();
+  const desasociar = useDesasociarParticipacion();
 
   // Gestiona a esta persona: el admin, o el discipulador de alguno de sus grupos.
   const esMiDiscipulo = participaciones.some(
@@ -51,10 +78,17 @@ export default function MiembroDetalle() {
   );
   const puedeGestionar = isAdmin || esMiDiscipulo;
   // Con cuenta enlazada la ficha tiene dueño: la persona la autogestiona desde
-  // "Mis datos" y su discipulador solo la lee, salvo la descripción pastoral.
+  // "Mis datos" y su discipulador solo la lee, salvo las notas pastorales.
   // El admin conserva la edición (es el ABM del padrón). Lo hace cumplir la RLS
   // de 0021, no esto: acá solo se decide qué mostrar.
   const puedeEditarDatos = puedeGestionar && !(tieneCuenta && !isAdmin);
+  // Grupos de los que esta persona se puede sacar desde acá: los del admin son
+  // todos, los del obrero solo los que lidera. La RLS de `participaciones` ya
+  // recorta la lista (un discipulador no ve las de otros grupos); este filtro
+  // es para que la UI no ofrezca un botón que el backend va a rechazar.
+  const gruposQueGestiono = participaciones.filter(
+    (p) => isAdmin || p.discipulado?.discipulador_id === profile?.id
+  );
 
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
@@ -80,6 +114,11 @@ export default function MiembroDetalle() {
   }, [miembro]);
 
   const edad = calcularEdad(nacimiento);
+  // Las notas se guardan por su propia RPC, así que hay que saber si quedaron
+  // pendientes: sin esto "Guardar cambios" volvería atrás dejándolas sin guardar.
+  const notasCambiadas = notas !== (miembro?.notas ?? "");
+  // Un texto que solo quedó con marcas sueltas o espacios no es una nota.
+  const notasAGuardar = () => (estaVacio(notas) ? null : notas.trim());
 
   const guardar = async () => {
     if (!nombre.trim()) {
@@ -95,11 +134,15 @@ export default function MiembroDetalle() {
         fecha_nacimiento: nacimiento || null,
         telefono: telefono.trim() || null,
         email: email.trim() || null,
-        notas: notas.trim() || null,
+        // Las notas NO: van por su propia RPC, igual que en una ficha con
+        // cuenta (un solo camino para esa columna).
         // Solo el admin manda esta columna: el trigger de 0022 rechaza el
         // cambio de cualquier otro, y mandarla sin poder cambiarla no aporta.
         ...(isAdmin ? { activo } : {}),
       });
+      // La columna `notas` solo se escribe por la RPC (nunca por el upsert),
+      // pero este botón también arrastra lo que haya quedado escrito arriba.
+      if (notasCambiadas) await guardarNotas.mutateAsync({ id: miembroId, notas: notasAGuardar() });
       Alert.alert("Listo", "Datos actualizados.", [
         { text: "OK", onPress: () => router.back() },
       ]);
@@ -108,12 +151,36 @@ export default function MiembroDetalle() {
     }
   };
 
+  const nombreDeGrupo = (p: ParticipacionDeMiembro) =>
+    p.discipulado?.nombre ?? p.discipulado?.descripcion_etaria ?? "Discipulado";
+
+  // Desasociar es baja lógica (`activo = false`): la ficha y el historial de
+  // asistencias quedan, y a la persona se la puede volver a sumar.
+  const quitarDelGrupo = (p: ParticipacionDeMiembro) => {
+    Alert.alert(
+      "Quitar del discipulado",
+      `¿Quitar a ${miembro?.nombre ?? "esta persona"} de «${nombreDeGrupo(p)}»? Se la puede volver a sumar más adelante.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Quitar",
+          style: "destructive",
+          onPress: () =>
+            desasociar.mutate(p.id, {
+              onError: (e: any) =>
+                Alert.alert("Error", e.message ?? "No se pudo quitar del discipulado."),
+            }),
+        },
+      ]
+    );
+  };
+
   const onGuardarNotas = async () => {
     try {
-      await guardarNotas.mutateAsync({ id: miembroId, notas: notas.trim() || null });
-      Alert.alert("Listo", "Descripción actualizada.");
+      await guardarNotas.mutateAsync({ id: miembroId, notas: notasAGuardar() });
+      Alert.alert("Listo", "Notas actualizadas.");
     } catch (e: any) {
-      Alert.alert("Error", e.message ?? "No se pudo guardar la descripción.");
+      Alert.alert("Error", e.message ?? "No se pudieron guardar las notas.");
     }
   };
 
@@ -170,8 +237,9 @@ export default function MiembroDetalle() {
         </View>
       </Card>
 
-      {/* Sin edición de datos: la ficha se lee como información personal. La
-          descripción va aparte porque sí sigue siendo del discipulador. */}
+      {/* Sin edición de datos: la ficha se lee como información personal, en
+          una vista resumida y sin ningún input. Las notas van aparte, abajo,
+          porque sí siguen siendo del discipulador. */}
       {!puedeEditarDatos ? (
         <>
           {puedeGestionar && (
@@ -179,54 +247,21 @@ export default function MiembroDetalle() {
               <Ionicons name="person-circle-outline" size={18} color={colors.primary} />
               <Muted className="flex-1">
                 {miembro.nombre} tiene cuenta en la app: sus datos personales los
-                gestiona desde su perfil. Podés dejarle una descripción para el
-                seguimiento.
+                gestiona desde su perfil. Podés dejarle notas del seguimiento.
               </Muted>
             </View>
           )}
 
+          {/* Se lee del miembro, no del formulario: acá no hay formulario. */}
           <Card className="gap-3">
-            <View>
-              <Label>Cumpleaños</Label>
-              <Body className="mt-0.5 capitalize text-ink">
-                {fechaLabel(nacimiento, "Sin registrar")}
-              </Body>
-            </View>
-            {telefono ? (
-              <View>
-                <Label>Teléfono</Label>
-                <Body className="mt-0.5 text-ink">{telefono}</Body>
-              </View>
-            ) : null}
-            {email ? (
-              <View>
-                <Label>Email</Label>
-                <Body className="mt-0.5 text-ink">{email}</Body>
-              </View>
-            ) : null}
+            <Dato
+              label="Cumpleaños"
+              valor={fechaLabel(miembro.fecha_nacimiento ?? "", "Sin registrar")}
+              capitalizar
+            />
+            <Dato label="Teléfono" valor={miembro.telefono} />
+            <Dato label="Email" valor={miembro.email} />
           </Card>
-
-          {puedeGestionar ? (
-            <Card className="mt-4">
-              <Field
-                label="Descripción"
-                value={notas}
-                onChangeText={setNotas}
-                placeholder="Información adicional (notas, situación, etc.)"
-                multiline
-              />
-              <Button
-                title="Guardar descripción"
-                onPress={onGuardarNotas}
-                loading={guardarNotas.isPending}
-              />
-            </Card>
-          ) : notas ? (
-            <Card className="mt-4">
-              <Label>Descripción</Label>
-              <Body className="mt-0.5 text-ink">{notas}</Body>
-            </Card>
-          ) : null}
         </>
       ) : (
         <Card>
@@ -281,15 +316,63 @@ export default function MiembroDetalle() {
 
           <Field label="Teléfono" value={telefono} onChangeText={setTelefono} keyboardType="phone-pad" placeholder="Opcional" />
           <Field label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholder="Opcional" />
-          <Field
-            label="Descripción"
-            value={notas}
-            onChangeText={setNotas}
-            placeholder="Información adicional (notas, situación, etc.)"
-            multiline
-          />
 
           <Button title="Guardar cambios" onPress={guardar} loading={upsert.isPending} />
+        </Card>
+      )}
+
+      {/* Notas del seguimiento pastoral: son del discipulador (y del admin),
+          no de la persona. Nadie más las ve — `mis_datos()` nunca devuelve
+          `notas` (0016) y la RLS solo deja leer la ficha a quien la gestiona
+          (0014). Una sola tarjeta para las dos ramas, siempre por la RPC
+          `guardar_notas_miembro` (0021): es lo único que el discipulador
+          puede escribir sobre una ficha con cuenta, y tener un segundo camino
+          por el upsert solo abriría la puerta a perder lo escrito. */}
+      {puedeGestionar && (
+        <Card className="mt-4">
+          <RichTextEditor
+            label="Notas"
+            valor={notas}
+            onChange={setNotas}
+            placeholder="Seguimiento, situación, pedidos de oración…"
+            ayuda="Privadas: las ves vos y los administradores, no la persona."
+          />
+          <Button
+            title="Guardar notas"
+            onPress={onGuardarNotas}
+            disabled={!notasCambiadas}
+            loading={guardarNotas.isPending}
+          />
+        </Card>
+      )}
+
+      {/* Grupos donde participa, con la baja. El botón lo ve el admin y el
+          discipulador del grupo: quién puede de verdad lo decide la RLS de
+          `participaciones` (0002), que además ya recortó esta lista. */}
+      {gruposQueGestiono.length > 0 && (
+        <Card className="mt-4">
+          <Label>{gruposQueGestiono.length === 1 ? "Discipulado" : "Discipulados"}</Label>
+          <View className="mt-2 gap-2.5">
+            {gruposQueGestiono.map((p) => (
+              <View key={p.id} className="flex-row items-center gap-3">
+                <Body className="flex-1 text-ink" numberOfLines={2}>
+                  {nombreDeGrupo(p)}
+                </Body>
+                <Button
+                  title="Quitar"
+                  variant="danger"
+                  size="sm"
+                  onPress={() => quitarDelGrupo(p)}
+                  disabled={desasociar.isPending}
+                  loading={desasociar.isPending && desasociar.variables === p.id}
+                />
+              </View>
+            ))}
+          </View>
+          <Muted className="mt-3">
+            Quitar a alguien del grupo no borra su ficha ni su historial: se lo puede volver
+            a sumar cuando haga falta.
+          </Muted>
         </Card>
       )}
 

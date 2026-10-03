@@ -15,6 +15,13 @@ import {
   Muted,
   Screen,
 } from "../../components/ui";
+import {
+  FALTAS_PARA_AVISAR,
+  REUNIONES_A_LA_VISTA,
+  faltasSeguidas,
+  porcentajePresentes,
+  presentesDe,
+} from "../../lib/asistencia";
 import { useAuth } from "../../lib/auth";
 import {
   addDays,
@@ -38,10 +45,6 @@ import { ReunionConAsistencia, useReunionesConAsistencia } from "../../lib/queri
 // lo que conviene mirar (faltas seguidas, cumpleaños). Las listas completas
 // viven aparte, a un toque: discipulos.tsx (alta y baja) e historial.tsx.
 
-// Cuántas reuniones seguidas sin venir disparan el aviso.
-const FALTAS_PARA_AVISAR = 3;
-// El promedio de asistencia mira las últimas N reuniones (un mes, más o menos).
-const REUNIONES_DEL_PROMEDIO = 4;
 // Se avisan los cumpleaños de la semana que viene.
 const DIAS_AVISO_CUMPLE = 7;
 // Discípulos a la vista antes de "Ver todos": dos filas de cinco.
@@ -85,11 +88,8 @@ function proximaReunion(diaSemana: number, reuniones: ReunionConAsistencia[]) {
 
 // Promedio de asistencia de las últimas reuniones y ofrenda del mes en curso.
 function resumen(reuniones: ReunionConAsistencia[]) {
-  const recientes = reuniones.slice(0, REUNIONES_DEL_PROMEDIO);
-  const filas = recientes.flatMap((r) => r.asistencias);
-  const asistencia = filas.length
-    ? Math.round((100 * filas.filter((a) => a.presente).length) / filas.length)
-    : null;
+  const recientes = reuniones.slice(0, REUNIONES_A_LA_VISTA);
+  const asistencia = porcentajePresentes(recientes);
   const mes = toISODate(new Date()).slice(0, 7); // "YYYY-MM"
   const ofrendaMes = reuniones
     .filter((r) => r.fecha.startsWith(mes))
@@ -118,15 +118,7 @@ function avisosDelGrupo(
   for (const p of participaciones) {
     const nombre = nombreCompleto(p);
 
-    // Faltas seguidas, de la reunión más reciente hacia atrás. Se corta en la
-    // primera a la que vino o en la primera donde no figura: ahí todavía no
-    // era del grupo, y eso no es una falta.
-    let faltas = 0;
-    for (const r of reuniones) {
-      const a = r.asistencias.find((x) => x.miembro_id === p.miembro_id);
-      if (!a || a.presente) break;
-      faltas++;
-    }
+    const faltas = faltasSeguidas(reuniones, p.miembro_id);
     if (faltas >= FALTAS_PARA_AVISAR) {
       const ultimaVez = reuniones.find((r) =>
         r.asistencias.some((x) => x.miembro_id === p.miembro_id && x.presente)
@@ -507,8 +499,7 @@ export default function DiscipuladoResumen() {
             ) : (
               <Card className="overflow-hidden p-0">
                 {ultimas.map((r, i) => {
-                  const presentes = r.asistencias.filter((a) => a.presente).length;
-                  const total = r.asistencias.length;
+                  const { presentes, total } = presentesDe(r);
                   return (
                     <Pressable
                       key={r.id}

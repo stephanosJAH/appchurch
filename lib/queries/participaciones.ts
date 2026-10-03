@@ -73,26 +73,46 @@ export function useAgregarParticipacion(discipuladoId: string) {
   });
 }
 
-// Participaciones activas de un miembro, con el líder de cada grupo.
-// El RLS ya filtra: un discipulador solo ve las de SUS grupos; el admin, todas.
+export type ParticipacionDeMiembro = {
+  id: string;
+  discipulado_id: string;
+  discipulado: {
+    nombre: string | null;
+    descripcion_etaria: string | null;
+    discipulador_id: string | null;
+  } | null;
+};
+
+// Participaciones activas de un miembro, con el nombre y el líder de cada
+// grupo. El RLS ya filtra: un discipulador solo ve las de SUS grupos; el
+// admin, todas.
 export function useParticipacionesDeMiembro(miembroId: string) {
   return useQuery({
     queryKey: ["participaciones", "de-miembro", miembroId],
     enabled: !!miembroId,
-    queryFn: async (): Promise<{ id: string; discipulado: { discipulador_id: string | null } | null }[]> => {
+    queryFn: async (): Promise<ParticipacionDeMiembro[]> => {
       const { data, error } = await supabase
         .from("participaciones")
-        .select("id, discipulado:discipulados(discipulador_id)")
+        .select(
+          "id, discipulado_id, discipulado:discipulados(nombre, descripcion_etaria, discipulador_id)"
+        )
         .eq("miembro_id", miembroId)
         .eq("activo", true);
       if (error) throw error;
-      return (data ?? []) as unknown as { id: string; discipulado: { discipulador_id: string | null } | null }[];
+      return (data ?? []) as unknown as ParticipacionDeMiembro[];
     },
   });
 }
 
-// Desasociar (baja lógica) un discípulo del grupo: activo = false.
-export function useDesasociarParticipacion(discipuladoId: string) {
+// Desasociar (baja lógica) a alguien de un grupo: activo = false. El botón vive
+// en la ficha del miembro (app/miembro/[id].tsx), donde una persona puede estar
+// en más de un grupo, así que la participación se elige en cada llamada y no al
+// crear el hook.
+//
+// Invalida toda la rama `participaciones`: además del roster del grupo hay que
+// rehacer la lista de grupos de esa persona. `refetchType: "all"` para que la
+// pantalla del roster, que quedó atrás en el stack, ya esté al día al volver.
+export function useDesasociarParticipacion() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (participacionId: string) => {
@@ -103,9 +123,7 @@ export function useDesasociarParticipacion(discipuladoId: string) {
       if (error) throw error;
     },
     onSuccess: () =>
-      qc.invalidateQueries({
-        queryKey: participacionesKeys.byDiscipulado(discipuladoId),
-      }),
+      qc.invalidateQueries({ queryKey: ["participaciones"], refetchType: "all" }),
   });
 }
 

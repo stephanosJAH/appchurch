@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-nati
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FechaBloque } from "../../components/FechaBloque";
 import { Body, Card, Muted, Screen, Title } from "../../components/ui";
+import { presentesDe } from "../../lib/asistencia";
 import { formatMoneda } from "../../lib/date";
 import { colors, fonts } from "../../lib/theme";
 import { ReunionConAsistencia, useReunionesConAsistencia } from "../../lib/queries/reuniones";
@@ -96,8 +97,7 @@ export default function HistorialDiscipulado() {
                   {abierto && (
                     <View className="border-t border-black/10">
                       {mes.reuniones.map((r) => {
-                        const presentes = r.asistencias.filter((a) => a.presente).length;
-                        const total = r.asistencias.length;
+                        const { presentes, total } = presentesDe(r);
                         return (
                           <Pressable
                             key={r.id}

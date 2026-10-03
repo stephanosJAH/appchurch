@@ -113,12 +113,16 @@ Leyenda de alcance en las matrices siguientes:
 > dos caminos escribían la misma fila y el discipulador podía pisar —sin
 > enterarse— lo que la persona acababa de corregir, incluido su
 > `mostrar_contacto`. La **lectura** no cambia: sigue viendo la PII completa
-> de su gente. La descripción sí le queda: se escribe por la RPC
+> de su gente. Las notas del seguimiento sí le quedan: se escriben por la RPC
 > `guardar_notas_miembro` (definer, solo esa columna), que es la contracara
 > exacta de `guardar_mis_datos` (edita todo menos `notas`). El **admin no
 > pierde nada**: es el ABM del padrón y quien corrige por quien no puede.
-> En la app: `app/miembro/[id].tsx` muestra la ficha en lectura + el campo de
-> descripción, y `app/admin/miembros.tsx` conserva el formulario completo.
+> En la app: `app/miembro/[id].tsx` muestra la ficha como vista resumida de
+> solo lectura (sin inputs) + la tarjeta **"Notas"** con el editor de texto
+> enriquecido, y `app/admin/miembros.tsx` conserva el formulario completo.
+> Esa nota es **privada del discipulador y del admin**: la persona no la ve
+> (`mis_datos()` no devuelve `notas`) y nadie más puede leer la ficha
+> (`miembros_select`, `0014`).
 
 ### Grupos y reuniones — `discipulados`, `participaciones`, `reuniones`, `asistencias`, ofrendas
 
