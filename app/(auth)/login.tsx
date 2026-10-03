@@ -4,17 +4,11 @@ import { Alert, Image, KeyboardAvoidingView, Pressable, ScrollView, Text, View }
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Body, Button, Card, Display, Field, FondoDegradado, Headline, Label, Muted } from "../../components/ui";
 import { identifierToEmail, isValidIdentifier, normalizeIdentifier } from "../../lib/authIdentity";
+import { passwordProblem } from "../../lib/password";
 import { supabase } from "../../lib/supabase";
 import { cardShadow, fonts } from "../../lib/theme";
 
 type Mode = "login" | "signup";
-
-// Requisitos mínimos de contraseña (#8 Parte A). Devuelve el problema o null.
-function passwordProblem(pw: string): string | null {
-  if (pw.length < 8) return "Usá al menos 8 caracteres.";
-  if (/^\d+$/.test(pw)) return "No uses solo números; sumá letras.";
-  return null;
-}
 
 // Traduce errores de Supabase (que hablan de "email") a algo entendible: acá el
 // identificador es un usuario/teléfono, no un correo.

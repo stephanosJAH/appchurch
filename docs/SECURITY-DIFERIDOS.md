@@ -100,6 +100,11 @@ create policy miembros_select on miembros for select using (
 - **Descripción**: No hay flujo de reset de contraseña. Tampoco validación de
   fortaleza: `submit` solo chequea que el campo no esté vacío, y Supabase por
   defecto exige apenas 6 caracteres.
+- **Cambio ≠ reset**: el *cambio* sabiendo la contraseña actual **ya existe**
+  (`app/mis-datos.tsx` + `lib/password.ts`). Como `updateUser` solo exige sesión
+  válida — con el teléfono desbloqueado alcanzaría —, ese flujo reautentica con
+  `signInWithPassword` antes de actualizar. Lo que sigue abierto es el *reset*
+  ("me la olvidé, no puedo entrar"), que es la Parte C.
 
 ### Tres partes
 
