@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, View } from "react-native";
 import { Gesture } from "react-native-gesture-handler";
 import { ActividadesHoy, actividadesDeHoy } from "../../components/ActividadesHoy";
 import { AnunciosFeed } from "../../components/AnunciosFeed";
@@ -144,6 +145,21 @@ export default function Dashboard() {
   const [tab, setTab] = useState<FeedTab>("inicio");
   const onIndexChange = useCallback((i: number) => setTab(i === 0 ? "inicio" : "nosotros"), []);
 
+  // Pull-to-refresh del feed: refetchea lo que esté montado en vez de enumerar
+  // los hooks de esta pantalla. Así alcanza también a las secciones que traen
+  // los suyos —anuncios, predicación— y no hay que acordarse de sumar la
+  // próxima que se agregue.
+  const qc = useQueryClient();
+  const [refrescando, setRefrescando] = useState(false);
+  const onRefrescar = useCallback(async () => {
+    setRefrescando(true);
+    try {
+      await qc.refetchQueries({ type: "active" });
+    } finally {
+      setRefrescando(false);
+    }
+  }, [qc]);
+
   // Los carruseles (eventos y actividades de hoy) scrollean horizontal dentro
   // del panel del feed: <Paneles> necesita conocerlos para cederles el gesto.
   // Cada uno necesita su propia instancia de Gesture.Native(), y el arreglo
@@ -241,6 +257,14 @@ export default function Dashboard() {
           className="flex-1"
           contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refrescando}
+              onRefresh={onRefrescar}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
         >
 
           {/* Saludo del día */}
