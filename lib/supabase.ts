@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
 import * as aesjs from "aes-js";
+import { AppState, Platform } from "react-native";
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
@@ -30,7 +31,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 //
 // La aleatoriedad viene de expo-crypto (getRandomBytes) en vez de
 // react-native-get-random-values, para no agregar un módulo nativo fuera de
-// Expo Go. expo-secure-store, expo-crypto y aes-js corren en Expo Go 54.
+// Expo Go. expo-secure-store, expo-crypto y aes-js corren en Expo Go 57.
 // =====================================================================
 class LargeSecureStore {
   private async _encrypt(key: string, value: string): Promise<string> {
@@ -88,3 +89,17 @@ export const supabase = createClient(supabaseUrl ?? "", supabaseAnonKey ?? "", {
     detectSessionInUrl: false,
   },
 });
+
+// `autoRefreshToken` arranca el timer al crear el cliente, pero el timer no
+// sobrevive al background: si la app estuvo dormida un rato largo, al volver
+// arranca con el access token vencido y la primera query se come el 401. El
+// patrón de Supabase para React Native es atarlo a `AppState` —refrescar al
+// volver a primer plano y dejar de intentarlo en el fondo, donde el refresh
+// falla y gasta red. Se registra una sola vez y fuera de React a propósito:
+// el cliente es un singleton del módulo, no estado de un componente.
+if (Platform.OS !== "web") {
+  AppState.addEventListener("change", (state) => {
+    if (state === "active") supabase.auth.startAutoRefresh();
+    else supabase.auth.stopAutoRefresh();
+  });
+}

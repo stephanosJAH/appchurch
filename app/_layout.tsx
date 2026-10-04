@@ -12,11 +12,11 @@ import {
   SourceSerif4_700Bold,
   useFonts,
 } from "@expo-google-fonts/source-serif-4";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { ActivityIndicator, Image, View } from "react-native";
+import { ActivityIndicator, AppState, AppStateStatus, Image, Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Body, Button, Screen } from "../components/ui";
@@ -32,6 +32,14 @@ const queryClient = new QueryClient({
 
 // Logger de tiempos de queries (solo en desarrollo).
 if (__DEV__) attachQueryLogger(queryClient);
+
+// React Query detecta el foco con las APIs del navegador, que en React Native
+// no existen: sin esto `refetchOnWindowFocus` nunca se dispara y al volver la
+// app a primer plano el feed —y el badge de anuncios— siguen mostrando lo que
+// había al irse. `staleTime` (30s) sigue cortando los refetch de ida y vuelta.
+function onAppStateChange(status: AppStateStatus) {
+  if (Platform.OS !== "web") focusManager.setFocused(status === "active");
+}
 
 function Loader() {
   return (
@@ -152,6 +160,11 @@ export default function RootLayout() {
     SourceSans3_600SemiBold,
     SourceSans3_700Bold,
   });
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", onAppStateChange);
+    return () => sub.remove();
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

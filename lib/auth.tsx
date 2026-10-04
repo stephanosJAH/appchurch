@@ -59,6 +59,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const prevUserId = lastUserId;
       lastUserId = s?.user?.id ?? null;
       setSession(s);
+      // Cambió de cuenta o cerró sesión: la caché del usuario anterior se
+      // BORRA, no se invalida. Invalidar sólo la marca stale y React Query
+      // sigue sirviendo los datos viejos mientras refetchea —y sin red los
+      // sirve indefinidamente—, así que quien entre después vería el padrón,
+      // los grupos y los anuncios del anterior. Varias claves (`["miembros"]`,
+      // `["mi-grupo"]`) no llevan el uid, así que tampoco alcanza con que la
+      // key cambie sola. El caso peor: Perfil llama a `useMiembros()` para
+      // todos, así que la caché de un admin tiene el padrón con las notas.
+      if (prevUserId && prevUserId !== lastUserId) {
+        if (__DEV__) console.log(`[auth] ✖ cambió la cuenta (${label}) — borrando caché`);
+        qc.removeQueries();
+      }
       // El token pasó de ausente a presente (o cambió de usuario): refetch de
       // todo (incluida la query del perfil, keyed por uid) para reemplazar los
       // resultados vacíos por los reales.
