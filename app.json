@@ -4,7 +4,7 @@
     "slug": "appchurch",
     "version": "1.1.0",
     "orientation": "portrait",
-    "icon": "./assets/icon-pda.png",
+    "icon": "./assets/icon-pda-centro.png",
     "scheme": "appchurch",
     "userInterfaceStyle": "light",
     "backgroundColor": "#ffffff",
@@ -14,8 +14,8 @@
     "android": {
       "package": "com.ampiup.appchurch",
       "adaptiveIcon": {
-        "backgroundColor": "#1F2A39",
-        "foregroundImage": "./assets/android-icon-pda.png"
+        "backgroundColor": "#5A7299",
+        "foregroundImage": "./assets/android-icon-pda-centro.png"
       },
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false

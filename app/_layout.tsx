@@ -16,7 +16,15 @@ import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { ActivityIndicator, AppState, AppStateStatus, Image, Platform, View } from "react-native";
+import {
+  ActivityIndicator,
+  AppState,
+  AppStateStatus,
+  Image,
+  ImageBackground,
+  Platform,
+  View,
+} from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Body, Button, Screen } from "../components/ui";
@@ -43,16 +51,24 @@ function onAppStateChange(status: AppStateStatus) {
 
 function Loader() {
   return (
-    <Screen className="items-center justify-center gap-6">
-      {/* El JPG viene con esquinas blancas: el borderRadius las recorta
-          para que el círculo apoye limpio sobre el crema. */}
+    // El fondo es 1920x1080 apaisado: con `cover` en vertical queda la franja
+    // central, donde se cruzan el azul claro y el oscuro.
+    <ImageBackground
+      source={require("../assets/images-2/FONDO.jpg")}
+      resizeMode="cover"
+      style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 24 }}
+    >
+      {/* Fondo oscuro: íconos de la barra de estado en blanco mientras carga. */}
+      <StatusBar style="light" />
+      {/* Mismo recorte que el ícono de la app. Cuadrado redondeado y no
+          círculo: el logo ocupa ~2/3 del ancho y un círculo le come las puntas. */}
       <Image
-        source={require("../assets/logo-pda.jpg")}
-        style={{ width: 96, height: 96, borderRadius: 48 }}
+        source={require("../assets/logo-pda-centro.jpg")}
+        style={{ width: 128, height: 128, borderRadius: 28 }}
         resizeMode="cover"
       />
-      <ActivityIndicator size="large" color={colors.primary} />
-    </Screen>
+      <ActivityIndicator size="large" color={colors.onPrimary} />
+    </ImageBackground>
   );
 }
 

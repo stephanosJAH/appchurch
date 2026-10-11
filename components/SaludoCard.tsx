@@ -17,13 +17,13 @@ import { Display, Label, Muted } from "./ui";
 //
 // `require` necesita rutas literales: el bundler resuelve los assets en build,
 // no se puede armar el path con una variable. Por eso la lista es estática.
+//
+// Los fondos de images-2 son 1920x1080 y la tarjeta es cuadrada: con `cover`
+// el recorte centrado se comía el logo de la esquina inferior derecha. Por eso
+// se usan versiones ya recortadas a 1080x1080 anclado a la derecha (y
+// recomprimidas, ~175 KB contra ~900 KB del original).
 const FONDOS: ImageSourcePropType[] = [
-  require("../assets/images/jeren-emlano-ZRD3zrbNkEg-unsplash.jpg"),
-  require("../assets/images/marek-piwnicki-rwcONvax9qE-unsplash.jpg"),
-  require("../assets/images/matthew-mosbauer-NNmomR7Ppm4-unsplash.jpg"),
-  require("../assets/images/mike-hindle-OndxaYyxsS0-unsplash.jpg"),
-  require("../assets/images/peter-herrmann-2iaFrHDRzWY-unsplash.jpg"),
-  require("../assets/images/spencer-plouzek-yUHvuCwpeeE-unsplash.jpg"),
+  require("../assets/images-2/fondo-logo-1080.jpg"),
 ];
 
 export function SaludoCard({ nombre, className }: { nombre: string; className?: string }) {
