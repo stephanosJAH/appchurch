@@ -286,6 +286,11 @@ export default function Perfil() {
             <Row icon="archive-outline" label="Discipulados dados de baja" onPress={() => router.push("/admin/bajas")} />
             <Row icon="sparkles-outline" label="Ministerios" onPress={() => router.push("/admin/ministerios")} />
             <Row icon="megaphone-outline" label="Actividades / Eventos" onPress={() => router.push("/admin/eventos")} />
+            {/* Reunión del cuerpo de obreros: participantes + acta. No cuelga de
+                un discipulado ni de un ministerio y no registra ofrenda, así que
+                no aparece en las tarjetas de gestión de arriba ni en Ofrendas.
+                Ver supabase/migrations/0031_reuniones_obreros.sql. */}
+            <Row icon="clipboard-outline" label="Reunión de obreros" onPress={() => router.push("/admin/reuniones-obreros")} />
             {/* Único lugar que suma los dos libros (discipulados + ministerios);
                 las tarjetas de arriba siguen yendo a uno solo. */}
             <Row icon="wallet-outline" label="Ofrendas" onPress={() => router.push("/admin/ofrendas")} last />

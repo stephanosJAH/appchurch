@@ -19,6 +19,8 @@
 | 8 | MEDIA | Sin reset de contraseña ni política de fortaleza | [—] diferido → [`SECURITY-DIFERIDOS.md`](./SECURITY-DIFERIDOS.md) |
 | 9 | BAJA | Anon key en `eas.json` (aceptable, depende de RLS) | [ ] |
 | 10 | BAJA | Sin certificate pinning | [ ] |
+| 11 | ALTA | `profiles.miembro_id` auto-editable → IDOR de PII | [x] `0029_profiles_columnas_editables.sql` |
+| 12 | MEDIA | Policies `for all` en los dos libros de reuniones habilitan DELETE/UPDATE por REST | [x] `0032_reuniones_solo_lectura.sql` |
 
 **El patrón de fondo**: la app delega correctamente la autorización al backend,
 pero las policies de RLS tienen agujeros que anulan esa protección. Como
@@ -226,6 +228,35 @@ anónimo con solo la anon key pública (embebida en el bundle y en `eas.json`).
 - **Descripción**: Todo HTTPS con `*.supabase.co` (bien, sin cleartext). Sin pinning: un atacante con CA instalada en el dispositivo (MITM) podría inspeccionar tráfico.
 - **Impacto**: Bajo para el modelo de amenaza típico.
 - **Remediación**: Opcional. Requiere config nativa (development build). No prioritario frente a RLS.
+
+## 11. ALTA — `profiles.miembro_id` auto-editable: IDOR sobre la PII de cualquier persona
+
+> Este hallazgo se registró en [`SDD.md`](./SDD.md) §5.9 y nunca se copió acá; se
+> backfillea para que la numeración de los dos documentos coincida. **El detalle
+> completo está en el SDD**; esto es el resumen.
+
+- **Ubicación**: `prof_update_self` (`supabase/migrations/0002_rls.sql`), explotable a partir de `0016`/`0018`.
+- **Descripción**: `0016`/`0018` convirtieron `profiles.miembro_id` en una **clave de autorización** (`mis_datos`, `guardar_mis_datos`, `mi_grupo`, `participo_del_ministerio` resuelven "cuál es mi ficha" por ese link), pero `prof_update_self` nunca acotó **qué columnas** podía editar alguien de su propio perfil.
+- **Explotabilidad**: Un `miembro` podía apuntar su `miembro_id` a la ficha de otra persona y leer/escribir su PII.
+- **Estado**: RESUELTO en `supabase/migrations/0029_profiles_columnas_editables.sql`, que revoca el UPDATE de tabla sobre `profiles` y otorga sólo las columnas que el cliente necesita editar.
+
+## 12. MEDIA — Policies `for all` en reuniones/asistencias permiten DELETE y UPDATE directos por REST
+
+- **Ubicación**: `supabase/migrations/0002_rls.sql:45` (`reu_all`), `:51` (`asis_all`); `supabase/migrations/0025_reuniones_ministerio.sql:67` (`reumin_all`), `:73` (`asismin_all`).
+- **Descripción**: Las cuatro policies se crearon como `for all`, que cubre SELECT, INSERT, UPDATE y DELETE con la misma condición. El `using` sólo pregunta "¿sos el discipulador del grupo / líder del ministerio?", así que ese permiso —pensado para leer— también habilitaba escribir y borrar.
+- **Explotabilidad**: Un discipulador o líder autenticado, con la anon key pública y cualquier cliente REST, podía: (a) `DELETE` una reunión, y como `asistencias` cuelga con `on delete cascade`, llevarse la asistencia entera; (b) `UPDATE` de `ofrenda_total` sin pasar por el RPC y sin dejar rastro; (c) `UPDATE` de `registrado_por`, la columna de auditoría que `0023` y `0025` declaran como "no se pisa". No requiere escalar privilegios: alcanza con el permiso que ya tiene sobre su propio grupo.
+- **Impacto**: Pérdida de datos contables y de asistencia, y falsificación de la auditoría. La UI nunca ofreció borrar, así que la garantía de "**Borrar no existe**" que afirmaban [`ROLES-Y-PERMISOS.md`](./ROLES-Y-PERMISOS.md) y `SDD.md` §4.4 era **de la pantalla, no de la base**: valía hasta que alguien mirara el tráfico de la app y repitiera el request a mano.
+- **Remediación**: Separar las policies por operación. Como ninguna de las cuatro tablas se escribe desde el cliente (verificado: en `lib/queries/reuniones.ts` y `lib/queries/ministerios.ts` aparecen sólo con `.select()`) y toda la escritura pasa por los RPC `security definer` `registrar_reunion` (`0023`) y `registrar_reunion_ministerio` (`0025`), alcanza con dejarlas en `for select`.
+- **Estado (2026-10-05)**: RESUELTO en `supabase/migrations/0032_reuniones_solo_lectura.sql`.
+  Las cuatro pasaron a `for select` **con los mismos `using`**, así que quién puede
+  leer qué no cambió y ningún `select` de la app cambia de resultado. Al no haber
+  policy de insert/update/delete, el RPC definer queda como único camino de
+  escritura y "borrar no existe" pasa a estar garantizado por construcción. Es el
+  criterio con el que nacieron `reuniones_obreros` / `asistencias_obreros` (`0031`).
+  - **Si alguna vez hace falta escribir directo**: el camino es un RPC definer
+    nuevo (o ampliar el existente), **no** devolverle el `for all` a la tabla.
+  - **Detectado**: al diseñar `0031`, comparando el modelo de permisos del libro
+    nuevo contra los dos que ya existían.
 
 ---
 

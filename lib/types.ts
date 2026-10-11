@@ -303,3 +303,46 @@ export type AsistenciaInput = {
   presente: boolean;
   modalidad: Modalidad | null;
 };
+
+/* ===================== Reunión de obreros (0031) ===================== */
+// Entidad propia: no cuelga de un discipulado ni de un ministerio, y no tiene
+// ofrenda. Ver la cabecera de supabase/migrations/0031_reuniones_obreros.sql.
+
+export type ReunionObreros = {
+  id: string;
+  fecha: string; // "YYYY-MM-DD"
+  tema: string | null;
+  resumen: string | null; // acta, en el formato de marcas de lib/richText.ts
+  registrado_por: string | null;
+  editado_por: string | null;
+  editado_en: string | null;
+  created_at: string;
+};
+
+// Fila del listado (RPC `reuniones_obreros_listado`): trae los conteos ya
+// resueltos y los nombres en vez de los uuid de `profiles`.
+export type ReunionObrerosListado = {
+  id: string;
+  fecha: string;
+  tema: string | null;
+  resumen: string | null;
+  presentes: number;
+  total_registrados: number;
+  registrado_por_nombre: string | null;
+  editado_por_nombre: string | null;
+  editado_en: string | null;
+};
+
+// Participante de una reunión concreta, con el nombre del padrón resuelto.
+export type AsistenciaObreros = {
+  reunion_id: string;
+  miembro_id: string;
+  presente: boolean;
+};
+
+// Item del checklist que viaja al RPC `registrar_reunion_obreros`. Sin
+// `modalidad`: la reunión de obreros es presencial (ver 0031).
+export type AsistenciaObrerosInput = {
+  miembro_id: string;
+  presente: boolean;
+};

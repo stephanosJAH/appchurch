@@ -73,6 +73,12 @@ export default function AdminIndex() {
           onPress={() => router.push("/admin/eventos")}
         />
         <MenuItem
+          icon="clipboard-outline"
+          title="Reunión de obreros"
+          subtitle="Participantes y acta de lo tratado"
+          onPress={() => router.push("/admin/reuniones-obreros")}
+        />
+        <MenuItem
           icon="wallet-outline"
           title="Ofrendas"
           subtitle="Resumen mensual · discipulados y ministerios"

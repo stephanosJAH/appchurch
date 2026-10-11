@@ -667,7 +667,7 @@ escriba `adjunto_url`, no se confía en el valor guardado — así no se dispara
 
 ### 5.9 Historial de revisiones de seguridad
 
-Tres revisiones documentadas, con 11 hallazgos numerados:
+Tres revisiones documentadas, con 12 hallazgos numerados:
 
 | # | Sev. | Hallazgo | Estado |
 |---|---|---|---|
@@ -682,6 +682,7 @@ Tres revisiones documentadas, con 11 hallazgos numerados:
 | 9 | BAJA | Anon key en `eas.json` | **Aceptado** (la seguridad recae en RLS) |
 | 10 | BAJA | Sin certificate pinning | **Abierto** |
 | 11 | ALTA | `profiles.miembro_id` era auto-editable → IDOR de PII | **Resuelto** (`0029`) |
+| 12 | MEDIA | `for all` en los dos libros de reuniones → DELETE/UPDATE por REST | **Resuelto** (`0032`) |
 
 > **Hallazgo #11 — resuelto en `0029`.** `0016`/`0018` convirtieron
 > `profiles.miembro_id` en una **clave de autorización** (`mis_datos`,

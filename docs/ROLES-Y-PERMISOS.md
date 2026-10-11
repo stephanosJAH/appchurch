@@ -153,6 +153,15 @@ Leyenda de alcance en las matrices siguientes:
 > cargar la reunión de su grupo puede corregirla. **Borrar no existe** para
 > nadie, ni admin.
 >
+> Desde `0032` eso está garantizado **por la base y no por la UI**: las policies
+> de `reuniones` y `asistencias` son **sólo de `select`** (antes eran `for all`,
+> que además de leer habilitaba `DELETE` y `UPDATE` directos por REST, incluido
+> pisar `ofrenda_total` y `registrado_por`). La escritura pasa exclusivamente
+> por el RPC definer `registrar_reunion`. Lo mismo vale para
+> `reuniones_ministerio` / `asistencias_ministerio`. **Si alguna vez hace falta
+> escribir directo, el camino es un RPC definer, no devolverle el `for all` a la
+> tabla.**
+>
 > **Nota de PII**: la lista de presentes es la única superficie donde un
 > `miembro` ve a un **menor de edad** (el `directorio` los excluye desde `0017`).
 > Se acota a nombre y apellido — sin teléfono, sin cumpleaños, sin edad — y solo
@@ -209,6 +218,44 @@ y un líder de ministerio **puede ser `miembro`**. Ver [`MINISTERIOS.md`](./MINI
 > `reuniones_ministerio`, no en `reuniones` (decisión de producto, `0025`). Son
 > dos libros y no se mezclan; `app/ofrendas.tsx` los muestra con un parámetro
 > `origen`.
+
+### Reunión de obreros — `reuniones_obreros`, `asistencias_obreros`
+
+La reunión del cuerpo de obreros: participantes + **acta de lo tratado**
+(ministerios y sus actividades, organización de limpiezas, trabajo de la
+iglesia). **No cuelga de ningún grupo** y **no registra ofrenda**. Ver
+[`REUNION-OBREROS.md`](./REUNION-OBREROS.md) y la cabecera de `0031`.
+
+| Acción | `pendiente` | `miembro` | `obrero` | `admin` |
+|---|:---:|:---:|:---:|:---:|
+| Ver que hubo reuniones | ✗ | ✗ | ✗ | ✓ |
+| Leer el acta | ✗ | ✗ | ✗ | ✓ |
+| Registrar / editar (acta + participantes) | ✗ | ✗ | ✗ | ✓ |
+| Borrar | ✗ | ✗ | ✗ | ✗ |
+
+> **Es el único recurso de gestión cerrado a `obrero`**, y es a propósito. La
+> alternativa —abrirlo a cualquier `obrero`— obliga a definir *quiénes son el
+> cuerpo de obreros*, y hoy ese conjunto no está modelado: el rol `obrero`
+> significa "líder que gestiona sus grupos", que no es necesariamente la misma
+> gente que se sienta en la reunión (un líder de ministerio puede ser
+> `miembro`). Mientras esa pregunta esté abierta, el acta la carga el admin
+> desde **Perfil → Administración → Reunión de obreros**. El día que se cierre,
+> **lo único que cambia es la policy de `select`**: se reemplaza `es_admin()`
+> por un helper de pertenencia, sin tocar datos ni RPC.
+>
+> **Borrar no existe, y acá está garantizado por construcción**: las dos tablas
+> tienen **sólo policy de `select`**. Sin policy de insert/update/delete, el RPC
+> definer `registrar_reunion_obreros` es el único camino de escritura, así que
+> no hay `DELETE` posible por REST ni forma de pisar `registrado_por`. Los otros
+> dos libros se alinearon a este criterio en `0032`.
+>
+> **Auditoría**: `registrado_por` guarda quién la cargó y no se pisa;
+> `editado_por` / `editado_en` guardan la última corrección (el acta es un
+> texto largo que varios admins pueden retocar). Ninguna de las tres es parte
+> de un chequeo de permiso.
+>
+> **La asistencia va contra `miembros`**, no contra `profiles`: un obrero que no
+> usa la app igual participa de la reunión y tiene que poder marcarse presente.
 
 ### Contenido de la red — `eventos` / actividades, `anuncios`
 

@@ -98,7 +98,7 @@ synthetic `...@u.appchurch.app` address for Supabase's email/password provider.
 This depends on **email confirmation being OFF** in the Supabase Auth dashboard
 (intentional product decision, not a bug) — see `supabase/README.md`.
 
-### Domain model: four separate "things", not one polymorphic one
+### Domain model: five separate "things", not one polymorphic one
 
 - **`discipulados`** — a standing group with a roster, **one** leader, and tracked
   attendance/offerings per meeting (`reuniones` + `asistencias`, written via the
@@ -113,6 +113,12 @@ This depends on **email confirmation being OFF** in the Supabase Auth dashboard
   8pm"), informative only, no attendance tracking. `dias_semana` is an array —
   one activity can repeat on multiple days with one shared time.
 - **`eventos`** — one-off event with a concrete start/end date.
+- **`reuniones_obreros`** — the leadership body's meeting: participants + a
+  **minute of what was discussed** (`resumen`, rich text). **No owning group and
+  no offering** — it is not a third ledger. Admin-only, reached from Perfil →
+  Administración. Don't create an "Obreros" *ministerio* to host it: a ministerio
+  is an *area* of the church, not the body that runs it. See
+  `docs/REUNION-OBREROS.md` and the header of `0031`.
 
 These are intentionally separate tables/screens, not a shared "activity" model.
 See `docs/ACTIVIDADES-Y-EVENTOS.md` and `docs/MINISTERIOS.md` for the open design
@@ -124,6 +130,14 @@ the SQL is duplicated because the two ledgers are separate by product decision.
 A fix to one goes into the other, always; both headers say so. The *UI* is not
 duplicated: `reunion/nueva.tsx`, `reunion/[id].tsx` and `ofrendas.tsx` are shared
 and branch on an `origen` param.
+
+`registrar_reunion_obreros` (`0031`) is a **partial** mirror of those two: only
+the attendance mechanics (additive insert on create, payload-is-final on edit)
+are shared and must stay in sync across all three. Its body is otherwise its own
+— no offering, no `modalidad`, admin-gated — and `app/admin/reuniones-obreros.tsx`
+is a **separate screen on purpose**: `reunion/nueva.tsx` already carries 29
+`esMinisterio` branches, and this form's fields differ, so a third `origen` would
+make it three forms in one file.
 
 `miembros` (full PII: email, notes) vs. the `directorio` view (safe subset:
 name, birthday, phone — adults only, filtered by RLS) are different exposure
@@ -168,6 +182,13 @@ Cream background, deep navy primary, gold/tertiary accents; serif
 primitives (`Display`/`Headline`/`Title`/`Body`) and form/card components. Prefer
 these over raw `Text`/`View` + Tailwind classes when a matching primitive exists.
 
+**`Button` does not merge `className`.** `ButtonProps` extends `PressableProps`
+and the component spreads `{...props}` *after* its own computed `className`, so
+passing one **replaces** the whole class string and silently strips the
+background, padding and rounding — the button renders as bare text. It
+type-checks fine, so `tsc` won't catch it. Put layout (`mb-*`, `flex-1`,
+`self-start`) on a wrapping `View`, which is what every screen does.
+
 ## Reference docs
 
 - `docs/SDD.md` — software design document: architecture, data model, security
@@ -178,6 +199,10 @@ these over raw `Text`/`View` + Tailwind classes when a matching primitive exists
   **deferred by product decision** (open registration, no email verification) —
   check `docs/SECURITY-DIFERIDOS.md` before treating those as bugs to fix
 - `docs/ACTIVIDADES-Y-EVENTOS.md` — actividades/eventos data model + open questions
+- `docs/REUNION-OBREROS.md` — reunión de obreros (`0031`): why it isn't a
+  ministerio/actividad/third ledger, why it's admin-only for now, and what it
+  defers (who "the body of obreros" is, the Sunday service, the `for all`
+  policies on the two existing meeting tables)
 - `docs/MINISTERIOS.md` — ministerios (areas/departments): data model,
   authorization, phases, and what shipped vs. what was designed. Phases A-C are
   implemented (`0024`-`0026`); push notifications (D) are out of scope
