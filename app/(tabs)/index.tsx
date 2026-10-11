@@ -12,6 +12,7 @@ import { DirectorioList } from "../../components/Directorio";
 import { EventosSemana, eventosDeLaSemana } from "../../components/EventosSemana";
 import { Paneles } from "../../components/Paneles";
 import { UltimaPredicacion } from "../../components/Predicaciones";
+import { RedesSociales } from "../../components/RedesSociales";
 import { SaludoCard } from "../../components/SaludoCard";
 import {
   Body,
@@ -337,6 +338,9 @@ export default function Dashboard() {
               feed —se dibuja siempre, con datos o sin ellos—, por eso su
               separador no va condicionado a nada. */}
           <UltimaPredicacion className="mb-6 mt-3" />
+
+          {/* Redes de la iglesia: cierre fijo del feed. */}
+          <RedesSociales className="mb-6 mt-3" />
 
           {/* Accesos rápidos 
           {hayAccesos && <Separador />}
