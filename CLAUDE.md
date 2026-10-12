@@ -168,8 +168,10 @@ session). Don't swap this back to a plain AsyncStorage adapter.
 
 ### Storage buckets
 
-`adjuntos` (event/activity flyers) is **public by design** — read publicly,
-write admin-only, paths use `Crypto.randomUUID()` for non-enumerability.
+`adjuntos` (event/activity flyers, ministry header images) is **public by
+design** — read publicly, write admin-only except `ministerios/<id>/…`, which
+that ministry's leaders can write (`0033`); paths use `Crypto.randomUUID()` for
+non-enumerability.
 `materiales` (lesson docs, not yet used by any screen) is private, scoped to
 `<uid>/...` folders. Any URL opened via `Linking` must go through
 `abrirAdjunto()` in `lib/storage.ts`, which validates `https://` before opening.

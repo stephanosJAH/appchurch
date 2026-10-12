@@ -257,7 +257,9 @@ lo creó y otra para los demás.
   para tres audiencias (cualquier miembro / participante / líder), y el corte lo
   da `soy_lider`, no el rol.
 - `app/ministerio/editar.tsx` — alta/edición. Admin crea, asigna líderes y da de
-  baja; el líder edita nombre, ícono y descripción.
+  baja; el líder edita nombre, ícono, descripción e imagen de fondo del
+  encabezado (`imagen_url`, bucket `adjuntos/ministerios/<id>/`, 0033). Sin
+  imagen, el encabezado usa la acuarela del detalle de discipulado.
 - `app/ministerio/integrantes.tsx` — gestión del roster: buscar en el padrón,
   crear la ficha de quien no está, dar de baja.
 - `app/admin/ministerios.tsx` — ABM, espejo de `admin/discipulados.tsx`. Los

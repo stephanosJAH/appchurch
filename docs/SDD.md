@@ -653,7 +653,7 @@ hallazgo de seguridad #4.
 
 | Bucket | Público | Lee | Escribe | Uso actual |
 |---|---|---|---|---|
-| `adjuntos` | **Sí, por diseño** | Cualquiera con la URL | Solo admin | Flyers de eventos y actividades |
+| `adjuntos` | **Sí, por diseño** | Cualquiera con la URL | Admin; líderes de un ministerio en `ministerios/<id>/…` (0033) | Flyers de eventos y actividades; fondo del encabezado de ministerios |
 | `materiales` | No | Autenticado | Dueño de la carpeta `<uid>/…` o admin | **Ninguno** (scaffolding de Fase 2) |
 
 `adjuntos` es público porque son flyers pensados para difusión. Para que la URL no

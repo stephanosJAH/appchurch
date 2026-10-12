@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
@@ -27,7 +27,7 @@ import {
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { formatHora } from "../../lib/date";
-import { cardShadow, colors } from "../../lib/theme";
+import { acuarela, cardShadow, colors } from "../../lib/theme";
 import { DIAS_SEMANA } from "../../lib/types";
 import { useActividadesActivas } from "../../lib/queries/actividades";
 import { useDirectorio } from "../../lib/queries/directorio";
@@ -60,22 +60,24 @@ type GrupoDelFeed = {
 // No usa `Card`: su `bg-surface` blanco chocaría con el navy (dos clases de
 // fondo en el mismo className no garantizan cuál gana), igual que en
 // components/SaludoCard.tsx. El degradado es el nativo de RN 0.86
-// (`experimental_backgroundImage`), con `bg-navy` de piso si no está.
+// (`experimental_backgroundImage`), con el extremo oscuro de piso si no está.
 function GrupoDestacado({ g, onPress }: { g: GrupoDelFeed; onPress: () => void }) {
   return (
     <View
       style={[
         cardShadow,
         {
-          experimental_backgroundImage: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryContainer} 100%)`,
+          backgroundColor: acuarela.degradeOscuro,
+          experimental_backgroundImage: `linear-gradient(120deg, ${acuarela.degradeOscuro} 14%, ${acuarela.degradeClaro} 100%)`,
         },
       ]}
-      className="mb-4 overflow-hidden rounded-2xl bg-navy p-5"
+      className="mb-4 overflow-hidden rounded-2xl p-5"
     >
       {/* El emblema que antes ocupaba la banda de 112px: ahora sangra por la
-          esquina al 10%, sin comerse un tercio de la tarjeta. */}
+          esquina al 10%, sin comerse un tercio de la tarjeta. La cruz sale de
+          MaterialCommunityIcons porque Ionicons no tiene una. */}
       <View pointerEvents="none" style={{ position: "absolute", right: -20, bottom: -30 }} className="opacity-10">
-        <Ionicons name="book" size={150} color={colors.tertiaryDim} />
+        <MaterialCommunityIcons name="cross" size={150} color={colors.tertiaryDim} />
       </View>
       <Chip tone="gold">{g.lidero ? "Tu discipulado" : "Donde participás"}</Chip>
       <View className="mt-3.5 flex-row items-center gap-1.5">

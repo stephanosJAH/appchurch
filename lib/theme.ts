@@ -51,6 +51,19 @@ export const colors = {
   hairline: "rgba(26, 43, 68, 0.10)", // borde navy tenue
 };
 
+// Azules de la acuarela de fondo (assets/images-2/FONDO.jpg), por ahora solo en
+// el encabezado del detalle de discipulado y de ministerio. No reemplazan a `primary`: el resto
+// de la app sigue en el navy de arriba hasta que se decida llevarlos a todo.
+export const acuarela = {
+  medianoche: "#202f56", // barra de navegación y unión con la foto
+  velo: "rgba(16, 25, 56, 0.40)", // tinte plano para que el texto blanco contraste
+  panel: "rgba(16, 25, 56, 0.55)", // recuadro de "Próxima reunión" sobre la foto
+  // Degradado de la tarjeta del discipulado en Inicio: del tono más oscuro de
+  // la imagen al índigo, sin salir de la gama de la acuarela.
+  degradeOscuro: "#101938", // abismo
+  degradeClaro: "#324266", // índigo
+};
+
 // Nombres de familia que expone @expo-google-fonts (cargadas en el root layout).
 export const fonts = {
   serifSemibold: "SourceSerif4_600SemiBold",

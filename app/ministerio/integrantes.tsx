@@ -1,10 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { ActivityIndicator, Alert, Pressable, View } from "react-native";
+import { ActivityIndicator, Alert, View } from "react-native";
+import { BuscadorPersonas, ListaPersonas } from "../../components/SelectorPersonas";
 import {
-  Avatar,
-  Body,
   Button,
   Card,
   Field,
@@ -24,7 +23,7 @@ import {
   useSoyLiderDe,
 } from "../../lib/queries/ministerios";
 import { colors } from "../../lib/theme";
-import { CandidatoMinisterio, IntegranteMinisterio, Sexo } from "../../lib/types";
+import { IntegranteMinisterio, Sexo } from "../../lib/types";
 
 // Gestión del roster de un ministerio: sumar gente del padrón, crear la ficha
 // de quien todavía no está, y dar de baja a quien dejó de participar.
@@ -56,10 +55,16 @@ export default function IntegrantesMinisterio() {
   const quitar = useQuitarIntegrante(ministerioId);
 
   const [busqueda, setBusqueda] = useState("");
-  const { data: candidatos = [], isFetching: buscando } = useCandidatosMinisterio(
-    ministerioId,
-    busqueda
-  );
+  const {
+    data: candidatos = [],
+    isFetching,
+    isPending,
+    error: errorBusqueda,
+  } = useCandidatosMinisterio(ministerioId, busqueda);
+  // `isPending` además de `isFetching`, como en discipulado/discipulos.tsx: con
+  // una key nueva la query todavía no arrancó en el primer render y, sin esto,
+  // asomaba un frame de "no encontramos a nadie".
+  const buscando = isFetching || (isPending && !errorBusqueda);
 
   const [showForm, setShowForm] = useState(false);
   const [nombre, setNombre] = useState("");
@@ -69,9 +74,9 @@ export default function IntegrantesMinisterio() {
 
   const activos = integrantes.filter((i) => i.activo);
 
-  const onAgregar = async (c: CandidatoMinisterio) => {
+  const onAgregar = async (miembroId: string) => {
     try {
-      await agregar.mutateAsync(c.id);
+      await agregar.mutateAsync(miembroId);
       setBusqueda("");
     } catch (e: any) {
       Alert.alert("Error", e.message ?? "No se pudo sumar a esta persona.");
@@ -133,54 +138,22 @@ export default function IntegrantesMinisterio() {
 
       {/* Sumar gente */}
       <Label className="mb-1.5">Sumar al ministerio</Label>
-      <Field
-        icon="search-outline"
-        value={busqueda}
-        onChangeText={setBusqueda}
+      <BuscadorPersonas
+        busqueda={busqueda}
+        onBusqueda={setBusqueda}
+        candidatos={candidatos.map((c) => ({
+          id: c.id,
+          nombre: nombreCompleto(c),
+          detalle: c.telefono_parcial,
+        }))}
+        onAgregar={(p) => onAgregar(p.id)}
         placeholder="Buscar en el padrón por nombre o teléfono"
-        autoCapitalize="words"
-        autoCorrect={false}
+        minCaracteres={2}
+        buscando={buscando}
+        error={errorBusqueda ? `No se pudo buscar en el padrón: ${errorBusqueda.message}` : null}
+        agregando={agregar.isPending}
+        sinResultados="No encontramos a nadie con ese nombre en el padrón (o ya está en el ministerio). Podés crear la ficha más abajo."
       />
-
-      {busqueda.trim().length > 0 && busqueda.trim().length < 2 ? (
-        <Muted className="mb-4">Escribí al menos dos letras.</Muted>
-      ) : null}
-
-      {busqueda.trim().length >= 2 && (
-        <View className="mb-4">
-          {buscando ? (
-            <View className="items-center py-3">
-              <ActivityIndicator color={colors.primary} />
-            </View>
-          ) : candidatos.length === 0 ? (
-            <Card>
-              <Muted>
-                No encontramos a nadie con ese nombre en el padrón (o ya está en el
-                ministerio). Podés crear la ficha más abajo.
-              </Muted>
-            </Card>
-          ) : (
-            <View className="gap-2.5">
-              {candidatos.map((c) => (
-                <Card key={c.id} className="flex-row items-center gap-3 py-3.5">
-                  <Avatar name={c.nombre} size={38} tone="gold" />
-                  <View className="flex-1">
-                    <Body className="text-ink">{nombreCompleto(c)}</Body>
-                    {c.telefono_parcial ? <Muted>{c.telefono_parcial}</Muted> : null}
-                  </View>
-                  <Button
-                    title="Sumar"
-                    variant="outline"
-                    size="sm"
-                    onPress={() => onAgregar(c)}
-                    loading={agregar.isPending}
-                  />
-                </Card>
-              ))}
-            </View>
-          )}
-        </View>
-      )}
 
       {/* Alta de una ficha nueva */}
       <View className="mb-2 flex-row items-center justify-between">
@@ -238,25 +211,19 @@ export default function IntegrantesMinisterio() {
         <View className="items-center py-4">
           <ActivityIndicator color={colors.primary} />
         </View>
-      ) : activos.length === 0 ? (
-        <Card>
-          <Muted>Todavía no hay nadie en este ministerio.</Muted>
-        </Card>
       ) : (
-        <View className="gap-2.5">
-          {activos.map((i) => (
-            <Card key={i.miembro_id} className="flex-row items-center gap-3 py-3.5">
-              <Avatar name={i.nombre} size={38} tone="gold" />
-              <View className="flex-1">
-                <Body className="text-ink">{nombreCompleto(i)}</Body>
-                {i.telefono ? <Muted>{i.telefono}</Muted> : null}
-              </View>
-              <Pressable onPress={() => onQuitar(i)} hitSlop={10} className="active:opacity-60">
-                <Ionicons name="person-remove-outline" size={20} color={colors.error} />
-              </Pressable>
-            </Card>
-          ))}
-        </View>
+        <ListaPersonas
+          personas={activos.map((i) => ({
+            id: i.miembro_id,
+            nombre: nombreCompleto(i),
+            detalle: i.telefono,
+          }))}
+          vacio="Todavía no hay nadie en este ministerio."
+          onQuitar={(p) => {
+            const i = activos.find((a) => a.miembro_id === p.id);
+            if (i) onQuitar(i);
+          }}
+        />
       )}
 
       {integrantes.length > activos.length ? (

@@ -4,7 +4,9 @@ import { StatusBar } from "expo-status-bar";
 import { PropsWithChildren, useMemo } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Dato } from "../../components/Dato";
 import { FechaBloque } from "../../components/FechaBloque";
+import { FondoEncabezado } from "../../components/FondoEncabezado";
 import {
   Avatar,
   Body,
@@ -34,7 +36,7 @@ import {
   proximaOcurrencia,
   toISODate,
 } from "../../lib/date";
-import { cardShadow, colors, fonts } from "../../lib/theme";
+import { acuarela, colors, fonts } from "../../lib/theme";
 import { DIAS_SEMANA, Modalidad, Participacion, SexoDiscipulado } from "../../lib/types";
 import { useDiscipulado } from "../../lib/queries/discipulados";
 import { nombreDePerfil } from "../../lib/queries/profiles";
@@ -179,29 +181,6 @@ function Seccion({
   );
 }
 
-// Tarjeta de un número del resumen. `adjustsFontSizeToFit`: una ofrenda de
-// siete cifras tiene que entrar en un tercio de pantalla.
-function Dato({ valor, titulo, detalle }: { valor: string; titulo: string; detalle: string }) {
-  return (
-    <Card className="flex-1 px-3 py-3.5" style={cardShadow}>
-      <Text
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        style={{ fontFamily: fonts.serifBold, fontSize: 22, lineHeight: 28 }}
-        className="text-navy"
-      >
-        {valor}
-      </Text>
-      <Text style={{ fontFamily: fonts.sans }} className="text-[13px] text-ink-variant">
-        {titulo}
-      </Text>
-      <Text numberOfLines={1} style={{ fontFamily: fonts.sans }} className="text-xs text-ink-muted">
-        {detalle}
-      </Text>
-    </Card>
-  );
-}
-
 function AvisoFila({ aviso, primero, onPress }: { aviso: Aviso; primero: boolean; onPress: () => void }) {
   const cumple = aviso.tipo === "cumple";
   return (
@@ -260,15 +239,16 @@ export default function DiscipuladoResumen() {
       params: agregar ? { id: discipuladoId, agregar: "1" } : { id: discipuladoId },
     });
 
-  // Encabezado navy, continuo con el bloque de arriba. La barra de estado pasa
-  // a clara solo mientras esta pantalla está al frente: montada fuera de foco
-  // le ganaría a la del layout raíz también en las pantallas que se abren
+  // Encabezado medianoche, continuo con la acuarela de abajo: el velo de la foto
+  // arranca en este mismo color, así no se ve la costura. La barra de estado
+  // pasa a clara solo mientras esta pantalla está al frente: montada fuera de
+  // foco le ganaría a la del layout raíz también en las pantallas que se abren
   // encima, que tienen encabezado blanco.
   const encabezado = (
     <>
       <Stack.Screen
         options={{
-          headerStyle: { backgroundColor: colors.primary },
+          headerStyle: { backgroundColor: acuarela.medianoche },
           headerTintColor: colors.onPrimary,
           headerTitleStyle: { color: colors.onPrimary, fontFamily: fonts.sansBold, fontSize: 16 },
           headerRight: canManage
@@ -331,8 +311,8 @@ export default function DiscipuladoResumen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
       >
-        {/* En iOS el rebote de arriba destapa lo que hay detrás del bloque navy:
-            que siga siendo navy y no la crema del fondo. */}
+        {/* En iOS el rebote de arriba destapa lo que hay detrás del encabezado:
+            que siga siendo medianoche y no la crema del fondo. */}
         <View
           style={{
             position: "absolute",
@@ -340,58 +320,63 @@ export default function DiscipuladoResumen() {
             left: 0,
             right: 0,
             height: 1000,
-            backgroundColor: colors.primary,
+            backgroundColor: acuarela.medianoche,
           }}
         />
 
-        <View className="bg-navy px-5 pt-1" style={{ paddingBottom: 76 }}>
-          <Text
-            style={{ fontFamily: fonts.sansSemibold, letterSpacing: 1 }}
-            className="text-xs uppercase text-gold-dim"
-          >
-            {horario}
-          </Text>
-          <Text
-            style={{ fontFamily: fonts.serifSemibold, fontSize: 28, lineHeight: 34 }}
-            className="mt-1.5 text-white"
-          >
-            {titulo}
-          </Text>
-          <Text style={{ fontFamily: fonts.sans }} className="mt-1 text-[15px] text-navy-soft">
-            {subtitulo}
-          </Text>
+        <FondoEncabezado>
+          <View className="px-5 pt-1" style={{ paddingBottom: 76 }}>
+            <Text
+              style={{ fontFamily: fonts.sansSemibold, letterSpacing: 1 }}
+              className="text-xs uppercase text-gold-dim"
+            >
+              {horario}
+            </Text>
+            <Text
+              style={{ fontFamily: fonts.serifSemibold, fontSize: 28, lineHeight: 34 }}
+              className="mt-1.5 text-white"
+            >
+              {titulo}
+            </Text>
+            <Text style={{ fontFamily: fonts.sans }} className="mt-1 text-[15px] text-navy-soft">
+              {subtitulo}
+            </Text>
 
-          <View className="mt-5 flex-row items-center gap-3 rounded-[14px] bg-navy-container py-3.5 pl-4 pr-3.5">
-            <View className="flex-1">
-              <Text
-                style={{ fontFamily: fonts.sansSemibold, letterSpacing: 1 }}
-                className="text-[11px] uppercase text-navy-on"
-              >
-                Próxima reunión
-              </Text>
-              <Text style={{ fontFamily: fonts.sansSemibold }} className="mt-0.5 text-base text-white">
-                {proxima.titulo}
-              </Text>
-              <Text
-                numberOfLines={1}
-                style={{ fontFamily: fonts.sans }}
-                className="text-[13px] text-navy-soft"
-              >
-                {proxima.cuando}
-                {discipulado.ubicacion ? ` · ${discipulado.ubicacion}` : ""}
-              </Text>
+            <View
+              style={{ backgroundColor: acuarela.panel }}
+              className="mt-5 flex-row items-center gap-3 rounded-[14px] py-3.5 pl-4 pr-3.5"
+            >
+              <View className="flex-1">
+                <Text
+                  style={{ fontFamily: fonts.sansSemibold, letterSpacing: 1 }}
+                  className="text-[11px] uppercase text-navy-soft"
+                >
+                  Próxima reunión
+                </Text>
+                <Text style={{ fontFamily: fonts.sansSemibold }} className="mt-0.5 text-base text-white">
+                  {proxima.titulo}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={{ fontFamily: fonts.sans }}
+                  className="text-[13px] text-navy-soft"
+                >
+                  {proxima.cuando}
+                  {discipulado.ubicacion ? ` · ${discipulado.ubicacion}` : ""}
+                </Text>
+              </View>
+              <Button
+                title="Registrar"
+                variant="goldContainer"
+                size="sm"
+                hitSlop={8}
+                onPress={() =>
+                  router.push({ pathname: "/reunion/nueva", params: { discipuladoId } })
+                }
+              />
             </View>
-            <Button
-              title="Registrar"
-              variant="goldContainer"
-              size="sm"
-              hitSlop={8}
-              onPress={() =>
-                router.push({ pathname: "/reunion/nueva", params: { discipuladoId } })
-              }
-            />
           </View>
-        </View>
+        </FondoEncabezado>
 
         <View className="flex-row gap-2.5 px-4" style={{ marginTop: -52 }}>
           <Dato

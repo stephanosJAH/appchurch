@@ -144,6 +144,9 @@ export type Ministerio = {
   nombre: string;
   descripcion: string | null; // con marcas (lib/richText.ts)
   icono: string | null; // nombre de ionicon
+  // Fondo del encabezado del detalle (bucket `adjuntos`, 0033). Null = la
+  // acuarela por defecto.
+  imagen_url: string | null;
   activo: boolean;
   motivo_baja: string | null;
   fecha_baja: string | null;

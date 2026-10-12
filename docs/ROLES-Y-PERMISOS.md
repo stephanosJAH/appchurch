@@ -286,7 +286,7 @@ iglesia). **No cuelga de ningún grupo** y **no registra ofrenda**. Ver
 
 | Bucket | Leer | Escribir / borrar |
 |---|---|---|
-| **`adjuntos`** (flyers de eventos) | Público (cualquiera con la URL) | Solo `admin` |
+| **`adjuntos`** (flyers de eventos, fondo de ministerios) | Público (cualquiera con la URL) | `admin`; además, los líderes de un ministerio en `ministerios/<su id>/…` (0033) |
 | **`materiales`** (material de lección, Fase 2) | Autenticado (`miembro`+) | Dueño de la carpeta (`<uid>/…`) o `admin` |
 
 > `adjuntos` es **público por diseño** (difusión de flyers), con nombres UUID no

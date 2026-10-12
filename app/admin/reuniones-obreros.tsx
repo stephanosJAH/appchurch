@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Platform, Pressable, View } from "react-nativ
 import { FechaBloque } from "../../components/FechaBloque";
 import { RichTextEditor } from "../../components/RichTextEditor";
 import { RichTextView } from "../../components/RichTextView";
+import { BuscadorPersonas, ListaPersonas, PersonaOpcion } from "../../components/SelectorPersonas";
 import {
   Body,
   Button,
@@ -102,8 +103,11 @@ export default function AdminReunionesObreros() {
     [reuniones, fecha, editId]
   );
 
-  const elegidos = useMemo(
-    () => padron.filter((m) => m.id in seleccion),
+  const elegidos = useMemo<PersonaOpcion[]>(
+    () =>
+      padron
+        .filter((m) => m.id in seleccion)
+        .map((m) => ({ id: m.id, nombre: nombreDe(m) })),
     [padron, seleccion]
   );
 
@@ -112,13 +116,14 @@ export default function AdminReunionesObreros() {
     if (!texto) return [];
     return padron
       .filter((m) => !(m.id in seleccion) && nombreDe(m).toLowerCase().includes(texto))
-      .slice(0, 8);
+      .slice(0, 8)
+      .map((m): PersonaOpcion => ({ id: m.id, nombre: nombreDe(m) }));
   }, [padron, busqueda, seleccion]);
 
   const presentes = elegidos.filter((m) => seleccion[m.id]).length;
 
-  const agregar = (m: Miembro) => {
-    setSeleccion((s) => ({ ...s, [m.id]: true }));
+  const agregar = (id: string) => {
+    setSeleccion((s) => ({ ...s, [id]: true }));
     setBusqueda("");
   };
 
@@ -211,71 +216,20 @@ export default function AdminReunionesObreros() {
           )}
         </View>
 
-        <Field
-          placeholder="Buscar en el padrón para agregar…"
-          icon="search-outline"
-          value={busqueda}
-          onChangeText={setBusqueda}
-          autoCorrect={false}
+        <BuscadorPersonas
+          busqueda={busqueda}
+          onBusqueda={setBusqueda}
+          candidatos={candidatos}
+          onAgregar={(p) => agregar(p.id)}
         />
 
-        {candidatos.length > 0 && (
-          <Card className="mb-3 p-0">
-            {candidatos.map((m, i) => (
-              <Pressable
-                key={m.id}
-                onPress={() => agregar(m)}
-                className={`flex-row items-center justify-between px-3 py-3 active:opacity-60 ${
-                  i > 0 ? "border-t border-outline-variant" : ""
-                }`}
-              >
-                <Body>{nombreDe(m)}</Body>
-                <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-              </Pressable>
-            ))}
-          </Card>
-        )}
-
-        {busqueda.trim() !== "" && candidatos.length === 0 && (
-          <Muted className="mb-3">
-            Nadie del padrón coincide con “{busqueda.trim()}”.
-          </Muted>
-        )}
-
-        {elegidos.length === 0 ? (
-          <Muted className="mb-4">
-            Todavía no agregaste participantes. Buscalos arriba por nombre.
-          </Muted>
-        ) : (
-          <Card className="mb-4 p-0">
-            {elegidos.map((m, i) => (
-              <View
-                key={m.id}
-                className={`flex-row items-center gap-2 px-3 py-2.5 ${
-                  i > 0 ? "border-t border-outline-variant" : ""
-                }`}
-              >
-                <Pressable
-                  onPress={() => alternar(m.id)}
-                  hitSlop={6}
-                  className="flex-1 flex-row items-center gap-2.5 active:opacity-60"
-                >
-                  <Ionicons
-                    name={seleccion[m.id] ? "checkbox" : "square-outline"}
-                    size={22}
-                    color={seleccion[m.id] ? colors.primary : colors.onSurfaceVariant}
-                  />
-                  <Body className={seleccion[m.id] ? "" : "text-ink-muted"}>
-                    {nombreDe(m)}
-                  </Body>
-                </Pressable>
-                <Pressable onPress={() => quitar(m.id)} hitSlop={6} className="active:opacity-60">
-                  <Ionicons name="close-circle-outline" size={20} color={colors.onSurfaceVariant} />
-                </Pressable>
-              </View>
-            ))}
-          </Card>
-        )}
+        <ListaPersonas
+          personas={elegidos}
+          vacio="Todavía no agregaste participantes. Buscalos arriba por nombre."
+          marcado={(id) => !!seleccion[id]}
+          onAlternar={alternar}
+          onQuitar={(p) => quitar(p.id)}
+        />
 
         <Muted className="mb-4">
           Destildar deja a la persona registrada como ausente; la cruz la saca de

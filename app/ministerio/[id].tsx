@@ -1,7 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Dato } from "../../components/Dato";
+import { FondoEncabezado } from "../../components/FondoEncabezado";
 import { RichTextView } from "../../components/RichTextView";
 import {
   Avatar,
@@ -15,7 +19,7 @@ import {
   Title,
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
-import { fechaLabel, formatFechaCorta, formatMoneda } from "../../lib/date";
+import { fechaLabel, formatFechaCorta, formatMoneda, toISODate } from "../../lib/date";
 import { useAnuncios } from "../../lib/queries/anuncios";
 import {
   useIntegrantesMinisterio,
@@ -24,7 +28,7 @@ import {
   useReunionesMinisterio,
   useSoyLiderDe,
 } from "../../lib/queries/ministerios";
-import { colors } from "../../lib/theme";
+import { acuarela, colors, fonts } from "../../lib/theme";
 import { ReunionDeMiMinisterio, ReunionMinisterio } from "../../lib/types";
 
 // Detalle de un ministerio. La misma pantalla sirve a tres audiencias, y el
@@ -110,6 +114,8 @@ function ReunionParticipanteCard({
 export default function MinisterioDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const enFoco = useIsFocused();
   const ministerioId = String(id);
   const { isAdmin } = useAuth();
 
@@ -154,285 +160,355 @@ export default function MinisterioDetalle() {
   const toggleMes = (clave: string, idx: number) =>
     setMesesAbiertos((p) => ({ ...p, [clave]: !mesAbierto(clave, idx) }));
 
-  if (isLoading || cargandoPertenencia) {
-    return (
-      <Screen className="items-center justify-center">
-        <ActivityIndicator size="large" color={colors.primary} />
-      </Screen>
-    );
-  }
+  // Encabezado medianoche, continuo con la foto de abajo: el mismo del resumen
+  // de discipulado. La barra de estado pasa a clara solo mientras esta pantalla
+  // está al frente (ver discipulado/[id].tsx).
+  const encabezado = (
+    <>
+      <Stack.Screen
+        options={{
+          headerStyle: { backgroundColor: acuarela.medianoche },
+          headerTintColor: colors.onPrimary,
+          headerTitleStyle: { color: colors.onPrimary, fontFamily: fonts.sansBold, fontSize: 16 },
+          headerRight: puedeGestionar
+            ? () => (
+                <Pressable
+                  onPress={() =>
+                    router.push({ pathname: "/ministerio/editar", params: { id: ministerioId } })
+                  }
+                  className="active:opacity-60"
+                  hitSlop={12}
+                  accessibilityLabel="Editar ministerio"
+                >
+                  <Ionicons name="create-outline" size={22} color={colors.onPrimary} />
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
+      {enFoco && <StatusBar style="light" />}
+    </>
+  );
 
-  if (!ministerio) {
+  if (isLoading || cargandoPertenencia || !ministerio) {
     return (
-      <Screen className="items-center justify-center p-8">
-        <Muted className="text-center">
-          No encontramos este ministerio. Puede que lo hayan dado de baja.
-        </Muted>
+      <Screen>
+        {encabezado}
+        <View className="flex-1 items-center justify-center p-8">
+          {isLoading || cargandoPertenencia ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : (
+            <Muted className="text-center">
+              No encontramos este ministerio. Puede que lo hayan dado de baja.
+            </Muted>
+          )}
+        </View>
       </Screen>
     );
   }
 
   const lideres = ministerio.lideres ?? [];
+  const relacion = soyLider ? "Liderás este ministerio" : participo ? "Participás" : "Ministerio";
+  const nombresLideres = lideres.map((l) => l.nombre_completo ?? "Sin nombre").join(" · ");
+  const subtitulo =
+    lideres.length === 0
+      ? "Sin líderes asignados todavía"
+      : lideres.length === 1
+        ? nombresLideres
+        : `Líderes: ${nombresLideres}`;
+  // Vienen ordenadas por fecha, la más reciente primero.
+  const ultima = reuniones[0];
+  const delMes = meses.find((m) => m.clave === toISODate(new Date()).slice(0, 7));
+  const nombreMes = new Date().toLocaleDateString("es-AR", { month: "long" });
 
   return (
     <Screen>
+      {encabezado}
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
         showsVerticalScrollIndicator={false}
       >
-        <Stack.Screen
-          options={{
-            title: ministerio.nombre,
-            headerRight: puedeGestionar
-              ? () => (
-                  <Pressable
-                    onPress={() =>
-                      router.push({ pathname: "/ministerio/editar", params: { id: ministerioId } })
-                    }
-                    className="active:opacity-60"
-                    hitSlop={12}
-                  >
-                    <Ionicons name="create-outline" size={22} color={colors.primary} />
-                  </Pressable>
-                )
-              : undefined,
+        {/* En iOS el rebote de arriba destapa lo que hay detrás del encabezado:
+            que siga siendo medianoche y no la crema del fondo. */}
+        <View
+          style={{
+            position: "absolute",
+            top: -1000,
+            left: 0,
+            right: 0,
+            height: 1000,
+            backgroundColor: acuarela.medianoche,
           }}
         />
 
-        {/* Encabezado */}
-        <Card className="mb-4 overflow-hidden p-0">
-          <View className="h-20 justify-end bg-navy p-4">
-            <View className="absolute right-4 top-3 opacity-20">
-              <Ionicons
-                name={(ministerio.icono as keyof typeof Ionicons.glyphMap) ?? "sparkles"}
-                size={52}
-                color={colors.tertiaryDim}
-              />
-            </View>
-          </View>
-          <View className="p-5">
-            <Title className="text-xl">{ministerio.nombre}</Title>
-            <View className="mt-3 flex-row flex-wrap items-center gap-2">
-              {soyLider ? <Chip tone="gold">Liderás este ministerio</Chip> : null}
-              {!soyLider && participo ? <Chip tone="neutral">Participás</Chip> : null}
-              {puedeGestionar && ministerio.activo === false ? (
-                <Chip tone="danger">Dado de baja</Chip>
-              ) : null}
-            </View>
+        {/* La imagen la sube un líder desde «Editar»; sin ella, la acuarela del
+            discipulado. Sin datos colgando abajo (quien no gestiona) el bloque
+            cierra antes. */}
+        <FondoEncabezado imagenUrl={ministerio.imagen_url}>
+          <View className="px-5 pt-1" style={{ paddingBottom: puedeGestionar ? 76 : 28 }}>
+            <Text
+              style={{ fontFamily: fonts.sansSemibold, letterSpacing: 1 }}
+              className="text-xs uppercase text-gold-dim"
+            >
+              {relacion}
+              {puedeGestionar && ministerio.activo === false ? " · Dado de baja" : ""}
+            </Text>
+            <Text
+              style={{ fontFamily: fonts.serifSemibold, fontSize: 28, lineHeight: 34 }}
+              className="mt-1.5 text-white"
+            >
+              {ministerio.nombre}
+            </Text>
+            <Text style={{ fontFamily: fonts.sans }} className="mt-1 text-[15px] text-navy-soft">
+              {subtitulo}
+            </Text>
 
-            <Label className="mb-1.5 mt-4">
-              {lideres.length === 1 ? "Líder" : `Líderes (${lideres.length})`}
-            </Label>
-            {lideres.length === 0 ? (
-              <Muted>Sin líderes asignados todavía.</Muted>
-            ) : (
-              <View className="gap-1.5">
-                {lideres.map((l) => (
-                  <View key={l.profile_id} className="flex-row items-center gap-1.5">
-                    <Ionicons name="person-outline" size={15} color={colors.tertiary} />
-                    <Muted className="text-gold">{l.nombre_completo ?? "Sin nombre"}</Muted>
-                  </View>
-                ))}
+            {/* Un ministerio no tiene día fijo: en lugar de la próxima reunión,
+                la última que se cargó. */}
+            {puedeGestionar && (
+              <View
+                style={{ backgroundColor: acuarela.panel }}
+                className="mt-5 flex-row items-center gap-3 rounded-[14px] py-3.5 pl-4 pr-3.5"
+              >
+                <View className="flex-1">
+                  <Text
+                    style={{ fontFamily: fonts.sansSemibold, letterSpacing: 1 }}
+                    className="text-[11px] uppercase text-navy-soft"
+                  >
+                    Última reunión
+                  </Text>
+                  <Text
+                    style={{ fontFamily: fonts.sansSemibold }}
+                    className="mt-0.5 text-base text-white"
+                  >
+                    {ultima ? formatFechaCorta(ultima.fecha) : "Sin reuniones"}
+                  </Text>
+                  <Text
+                    numberOfLines={1}
+                    style={{ fontFamily: fonts.sans }}
+                    className="text-[13px] text-navy-soft"
+                  >
+                    {ultima ? ultima.tema || "Sin tema" : "Registrá la primera"}
+                  </Text>
+                </View>
+                <Button
+                  title="Registrar"
+                  variant="goldContainer"
+                  size="sm"
+                  hitSlop={8}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/reunion/nueva",
+                      params: { origen: "ministerio", ministerioId },
+                    })
+                  }
+                />
               </View>
             )}
-
-            {ministerio.descripcion ? (
-              <View className="mt-4 border-t border-black/5 pt-4">
-                <RichTextView descripcion={ministerio.descripcion} />
-              </View>
-            ) : null}
           </View>
-        </Card>
+        </FondoEncabezado>
 
         {puedeGestionar && (
-          <Button
-            title="Registrar reunión"
-            onPress={() =>
-              router.push({
-                pathname: "/reunion/nueva",
-                params: { origen: "ministerio", ministerioId },
-              })
-            }
-          />
+          <View className="flex-row gap-2.5 px-4" style={{ marginTop: -52 }}>
+            <Dato
+              valor={String(activos.length)}
+              titulo={activos.length === 1 ? "Integrante" : "Integrantes"}
+              detalle="activos"
+            />
+            <Dato
+              valor={String(delMes?.reuniones.length ?? 0)}
+              titulo={delMes?.reuniones.length === 1 ? "Reunión" : "Reuniones"}
+              detalle={nombreMes}
+            />
+            <Dato valor={formatMoneda(delMes?.total ?? 0)} titulo="Ofrenda" detalle={nombreMes} />
+          </View>
         )}
 
-        {/* Anuncios del ministerio */}
-        {(participo || puedeGestionar) && (
-          <>
-            <View className="mb-2 mt-7 flex-row items-center justify-between">
-              <Label>Anuncios</Label>
-              {puedeGestionar && (
+        <View className="px-4">
+          {ministerio.descripcion ? (
+            <Card className="mt-6">
+              <RichTextView descripcion={ministerio.descripcion} />
+            </Card>
+          ) : null}
+
+          {/* Anuncios del ministerio */}
+          {(participo || puedeGestionar) && (
+            <>
+              <View className="mb-2 mt-7 flex-row items-center justify-between">
+                <Label>Anuncios</Label>
+                {puedeGestionar && (
+                  <Button
+                    title="+ Publicar"
+                    variant="ghost"
+                    size="sm"
+                    onPress={() =>
+                      router.push({ pathname: "/anuncios", params: { ministerioId } })
+                    }
+                  />
+                )}
+              </View>
+              {anunciosDelMinisterio.length === 0 ? (
+                <Card>
+                  <Muted>
+                    {puedeGestionar
+                      ? "Todavía no publicaste nada. Los anuncios les llegan a los integrantes del ministerio."
+                      : "Todavía no hay anuncios de este ministerio."}
+                  </Muted>
+                </Card>
+              ) : (
+                <View className="gap-2.5">
+                  {anunciosDelMinisterio.map((a) => (
+                    <Pressable
+                      key={a.id}
+                      onPress={() => router.push("/anuncios")}
+                      className="active:opacity-80"
+                    >
+                      <Card>
+                        <View className="flex-row items-center gap-2">
+                          {a.fijado ? (
+                            <Ionicons name="pin" size={14} color={colors.tertiary} />
+                          ) : null}
+                          <Title className="flex-1 text-base" numberOfLines={1}>
+                            {a.titulo}
+                          </Title>
+                        </View>
+                        <Muted className="mt-1">{formatFechaCorta(a.created_at.slice(0, 10))}</Muted>
+                      </Card>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
+
+          {/* Roster — solo gestión */}
+          {puedeGestionar && (
+            <>
+              <View className="mb-2 mt-7 flex-row items-center justify-between">
+                <Label>Integrantes ({activos.length})</Label>
                 <Button
-                  title="+ Publicar"
+                  title="Gestionar"
                   variant="ghost"
                   size="sm"
                   onPress={() =>
-                    router.push({ pathname: "/anuncios", params: { ministerioId } })
+                    router.push({ pathname: "/ministerio/integrantes", params: { id: ministerioId } })
                   }
                 />
-              )}
-            </View>
-            {anunciosDelMinisterio.length === 0 ? (
-              <Card>
-                <Muted>
-                  {puedeGestionar
-                    ? "Todavía no publicaste nada. Los anuncios les llegan a los integrantes del ministerio."
-                    : "Todavía no hay anuncios de este ministerio."}
-                </Muted>
-              </Card>
-            ) : (
-              <View className="gap-2.5">
-                {anunciosDelMinisterio.map((a) => (
-                  <Pressable
-                    key={a.id}
-                    onPress={() => router.push("/anuncios")}
-                    className="active:opacity-80"
-                  >
-                    <Card>
-                      <View className="flex-row items-center gap-2">
-                        {a.fijado ? (
-                          <Ionicons name="pin" size={14} color={colors.tertiary} />
-                        ) : null}
-                        <Title className="flex-1 text-base" numberOfLines={1}>
-                          {a.titulo}
-                        </Title>
+              </View>
+              {activos.length === 0 ? (
+                <Card>
+                  <Muted>
+                    Todavía no hay nadie en este ministerio. Sumá gente desde
+                    «Gestionar».
+                  </Muted>
+                </Card>
+              ) : (
+                <View className="gap-2.5">
+                  {activos.map((i) => (
+                    <Card key={i.miembro_id} className="flex-row items-center gap-3 py-3.5">
+                      <Avatar name={i.nombre} size={38} tone="gold" />
+                      <View className="flex-1">
+                        <Body className="text-ink">
+                          {`${i.nombre} ${i.apellido ?? ""}`.trim()}
+                        </Body>
+                        {i.telefono ? <Muted>{i.telefono}</Muted> : null}
                       </View>
-                      <Muted className="mt-1">{formatFechaCorta(a.created_at.slice(0, 10))}</Muted>
                     </Card>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </>
-        )}
+                  ))}
+                </View>
+              )}
+            </>
+          )}
 
-        {/* Roster — solo gestión */}
-        {puedeGestionar && (
-          <>
-            <View className="mb-2 mt-7 flex-row items-center justify-between">
-              <Label>Integrantes ({activos.length})</Label>
-              <Button
-                title="Gestionar"
-                variant="ghost"
-                size="sm"
-                onPress={() =>
-                  router.push({ pathname: "/ministerio/integrantes", params: { id: ministerioId } })
-                }
-              />
-            </View>
-            {activos.length === 0 ? (
-              <Card>
-                <Muted>
-                  Todavía no hay nadie en este ministerio. Sumá gente desde
-                  «Gestionar».
-                </Muted>
-              </Card>
-            ) : (
-              <View className="gap-2.5">
-                {activos.map((i) => (
-                  <Card key={i.miembro_id} className="flex-row items-center gap-3 py-3.5">
-                    <Avatar name={i.nombre} size={38} tone="gold" />
-                    <View className="flex-1">
-                      <Body className="text-ink">
-                        {`${i.nombre} ${i.apellido ?? ""}`.trim()}
-                      </Body>
-                      {i.telefono ? <Muted>{i.telefono}</Muted> : null}
-                    </View>
-                  </Card>
-                ))}
-              </View>
-            )}
-          </>
-        )}
+          {/* Historial */}
+          {puedeGestionar ? (
+            <>
+              <Label className="mb-2 mt-7">Historial de reuniones</Label>
+              {meses.length === 0 ? (
+                <Card>
+                  <Muted>Sin reuniones registradas.</Muted>
+                </Card>
+              ) : (
+                <View className="gap-3">
+                  {meses.map((mes, idx) => {
+                    const abierto = mesAbierto(mes.clave, idx);
+                    return (
+                      <Card key={mes.clave} className="overflow-hidden p-0">
+                        <Pressable
+                          onPress={() => toggleMes(mes.clave, idx)}
+                          className="flex-row items-center gap-3 p-4 active:opacity-80"
+                        >
+                          <View className="flex-1">
+                            <Title className="text-base capitalize">{labelMes(mes.clave)}</Title>
+                            <Muted>
+                              {mes.reuniones.length}{" "}
+                              {mes.reuniones.length === 1 ? "reunión" : "reuniones"}
+                            </Muted>
+                          </View>
+                          <Title className="text-base text-gold">{formatMoneda(mes.total)}</Title>
+                          <Ionicons
+                            name={abierto ? "chevron-up" : "chevron-down"}
+                            size={18}
+                            color={colors.outline}
+                          />
+                        </Pressable>
 
-        {/* Historial */}
-        {puedeGestionar ? (
-          <>
-            <Label className="mb-2 mt-7">Historial de reuniones</Label>
-            {meses.length === 0 ? (
-              <Card>
-                <Muted>Sin reuniones registradas.</Muted>
-              </Card>
-            ) : (
-              <View className="gap-3">
-                {meses.map((mes, idx) => {
-                  const abierto = mesAbierto(mes.clave, idx);
-                  return (
-                    <Card key={mes.clave} className="overflow-hidden p-0">
-                      <Pressable
-                        onPress={() => toggleMes(mes.clave, idx)}
-                        className="flex-row items-center gap-3 p-4 active:opacity-80"
-                      >
-                        <View className="flex-1">
-                          <Title className="text-base capitalize">{labelMes(mes.clave)}</Title>
-                          <Muted>
-                            {mes.reuniones.length}{" "}
-                            {mes.reuniones.length === 1 ? "reunión" : "reuniones"}
-                          </Muted>
-                        </View>
-                        <Title className="text-base text-gold">{formatMoneda(mes.total)}</Title>
-                        <Ionicons
-                          name={abierto ? "chevron-up" : "chevron-down"}
-                          size={18}
-                          color={colors.outline}
-                        />
-                      </Pressable>
-
-                      {abierto && (
-                        <View className="border-t border-black/10">
-                          {mes.reuniones.map((r) => (
-                            <Pressable
-                              key={r.id}
-                              onPress={() =>
-                                router.push({
-                                  pathname: "/reunion/[id]",
-                                  params: { id: r.id, origen: "ministerio" },
-                                })
-                              }
-                              className="border-b border-black/5 px-4 py-3 active:opacity-80"
-                            >
-                              <View className="flex-row items-center gap-3">
-                                <View className="flex-1">
-                                  <Body className="text-ink">{formatFechaCorta(r.fecha)}</Body>
-                                  {r.tema ? <Muted numberOfLines={1}>{r.tema}</Muted> : null}
+                        {abierto && (
+                          <View className="border-t border-black/10">
+                            {mes.reuniones.map((r) => (
+                              <Pressable
+                                key={r.id}
+                                onPress={() =>
+                                  router.push({
+                                    pathname: "/reunion/[id]",
+                                    params: { id: r.id, origen: "ministerio" },
+                                  })
+                                }
+                                className="border-b border-black/5 px-4 py-3 active:opacity-80"
+                              >
+                                <View className="flex-row items-center gap-3">
+                                  <View className="flex-1">
+                                    <Body className="text-ink">{formatFechaCorta(r.fecha)}</Body>
+                                    {r.tema ? <Muted numberOfLines={1}>{r.tema}</Muted> : null}
+                                  </View>
+                                  <Chip tone="success">{formatMoneda(r.ofrenda_total)}</Chip>
+                                  <Ionicons name="chevron-forward" size={16} color={colors.outline} />
                                 </View>
-                                <Chip tone="success">{formatMoneda(r.ofrenda_total)}</Chip>
-                                <Ionicons name="chevron-forward" size={16} color={colors.outline} />
-                              </View>
-                            </Pressable>
-                          ))}
-                        </View>
-                      )}
-                    </Card>
-                  );
-                })}
-              </View>
-            )}
-          </>
-        ) : participo ? (
-          <>
-            <Label className="mb-2 mt-7">Reuniones ({reunionesParticipante.length})</Label>
-            {reunionesParticipante.length === 0 ? (
-              <Card>
-                <Muted>Todavía no hay reuniones registradas en este ministerio.</Muted>
-              </Card>
-            ) : (
-              <View className="gap-3">
-                {reunionesParticipante.map((r, i) => (
-                  <ReunionParticipanteCard key={r.id} r={r} abiertaPorDefecto={i === 0} />
-                ))}
-              </View>
-            )}
-          </>
-        ) : (
-          <Card className="mt-7">
-            <Muted>
-              No participás de este ministerio. Si querés sumarte, hablá con alguno de
-              sus líderes.
-            </Muted>
-          </Card>
-        )}
+                              </Pressable>
+                            ))}
+                          </View>
+                        )}
+                      </Card>
+                    );
+                  })}
+                </View>
+              )}
+            </>
+          ) : participo ? (
+            <>
+              <Label className="mb-2 mt-7">Reuniones ({reunionesParticipante.length})</Label>
+              {reunionesParticipante.length === 0 ? (
+                <Card>
+                  <Muted>Todavía no hay reuniones registradas en este ministerio.</Muted>
+                </Card>
+              ) : (
+                <View className="gap-3">
+                  {reunionesParticipante.map((r, i) => (
+                    <ReunionParticipanteCard key={r.id} r={r} abiertaPorDefecto={i === 0} />
+                  ))}
+                </View>
+              )}
+            </>
+          ) : (
+            <Card className="mt-7">
+              <Muted>
+                No participás de este ministerio. Si querés sumarte, hablá con alguno de
+                sus líderes.
+              </Muted>
+            </Card>
+          )}
+        </View>
       </ScrollView>
     </Screen>
   );
