@@ -1,11 +1,12 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
-import { Body, Button, Card, Chip, Field, KeyboardScrollView, Label, Muted } from "../../components/ui";
+import { Alert, Text, View } from "react-native";
+import { BuscadorPersonas, ListaPersonas, PersonaOpcion } from "../../components/SelectorPersonas";
+import { Button, Card, Field, KeyboardScrollView, Label, Muted } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { formatHora } from "../../lib/date";
 import { fonts } from "../../lib/theme";
-import { DIAS_SEMANA, Modalidad, SexoDiscipulado } from "../../lib/types";
+import { DIAS_SEMANA, Modalidad, Profile, SexoDiscipulado } from "../../lib/types";
 import {
   useBajaDiscipulado,
   useDiscipulados,
@@ -65,16 +66,39 @@ export default function EditarDiscipulado() {
     return s;
   }, [discipulados, editingId]);
 
-  // Solo se listan obreros. Se conserva al líder ya asignado (aunque no sea
-  // obrero) para no ocultarlo al editar un discipulado existente.
-  const libres = useMemo(() => {
+  // Selector del discipulador: mismo buscador + lista que los líderes de un
+  // ministerio, pero de uno solo — elegir otro reemplaza al actual. Las cuentas
+  // las lee solo el admin, así que el filtrado es en memoria.
+  const [busqueda, setBusqueda] = useState("");
+  const opcion = (p: Profile): PersonaOpcion => ({
+    id: p.id,
+    nombre: nombreDePerfil(p) ?? p.username ?? p.id.slice(0, 8),
+    detalle: p.rol,
+  });
+  // Solo se ofrecen obreros sin otro grupo. Se conserva al líder ya asignado
+  // (aunque no sea obrero) para no ocultarlo al editar un discipulado existente.
+  const candidatos = useMemo(() => {
+    const texto = busqueda.trim().toLowerCase();
+    if (!texto) return [];
     const asignadoActual = editingId
       ? discipulados.find((x) => x.id === editingId)?.discipulador_id ?? null
       : null;
-    return profiles.filter(
-      (p) => !tomadosPorOtro.has(p.id) && (p.rol === "obrero" || p.id === asignadoActual)
-    );
-  }, [profiles, tomadosPorOtro, discipulados, editingId]);
+    return profiles
+      .filter(
+        (p) =>
+          p.id !== discipuladorId &&
+          !tomadosPorOtro.has(p.id) &&
+          (p.rol === "obrero" || p.id === asignadoActual)
+      )
+      .map(opcion)
+      .filter((o) => o.nombre.toLowerCase().includes(texto))
+      .slice(0, 8);
+  }, [profiles, busqueda, tomadosPorOtro, discipulados, editingId, discipuladorId]);
+  const elegido = useMemo((): PersonaOpcion[] => {
+    if (!discipuladorId) return [];
+    const p = profiles.find((x) => x.id === discipuladorId);
+    return [p ? opcion(p) : { id: discipuladorId, nombre: "Sin nombre" }];
+  }, [discipuladorId, profiles]);
 
   const guardar = async () => {
     if (!/^\d{2}:\d{2}$/.test(hora)) {
@@ -166,38 +190,26 @@ export default function EditarDiscipulado() {
       {isAdmin && (
       <>
       <Label className="mb-1.5">Discipulador a cargo</Label>
-      <Muted className="mb-2">Solo se listan obreros sin discipulado asignado.</Muted>
-      <View className="mb-5 gap-2">
-        <Pressable
-          onPress={() => setDiscipuladorId(null)}
-          className={`rounded-lg border px-3.5 py-3 ${
-            discipuladorId === null ? "border-navy bg-navy/5" : "border-black/10 bg-surface"
-          }`}
-        >
-          <Body className="text-ink">Sin asignar</Body>
-        </Pressable>
-
-        {libres.length === 0 ? (
-          <Muted>No hay obreros disponibles. Los obreros registrados ya lideran un grupo.</Muted>
-        ) : (
-          libres.map((p) => {
-            const sel = discipuladorId === p.id;
-            return (
-              <Pressable
-                key={p.id}
-                onPress={() => setDiscipuladorId(p.id)}
-                className={`rounded-lg border px-3.5 py-3 ${
-                  sel ? "border-navy bg-navy/5" : "border-black/10 bg-surface"
-                }`}
-              >
-                <View className="flex-row items-center justify-between">
-                  <Body className="flex-1 text-ink">{nombreDePerfil(p) ?? p.id.slice(0, 8)}</Body>
-                  <Chip tone={p.rol === "admin" ? "gold" : "neutral"}>{p.rol}</Chip>
-                </View>
-              </Pressable>
-            );
-          })
-        )}
+      <Muted className="mb-2">
+        Solo se ofrecen obreros sin discipulado asignado. Elegir otro reemplaza al actual.
+      </Muted>
+      <BuscadorPersonas
+        busqueda={busqueda}
+        onBusqueda={setBusqueda}
+        candidatos={candidatos}
+        onAgregar={(p) => {
+          setDiscipuladorId(p.id);
+          setBusqueda("");
+        }}
+        placeholder="Buscar un obrero por nombre…"
+        sinResultados={`Ningún obrero libre coincide con “${busqueda.trim()}”.`}
+      />
+      <View className="mb-1">
+        <ListaPersonas
+          personas={elegido}
+          vacio="Sin asignar. Buscá al discipulador arriba por nombre."
+          onQuitar={() => setDiscipuladorId(null)}
+        />
       </View>
       </>
       )}
