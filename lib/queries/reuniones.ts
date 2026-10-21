@@ -21,7 +21,9 @@ export type ReunionConGrupo = Reunion & {
   discipulado?: { nombre: string | null; descripcion_etaria: string | null } | null;
 };
 
-export type AsistenciaConMiembro = Asistencia & { miembro?: Miembro | null };
+export type AsistenciaConMiembro = Asistencia & {
+  miembro?: Pick<Miembro, "nombre" | "apellido"> | null;
+};
 
 // Reunión con grupo y asistencias (miembro embebido) — para el detalle.
 // Trae además el `discipulador_id` del grupo: es lo que decide si esta reunión
@@ -36,20 +38,39 @@ export type ReunionDetalle = Reunion & {
 };
 
 // Detalle completo de una reunión: datos, grupo y lista de asistencias.
+// Los nombres van por RPC (`asistentes_de_reunion`, 0034) y no embebiendo
+// `miembros`: la RLS del padrón solo deja leer a la gente que HOY está en el
+// grupo, y quien ya salió tiene que seguir figurando con nombre en su reunión.
 export function useReunion(reunionId: string) {
   return useQuery({
     queryKey: reunionesKeys.detalle(reunionId),
     enabled: !!reunionId,
     queryFn: async (): Promise<ReunionDetalle> => {
-      const { data, error } = await supabase
-        .from("reuniones")
-        .select(
-          "*, discipulado:discipulados(nombre, descripcion_etaria, discipulador_id), asistencias(*, miembro:miembros(*))"
-        )
-        .eq("id", reunionId)
-        .single();
-      if (error) throw error;
-      return data as ReunionDetalle;
+      const [reunion, asistentes] = await Promise.all([
+        supabase
+          .from("reuniones")
+          .select(
+            "*, discipulado:discipulados(nombre, descripcion_etaria, discipulador_id), asistencias(*)"
+          )
+          .eq("id", reunionId)
+          .single(),
+        supabase.rpc("asistentes_de_reunion", { p_reunion: reunionId }),
+      ]);
+      if (reunion.error) throw reunion.error;
+      if (asistentes.error) throw asistentes.error;
+
+      const nombres = new Map(
+        ((asistentes.data ?? []) as { miembro_id: string; nombre: string; apellido: string | null }[])
+          .map((a) => [a.miembro_id, { nombre: a.nombre, apellido: a.apellido }])
+      );
+      const data = reunion.data as ReunionDetalle;
+      return {
+        ...data,
+        asistencias: (data.asistencias ?? []).map((a) => ({
+          ...a,
+          miembro: nombres.get(a.miembro_id) ?? null,
+        })),
+      };
     },
   });
 }

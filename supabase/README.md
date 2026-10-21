@@ -41,6 +41,7 @@ falla más tarde y en otro lado (ver "Verificar qué está aplicado" abajo).
 | 0031 | `0031_reuniones_obreros.sql` | reunión de obreros: participantes + acta (`reuniones_obreros`, admin-only) |
 | 0032 | `0032_reuniones_solo_lectura.sql` | los dos libros de reuniones pasan a `for select`: se cierra DELETE/UPDATE por REST (seguridad #12) |
 | 0033 | `0033_ministerio_imagen.sql` | `ministerios.imagen_url` + el líder sube a `adjuntos/ministerios/<id>/` |
+| 0034 | `0034_discipulador_solo_participacion_activa.sql` | el ex líder pierde la ficha de quien sacó del grupo; `asistentes_de_reunion` conserva los nombres del historial |
 
 Al agregar una migración nueva, sumale la fila acá y, si crea un objeto que
 otras van a referenciar, sumalo también a la query de verificación de abajo.
@@ -87,7 +88,8 @@ with esperado(migracion, tipo, objeto) as (values
   ('0027','funcion','nombre_de_perfil'),            ('0028','funcion','candidatos_para_discipulado'),
   ('0030','tabla',  'videos_canal'),                ('0030','funcion','guardar_videos_canal'),
   ('0031','tabla',  'reuniones_obreros'),           ('0031','funcion','registrar_reunion_obreros'),
-  ('0033','columna','ministerios.imagen_url'),      ('0033','funcion','lidera_carpeta_de_ministerio')
+  ('0033','columna','ministerios.imagen_url'),      ('0033','funcion','lidera_carpeta_de_ministerio'),
+  ('0034','funcion','asistentes_de_reunion')
 )
 select migracion, tipo, objeto,
        case when case tipo

@@ -527,7 +527,7 @@ RLS de las tablas que consultan (y evitar recursión de policies).
 | `es_obrero()` | `rol in ('obrero','admin')` | `0013` |
 | `es_miembro_activo()` | `rol in ('miembro','obrero','admin')` | `0013` |
 | `es_discipulador_de(grupo)` | Lidera ese grupo | `0002` |
-| `es_discipulador_del_miembro(persona)` | Lidera algún grupo donde esa persona participa | `0009` |
+| `es_discipulador_del_miembro(persona)` | Lidera algún grupo donde esa persona participa **hoy** (participación activa) | `0009`, `0034` |
 | `miembro_tiene_cuenta(persona)` | Esa ficha ya está enlazada a un `profile` | `0021` |
 | `es_lider_de_ministerio(ministerio)` | `auth.uid() ∈ ministerio_lideres` | `0024` |
 | `participo_del_ministerio(ministerio)` | Está en el roster activo de ese ministerio | `0024` |
@@ -556,6 +556,7 @@ RLS de las tablas que consultan (y evitar recursión de policies).
 | `mi_grupo()` | `es_miembro_activo()` + `auth.uid()` | Los grupos donde uno **participa** (la RLS de `discipulados` solo deja pasar al líder y al admin) |
 | `reuniones_de_mi_grupo(grupo)` | Participación activa en ese grupo | Historial visto por un discípulo: **solo** fecha, tema y presentes |
 | `miembro_tiene_cuenta(persona)` | — (dato no sensible) | Saber si la ficha ya se autogestiona |
+| `asistentes_de_reunion(reunion)` | `es_admin() or es_discipulador_de(grupo)` (= `reu_select`) | Nombre y apellido de quienes figuran en esa reunión, aunque ya hayan salido del grupo y la RLS de `miembros` no los deje leer (`0034`). Nada más de la ficha |
 
 **Ministerios y anuncios** (`0024`–`0026`) — cada uno es el espejo declarado de su
 equivalente de discipulados:
@@ -667,7 +668,7 @@ escriba `adjunto_url`, no se confía en el valor guardado — así no se dispara
 
 ### 5.9 Historial de revisiones de seguridad
 
-Tres revisiones documentadas, con 12 hallazgos numerados:
+Tres revisiones documentadas, con 13 hallazgos numerados:
 
 | # | Sev. | Hallazgo | Estado |
 |---|---|---|---|
@@ -683,6 +684,7 @@ Tres revisiones documentadas, con 12 hallazgos numerados:
 | 10 | BAJA | Sin certificate pinning | **Abierto** |
 | 11 | ALTA | `profiles.miembro_id` era auto-editable → IDOR de PII | **Resuelto** (`0029`) |
 | 12 | MEDIA | `for all` en los dos libros de reuniones → DELETE/UPDATE por REST | **Resuelto** (`0032`) |
+| 13 | MEDIA | `es_discipulador_del_miembro` ignoraba `participaciones.activo` → el ex líder conservaba la ficha | **Resuelto** (`0034`) |
 
 > **Hallazgo #11 — resuelto en `0029`.** `0016`/`0018` convirtieron
 > `profiles.miembro_id` en una **clave de autorización** (`mis_datos`,

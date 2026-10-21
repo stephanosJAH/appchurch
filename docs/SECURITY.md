@@ -21,6 +21,7 @@
 | 10 | BAJA | Sin certificate pinning | [ ] |
 | 11 | ALTA | `profiles.miembro_id` auto-editable → IDOR de PII | [x] `0029_profiles_columnas_editables.sql` |
 | 12 | MEDIA | Policies `for all` en los dos libros de reuniones habilitan DELETE/UPDATE por REST | [x] `0032_reuniones_solo_lectura.sql` |
+| 13 | MEDIA | `es_discipulador_del_miembro` ignora `participaciones.activo`: el ex líder conserva la ficha | [x] `0034_discipulador_solo_participacion_activa.sql` |
 
 **El patrón de fondo**: la app delega correctamente la autorización al backend,
 pero las policies de RLS tienen agujeros que anulan esa protección. Como
@@ -257,6 +258,27 @@ anónimo con solo la anon key pública (embebida en el bundle y en `eas.json`).
     nuevo (o ampliar el existente), **no** devolverle el `for all` a la tabla.
   - **Detectado**: al diseñar `0031`, comparando el modelo de permisos del libro
     nuevo contra los dos que ya existían.
+
+## 13. MEDIA — `es_discipulador_del_miembro` ignora `participaciones.activo`: el ex líder conserva la ficha
+
+- **Ubicación**: `supabase/migrations/0009_miembros_write_scoped.sql:31-41`.
+- **Descripción**: El helper responde "¿esta persona está en algún grupo que lidero?" buscando cualquier fila de `participaciones`, sin mirar `activo`. Sacar a alguien del grupo es una baja lógica (`activo = false`, `lib/queries/participaciones.ts`), así que la fila queda y el helper sigue diciendo que sí. De él cuelgan `miembros_select` (`0014`), `miembros_update` (`0021`) y `guardar_notas_miembro` (`0021`).
+- **Explotabilidad**: Un discipulador que sacó a alguien de su grupo —o al que se lo sacó el admin— sigue pudiendo, sin límite de tiempo y por REST: leer la ficha completa (teléfono, email, fecha de nacimiento, notas pastorales), editarla si la persona no tiene cuenta, y escribirle notas. No necesita que la UI se lo ofrezca: alcanza con el `id` del miembro, que ya conocía.
+- **Impacto**: Fuga de PII y de notas pastorales hacia alguien que ya no tiene la relación pastoral que las justificaba (por ejemplo, la persona pidió cambiar de grupo).
+- **Estado (2026-10-15)**: RESUELTO en `supabase/migrations/0034_discipulador_solo_participacion_activa.sql`.
+  El helper exige `p.activo`; como todas las policies lo llaman, el corte les llega a
+  todas a la vez. Para no dejar el historial con "Sin nombre", el detalle y la edición
+  de reuniones (`useReunion`, `lib/queries/reuniones.ts`) dejaron de embeber
+  `miembros(*)` —que además traía la ficha completa de cada asistente cuando solo
+  se mostraba el nombre— y resuelven los nombres con la RPC nueva
+  `asistentes_de_reunion`: mismo permiso que `reu_select`, solo nombre y apellido, solo
+  de quienes figuran en esa reunión.
+  - **Orden de despliegue**: aplicar `0034` **antes** de publicar el cliente. Al
+    revés, el detalle de una reunión de discipulado falla porque la RPC no existe.
+  - **Abierto a propósito**: un grupo desactivado (`discipulados.activo = false`)
+    sigue dando acceso a su gente activa. Es decisión de producto aparte.
+  - **Detectado**: revisión de seguridad del 2026-09-24; quedó registrado solo en
+    las notas del revisor y se pasa acá al cerrarlo.
 
 ---
 

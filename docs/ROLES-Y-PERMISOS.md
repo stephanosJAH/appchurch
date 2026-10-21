@@ -37,7 +37,11 @@
 
 Leyenda de alcance en las matrices siguientes:
 - **✓** = permitido siempre · **✗** = denegado
-- **su gente** = personas en algún grupo que el obrero lidera (`es_discipulador_del_miembro`)
+- **su gente** = personas que **hoy** están en algún grupo que el obrero lidera
+  (`es_discipulador_del_miembro`, participación activa). Sacar a alguien del grupo
+  le corta al ex líder la ficha completa, la edición y las notas (`0034`); lo
+  único que conserva es su nombre en las reuniones viejas donde figura
+  (`asistentes_de_reunion`)
 - **su grupo** = el grupo que el obrero lidera (`es_discipulador_de(discipulado_id)`)
 - **propio** = solo la fila/carpeta del propio usuario
 
@@ -161,6 +165,14 @@ Leyenda de alcance en las matrices siguientes:
 > `reuniones_ministerio` / `asistencias_ministerio`. **Si alguna vez hace falta
 > escribir directo, el camino es un RPC definer, no devolverle el `for all` a la
 > tabla.**
+>
+> Los **nombres** de los asistentes de una reunión (detalle y edición) no salen
+> de un join contra `miembros`: esa RLS solo deja leer a la gente que hoy está
+> en el grupo, y quien ya salió tiene que seguir figurando en su reunión. Van
+> por `asistentes_de_reunion(reunion)` (`0034`), con el mismo permiso que
+> `reu_select` y que devuelve **solo** `miembro_id`, nombre y apellido de
+> quienes tienen asistencia en esa reunión — lo que ya está en el acta, no la
+> ficha.
 >
 > **Nota de PII**: la lista de presentes es la única superficie donde un
 > `miembro` ve a un **menor de edad** (el `directorio` los excluye desde `0017`).
