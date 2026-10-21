@@ -33,11 +33,11 @@ import {
   formatFechaCorta,
   formatHora,
   formatMoneda,
-  proximaOcurrencia,
+  proximaReunion,
   toISODate,
 } from "../../lib/date";
 import { acuarela, colors, fonts } from "../../lib/theme";
-import { DIAS_SEMANA, Modalidad, Participacion, SexoDiscipulado } from "../../lib/types";
+import { DIAS_SEMANA, MODALIDAD_LABEL, Participacion, SEXO_LABEL } from "../../lib/types";
 import { useDiscipulado } from "../../lib/queries/discipulados";
 import { nombreDePerfil } from "../../lib/queries/profiles";
 import { useParticipaciones } from "../../lib/queries/participaciones";
@@ -52,19 +52,6 @@ const DIAS_AVISO_CUMPLE = 7;
 // Discípulos a la vista antes de "Ver todos": dos filas de cinco.
 const DISCIPULOS_A_LA_VISTA = 10;
 
-const SEXO_LABEL: Record<SexoDiscipulado, string> = {
-  M: "Varones",
-  F: "Mujeres",
-  mixto: "Mixto",
-};
-const MODALIDAD_LABEL: Record<Modalidad, string> = {
-  presencial: "Presencial",
-  virtual: "Virtual",
-  ambos: "Presencial y virtual",
-};
-
-const MS_POR_DIA = 86400000;
-
 function hoySinHora(): Date {
   const h = new Date();
   return new Date(h.getFullYear(), h.getMonth(), h.getDate());
@@ -72,20 +59,6 @@ function hoySinHora(): Date {
 
 function nombreCompleto(p: Participacion): string {
   return `${p.miembro?.nombre ?? ""} ${p.miembro?.apellido ?? ""}`.trim() || "Sin nombre";
-}
-
-// Próxima reunión según el día fijo del grupo. Si la de hoy ya está cargada,
-// la próxima es la de la semana que viene.
-function proximaReunion(diaSemana: number, reuniones: ReunionConAsistencia[]) {
-  const hoy = hoySinHora();
-  let fecha = proximaOcurrencia([diaSemana], hoy) ?? hoy;
-  if (reuniones.some((r) => r.fecha === toISODate(fecha))) fecha = addDays(fecha, 7);
-  const dias = Math.round((fecha.getTime() - hoy.getTime()) / MS_POR_DIA);
-  const mes = fecha.toLocaleDateString("es-AR", { month: "long" });
-  return {
-    titulo: `${DIAS_SEMANA[fecha.getDay()]} ${fecha.getDate()} de ${mes}`,
-    cuando: dias === 0 ? "Hoy" : dias === 1 ? "Mañana" : `En ${dias} días`,
-  };
 }
 
 // Promedio de asistencia de las últimas reuniones y ofrenda del mes en curso.
@@ -286,7 +259,10 @@ export default function DiscipuladoResumen() {
     );
   }
 
-  const proxima = proximaReunion(discipulado.dia_semana, reuniones);
+  const proxima = proximaReunion(
+    discipulado.dia_semana,
+    reuniones.map((r) => r.fecha)
+  );
   const titulo = discipulado.nombre ?? discipulado.descripcion_etaria ?? "Discipulado";
   const horario = `${DIAS_SEMANA[discipulado.dia_semana]} · ${formatHora(discipulado.hora_inicio)}${
     discipulado.hora_fin ? `–${formatHora(discipulado.hora_fin)}` : ""

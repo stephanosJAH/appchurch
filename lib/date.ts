@@ -29,6 +29,24 @@ export function proximaOcurrencia(dias: number[], ref = new Date()): Date | null
   return base;
 }
 
+const MS_POR_DIA = 86400000;
+
+// Próxima reunión de un grupo con día fijo (discipulado). Si la de hoy ya está
+// cargada —`fechasCargadas` son las "YYYY-MM-DD" de las reuniones registradas—,
+// la próxima es la de la semana que viene.
+export function proximaReunion(diaSemana: number, fechasCargadas: string[]) {
+  const h = new Date();
+  const hoy = new Date(h.getFullYear(), h.getMonth(), h.getDate());
+  let fecha = proximaOcurrencia([diaSemana], hoy) ?? hoy;
+  if (fechasCargadas.includes(toISODate(fecha))) fecha = addDays(fecha, 7);
+  const dias = Math.round((fecha.getTime() - hoy.getTime()) / MS_POR_DIA);
+  const mes = fecha.toLocaleDateString("es-AR", { month: "long" });
+  return {
+    titulo: `${DIAS_SEMANA[fecha.getDay()]} ${fecha.getDate()} de ${mes}`,
+    cuando: dias === 0 ? "Hoy" : dias === 1 ? "Mañana" : `En ${dias} días`,
+  };
+}
+
 export function todayISO(): string {
   return toISODate(new Date());
 }

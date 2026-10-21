@@ -42,7 +42,7 @@ const VENTANA_CUMPLES = 30;
 
 // El discipulado propio son dos orígenes distintos —la tabla `discipulados`
 // para el que uno lidera y el RPC `mi_grupo` para el que uno cursa como
-// discípulo— normalizados acá, igual que en la pestaña "Mi grupo".
+// discípulo— normalizados acá, igual que en la pestaña "Mi discipulado".
 type GrupoDelFeed = {
   id: string;
   titulo: string;

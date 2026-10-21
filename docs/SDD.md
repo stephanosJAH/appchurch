@@ -204,7 +204,7 @@ formulario es `useState` local. Es una decisión deliberada de tamaño.
 app/                          Rutas (expo-router, file-based)
   _layout.tsx                 Providers + AuthGate (máquina de estados de sesión)
   (auth)/login.tsx            Login/registro por identificador sintético
-  (tabs)/                     Inicio · Calendario · Mi grupo · Actividades · Perfil
+  (tabs)/                     Inicio · Calendario · Mi discipulado · Actividades · Perfil
   pendiente.tsx               Pantalla de espera del rol `pendiente`
   aprobaciones.tsx            Resolución de identidad de cuentas pendientes
   mis-datos.tsx               Autogestión de la ficha propia
@@ -1258,7 +1258,7 @@ un integrante, y si un líder puede sumar colíderes.
 | `pendiente` | `pendiente` | Pantalla de espera |
 | `(tabs)/index` | Aprobado | Feed: saludo, actividades de hoy, eventos de la semana, cumpleaños, última predicación, directorio |
 | `(tabs)/calendario` | Aprobado | Vista semanal/mensual: eventos en su fecha, actividades repetidas cada semana |
-| `(tabs)/discipulado` | Aprobado | "Mi grupo": lo que uno lidera + lo que cursa como discípulo |
+| `(tabs)/discipulado` | Aprobado | "Mi discipulado": lo que uno lidera + lo que cursa como discípulo |
 | `(tabs)/actividades` | Aprobado | "Eventos y actividades", con buscador |
 | `(tabs)/perfil` | Aprobado | Datos, accesos de gestión, stats |
 | `aprobaciones` | Obrero/admin | Resolución de identidad de pendientes |

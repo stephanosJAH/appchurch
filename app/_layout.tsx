@@ -152,7 +152,7 @@ function AuthGate() {
       <Stack.Screen name="discipulado/editar" options={{ title: "Discipulado" }} />
       <Stack.Screen name="discipulado/discipulos" options={{ title: "Discípulos" }} />
       <Stack.Screen name="discipulado/historial" options={{ title: "Historial" }} />
-      <Stack.Screen name="mi-grupo/[id]" options={{ title: "Mi grupo" }} />
+      <Stack.Screen name="mi-grupo/[id]" options={{ title: "Mi discipulado" }} />
       <Stack.Screen name="ministerio/[id]" options={{ title: "Ministerio" }} />
       <Stack.Screen name="ministerio/editar" options={{ title: "Ministerio" }} />
       <Stack.Screen name="ministerio/integrantes" options={{ title: "Integrantes" }} />

@@ -144,8 +144,8 @@ export type Ministerio = {
   nombre: string;
   descripcion: string | null; // con marcas (lib/richText.ts)
   icono: string | null; // nombre de ionicon
-  // Fondo del encabezado del detalle (bucket `adjuntos`, 0033). Null = la
-  // acuarela por defecto.
+  // Foto del ministerio, en el cuadrado sobre el nombre del detalle (bucket
+  // `adjuntos`, 0033). Null = la inicial del nombre.
   imagen_url: string | null;
   activo: boolean;
   motivo_baja: string | null;
@@ -299,6 +299,17 @@ export const DIAS_SEMANA = [
   "Viernes",
   "Sábado",
 ] as const;
+
+export const SEXO_LABEL: Record<SexoDiscipulado, string> = {
+  M: "Varones",
+  F: "Mujeres",
+  mixto: "Mixto",
+};
+export const MODALIDAD_LABEL: Record<Modalidad, string> = {
+  presencial: "Presencial",
+  virtual: "Virtual",
+  ambos: "Presencial y virtual",
+};
 
 // Item del checklist de asistencia que viaja al RPC registrar_reunion.
 export type AsistenciaInput = {

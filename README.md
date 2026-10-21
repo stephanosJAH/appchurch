@@ -64,7 +64,7 @@ npm run ios        # simulador iOS (requiere macOS)
 ```
 app/
   (auth)/login.tsx          Login / registro
-  (tabs)/                   Inicio, Calendario, Mi grupo, Actividades, Perfil
+  (tabs)/                   Inicio, Calendario, Mi discipulado, Actividades, Perfil
   discipulado/              Resumen del grupo, roster (agregar discípulo) e historial
   reunion/nueva.tsx         Registrar reunión (asistencia + ofrenda + tema)
   admin/                    ABM de miembros, discipulados y eventos (solo admin)

@@ -44,7 +44,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="discipulado"
         options={{
-          title: "Mi grupo",
+          title: "Mi discipulado",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people-outline" color={color} size={size - 2} />
           ),

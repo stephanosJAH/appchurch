@@ -96,7 +96,7 @@ function MinisterioCard({ m, onPress }: { m: MiMinisterio; onPress: () => void }
   );
 }
 
-// "Mi grupo" es el hub de pertenencia: los discipulados en los que uno está
+// "Mi discipulado" es el hub de pertenencia: los discipulados en los que uno está
 // metido —sea liderándolos o cursándolos— y los ministerios donde participa o
 // lidera. No se agrega un sexto tab: la barra ya tiene cinco.
 //
@@ -157,15 +157,14 @@ export default function MiGrupoTab() {
   if (!cargando && lidero.length === 0 && participo.length === 1 && ministerios.length === 0) {
     return (
       <Screen>
-        <AppBar title="Mi grupo" />
-        <MiGrupoDetalle grupoId={participo[0].id} />
+        <MiGrupoDetalle grupoId={participo[0].id} titulo="Mi discipulado" />
       </Screen>
     );
   }
 
   return (
     <Screen>
-      <AppBar title="Mi grupo" />
+      <AppBar title="Mi discipulado" />
       {cargando ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator color={colors.primary} />
