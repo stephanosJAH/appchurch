@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Gesture, GestureDetector, type NativeGesture } from "react-native-gesture-handler";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { formatDiasSemana, formatFechaLarga, formatHora } from "../lib/date";
 import { cardShadow, colors, fonts } from "../lib/theme";
 import { Actividad, DIAS_SEMANA } from "../lib/types";
@@ -107,7 +107,7 @@ export function ActividadesHoy({
 }: {
   actividades: Actividad[];
   className?: string;
-  swipeGesture?: NativeGesture;
+  swipeGesture?: ReturnType<typeof Gesture.Native>;
   cargando?: boolean;
 }) {
   const router = useRouter();

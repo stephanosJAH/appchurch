@@ -1,11 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import { ActivityIndicator, Image, Linking, Pressable, ScrollView, Text, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Dato } from "../../components/Dato";
 import { FondoEncabezado } from "../../components/FondoEncabezado";
+import { GrillaAsistencia } from "../../components/GrillaAsistencia";
+import { Paneles } from "../../components/Paneles";
 import { RichTextView } from "../../components/RichTextView";
 import {
   Avatar,
@@ -14,6 +17,7 @@ import {
   Card,
   Chip,
   Label,
+  LinkAction,
   Muted,
   Screen,
   Title,
@@ -26,10 +30,11 @@ import {
   useMinisterio,
   useReunionesDeMiMinisterio,
   useReunionesMinisterio,
+  useReunionesMinisterioConAsistencia,
   useSoyLiderDe,
 } from "../../lib/queries/ministerios";
-import { acuarela, colors, fonts } from "../../lib/theme";
-import { ReunionDeMiMinisterio, ReunionMinisterio } from "../../lib/types";
+import { acuarela, cardShadow, colors, fonts } from "../../lib/theme";
+import { LiderMinisterio, ReunionDeMiMinisterio, ReunionMinisterio } from "../../lib/types";
 
 // Detalle de un ministerio. La misma pantalla sirve a tres audiencias, y el
 // corte NO es el rol (un líder de ministerio puede ser `miembro`):
@@ -45,6 +50,23 @@ import { ReunionDeMiMinisterio, ReunionMinisterio } from "../../lib/types";
 //
 // Quién es quién sale de `useSoyLiderDe`, que se resuelve contra el RPC
 // `mis_ministerios()` — ver docs/MINISTERIOS.md.
+//
+// Se ve distinto del discipulado a propósito: portada con la acuarela, hoja
+// blanca encima con la foto del ministerio, y el contenido repartido en
+// solapas en vez del resumen de una sola tirada. Las solapas siguen el mismo
+// corte por audiencia: Integrantes solo para quien gestiona, Reuniones para
+// quien gestiona o participa; con una sola solapa no se muestra la barra.
+
+// Alto de la foto por debajo de la barra de estado; la hoja la tapa 28 px.
+const ALTO_PORTADA = 200;
+const SOLAPA_DE_HOJA = 28;
+// Hoja crema con tarjetas blancas y sombra. `Card` es crema (`bg-surface`), así
+// que sobre esta hoja desaparece: acá se le pisa el fondo por `style`, que le
+// gana al className.
+const FONDO_HOJA = colors.background;
+const TARJETA = { backgroundColor: colors.surfaceContainerLowest, ...cardShadow };
+
+type Solapa = "inicio" | "integrantes" | "reuniones";
 
 function labelMes(clave: string): string {
   const [y, m] = clave.split("-").map(Number);
@@ -55,6 +77,193 @@ function labelMes(clave: string): string {
 }
 
 type MesReuniones = { clave: string; total: number; reuniones: ReunionMinisterio[] };
+
+// Botón redondo sobre la foto: la portada no tiene barra de navegación propia.
+function BotonFlotante({
+  icono,
+  label,
+  onPress,
+}: {
+  icono: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      className="h-10 w-10 items-center justify-center rounded-full active:opacity-70"
+      style={{ backgroundColor: "rgba(251, 249, 248, 0.92)" }}
+    >
+      <Ionicons name={icono} size={20} color={colors.primary} />
+    </Pressable>
+  );
+}
+
+function BarraSolapas({
+  solapas,
+  activa,
+  onCambiar,
+}: {
+  solapas: { id: Solapa; titulo: string }[];
+  activa: Solapa;
+  onCambiar: (s: Solapa) => void;
+}) {
+  return (
+    <View className="mt-5 flex-row border-b border-black/10" accessibilityRole="tablist">
+      {solapas.map((s) => {
+        const sel = s.id === activa;
+        return (
+          <Pressable
+            key={s.id}
+            onPress={() => onCambiar(s.id)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: sel }}
+            className="flex-1 items-center justify-center active:opacity-70"
+            style={{
+              minHeight: 48,
+              marginBottom: -1,
+              borderBottomWidth: 3,
+              borderBottomColor: sel ? colors.tertiary : "transparent",
+            }}
+          >
+            <Text
+              style={{ fontFamily: fonts.sansSemibold }}
+              className={`text-[15px] ${sel ? "text-navy" : "text-ink-muted"}`}
+            >
+              {s.titulo}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// Líderes como avatares encimados, alternando dorado y azul; a partir del
+// cuarto se resumen en un «+N». Al tocar se despliegan nombre y teléfono de
+// cada uno — el teléfono con la regla del directorio (0035).
+const LIDERES_VISIBLES = 3;
+const TAM_AVATAR_LIDER = 44;
+
+const soloDigitos = (tel: string) => tel.replace(/\D/g, "");
+
+function PilaDeLideres({ lideres }: { lideres: LiderMinisterio[] }) {
+  const [abierta, setAbierta] = useState(false);
+  // Si sobra uno solo, se muestra en vez de un «+1» que ocupa lo mismo.
+  const visibles =
+    lideres.length <= LIDERES_VISIBLES + 1 ? lideres : lideres.slice(0, LIDERES_VISIBLES);
+  const resto = lideres.length - visibles.length;
+  const nombres = lideres.map((l) => l.nombre_completo ?? "Sin nombre").join(", ");
+
+  return (
+    <View>
+      <Pressable
+        onPress={() => setAbierta((v) => !v)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: abierta }}
+        accessibilityLabel={`Líderes: ${nombres}`}
+        accessibilityHint={abierta ? "Oculta los contactos" : "Muestra los contactos"}
+        hitSlop={6}
+        className="flex-row items-center px-1 active:opacity-80"
+      >
+        {visibles.map((l, i) => (
+          <View
+            key={l.profile_id}
+            style={{
+              marginLeft: i === 0 ? 0 : -10,
+              borderRadius: TAM_AVATAR_LIDER,
+              borderWidth: 3,
+              borderColor: FONDO_HOJA,
+            }}
+          >
+            <Avatar
+              name={l.nombre_completo}
+              size={TAM_AVATAR_LIDER}
+              tone={i % 2 === 0 ? "gold" : "navy"}
+            />
+          </View>
+        ))}
+        {resto > 0 && (
+          <View
+            className="items-center justify-center"
+            style={{
+              marginLeft: -10,
+              width: TAM_AVATAR_LIDER + 6,
+              height: TAM_AVATAR_LIDER + 6,
+              borderRadius: TAM_AVATAR_LIDER,
+              borderWidth: 3,
+              borderColor: FONDO_HOJA,
+              backgroundColor: colors.surfaceContainerHigh,
+            }}
+          >
+            <Text style={{ fontFamily: fonts.sansSemibold }} className="text-sm text-ink">
+              +{resto}
+            </Text>
+          </View>
+        )}
+        <Ionicons
+          name={abierta ? "chevron-up" : "chevron-down"}
+          size={18}
+          color={colors.outline}
+          style={{ marginLeft: 8 }}
+        />
+      </Pressable>
+
+      {abierta && (
+        <Card className="mt-3 overflow-hidden p-0" style={TARJETA}>
+          {lideres.map((l, i) => (
+            <View
+              key={l.profile_id}
+              className={`flex-row items-center gap-3 px-4 py-3 ${i === 0 ? "" : "border-t border-black/5"}`}
+            >
+              <Avatar name={l.nombre_completo} size={36} tone={i % 2 === 0 ? "gold" : "navy"} />
+              <View className="flex-1">
+                <Body className="text-ink" numberOfLines={1}>
+                  {l.nombre_completo ?? "Sin nombre"}
+                </Body>
+                <Muted>{l.telefono ?? "Sin teléfono publicado"}</Muted>
+              </View>
+              {l.telefono ? (
+                <View className="flex-row gap-2">
+                  <Pressable
+                    onPress={() =>
+                      Linking.openURL(`https://wa.me/${soloDigitos(l.telefono!)}`).catch(() => {})
+                    }
+                    hitSlop={6}
+                    accessibilityLabel={`WhatsApp a ${l.nombre_completo ?? "líder"}`}
+                    className="h-10 w-10 items-center justify-center rounded-full bg-surface-mid active:opacity-70"
+                  >
+                    <Ionicons name="logo-whatsapp" size={19} color={colors.primary} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => Linking.openURL(`tel:${l.telefono}`).catch(() => {})}
+                    hitSlop={6}
+                    accessibilityLabel={`Llamar a ${l.nombre_completo ?? "líder"}`}
+                    className="h-10 w-10 items-center justify-center rounded-full bg-surface-mid active:opacity-70"
+                  >
+                    <Ionicons name="call-outline" size={18} color={colors.primary} />
+                  </Pressable>
+                </View>
+              ) : null}
+            </View>
+          ))}
+        </Card>
+      )}
+    </View>
+  );
+}
+
+function Encabezado({ titulo, accion, onAccion }: { titulo: string; accion?: string; onAccion?: () => void }) {
+  return (
+    <View className="mb-2 mt-6 flex-row items-end justify-between px-1">
+      <Label>{titulo}</Label>
+      {accion ? <LinkAction title={accion} onPress={onAccion} /> : null}
+    </View>
+  );
+}
 
 // Reunión vista por un participante: fecha y tema siempre, presentes al tocar.
 // Espejo de la tarjeta de components/MiGrupo.tsx.
@@ -69,7 +278,7 @@ function ReunionParticipanteCard({
   const n = r.participantes.length;
 
   return (
-    <Card className="overflow-hidden p-0">
+    <Card className="overflow-hidden p-0" style={TARJETA}>
       <Pressable
         onPress={() => setAbierta((v) => !v)}
         className="flex-row items-center gap-3 p-4 active:opacity-80"
@@ -127,6 +336,11 @@ export default function MinisterioDetalle() {
   // disparar una RPC que va a contestar "no autorizado".
   const { data: integrantes = [] } = useIntegrantesMinisterio(ministerioId, puedeGestionar);
   const { data: reuniones = [] } = useReunionesMinisterio(ministerioId, puedeGestionar);
+  // Las mismas reuniones con quién vino, para la grilla de la solapa Integrantes.
+  const { data: reunionesConAsistencia = [] } = useReunionesMinisterioConAsistencia(
+    ministerioId,
+    puedeGestionar
+  );
   // Historial reducido: para el participante que no lidera.
   const { data: reunionesParticipante = [] } = useReunionesDeMiMinisterio(
     ministerioId,
@@ -160,33 +374,58 @@ export default function MinisterioDetalle() {
   const toggleMes = (clave: string, idx: number) =>
     setMesesAbiertos((p) => ({ ...p, [clave]: !mesAbierto(clave, idx) }));
 
-  // Encabezado medianoche, continuo con la foto de abajo: el mismo del resumen
-  // de discipulado. La barra de estado pasa a clara solo mientras esta pantalla
-  // está al frente (ver discipulado/[id].tsx).
+  const solapas = useMemo(() => {
+    const s: { id: Solapa; titulo: string }[] = [{ id: "inicio", titulo: "Inicio" }];
+    if (puedeGestionar) s.push({ id: "integrantes", titulo: "Integrantes" });
+    if (puedeGestionar || participo) s.push({ id: "reuniones", titulo: "Reuniones" });
+    return s;
+  }, [puedeGestionar, participo]);
+  const [solapaElegida, setSolapa] = useState<Solapa>("inicio");
+  // Si la pertenencia cambia y la solapa elegida deja de estar, vuelve a Inicio.
+  const solapa = solapas.some((s) => s.id === solapaElegida) ? solapaElegida : "inicio";
+  // Las solapas se cambian con el tap en la barra o deslizando, como
+  // "Eventos y actividades" (<Paneles>).
+  const onIndexChange = useCallback(
+    (i: number) => setSolapa(solapas[i]?.id ?? "inicio"),
+    [solapas]
+  );
+  // El carrusel de anuncios scrollea horizontal dentro de Inicio: <Paneles>
+  // tiene que conocerlo para cederle el gesto. Arreglo estable, ver Paneles.
+  const carruseles = useMemo(() => [Gesture.Native()], []);
+  const [carruselAnuncios] = carruseles;
+
+  // Sin barra de navegación propia: la portada llega hasta arriba y los botones
+  // flotan sobre la foto. La barra de estado pasa a clara solo mientras esta
+  // pantalla está al frente (ver discipulado/[id].tsx), y solo con la foto ya
+  // puesta: mientras carga, abajo está la crema del fondo.
   const encabezado = (
     <>
       <Stack.Screen
         options={{
-          headerStyle: { backgroundColor: acuarela.medianoche },
-          headerTintColor: colors.onPrimary,
-          headerTitleStyle: { color: colors.onPrimary, fontFamily: fonts.sansBold, fontSize: 16 },
+          headerTransparent: true,
+          // El layout raíz pinta el header de blanco para todas las pantallas;
+          // sin pisarlo, el header transparente igual tapa la portada.
+          headerStyle: { backgroundColor: "transparent" },
+          headerTitle: "",
+          headerShadowVisible: false,
+          headerBackVisible: false,
+          headerLeft: () => (
+            <BotonFlotante icono="chevron-back" label="Volver" onPress={() => router.back()} />
+          ),
           headerRight: puedeGestionar
             ? () => (
-                <Pressable
+                <BotonFlotante
+                  icono="create-outline"
+                  label="Editar ministerio"
                   onPress={() =>
                     router.push({ pathname: "/ministerio/editar", params: { id: ministerioId } })
                   }
-                  className="active:opacity-60"
-                  hitSlop={12}
-                  accessibilityLabel="Editar ministerio"
-                >
-                  <Ionicons name="create-outline" size={22} color={colors.onPrimary} />
-                </Pressable>
+                />
               )
             : undefined,
         }}
       />
-      {enFoco && <StatusBar style="light" />}
+      {enFoco && <StatusBar style={ministerio ? "light" : "dark"} />}
     </>
   );
 
@@ -208,14 +447,6 @@ export default function MinisterioDetalle() {
   }
 
   const lideres = ministerio.lideres ?? [];
-  const relacion = soyLider ? "Liderás este ministerio" : participo ? "Participás" : "Ministerio";
-  const nombresLideres = lideres.map((l) => l.nombre_completo ?? "Sin nombre").join(" · ");
-  const subtitulo =
-    lideres.length === 0
-      ? "Sin líderes asignados todavía"
-      : lideres.length === 1
-        ? nombresLideres
-        : `Líderes: ${nombresLideres}`;
   // Vienen ordenadas por fecha, la más reciente primero.
   const ultima = reuniones[0];
   const delMes = meses.find((m) => m.clave === toISODate(new Date()).slice(0, 7));
@@ -226,10 +457,10 @@ export default function MinisterioDetalle() {
       {encabezado}
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+        contentContainerStyle={{ flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* En iOS el rebote de arriba destapa lo que hay detrás del encabezado:
+        {/* En iOS el rebote de arriba destapa lo que hay detrás de la portada:
             que siga siendo medianoche y no la crema del fondo. */}
         <View
           style={{
@@ -242,272 +473,361 @@ export default function MinisterioDetalle() {
           }}
         />
 
-        {/* La imagen la sube un líder desde «Editar»; sin ella, la acuarela del
-            discipulado. Sin datos colgando abajo (quien no gestiona) el bloque
-            cierra antes. */}
-        <FondoEncabezado imagenUrl={ministerio.imagen_url}>
-          <View className="px-5 pt-1" style={{ paddingBottom: puedeGestionar ? 76 : 28 }}>
-            <Text
-              style={{ fontFamily: fonts.sansSemibold, letterSpacing: 1 }}
-              className="text-xs uppercase text-gold-dim"
-            >
-              {relacion}
-              {puedeGestionar && ministerio.activo === false ? " · Dado de baja" : ""}
-            </Text>
-            <Text
-              style={{ fontFamily: fonts.serifSemibold, fontSize: 28, lineHeight: 34 }}
-              className="mt-1.5 text-white"
-            >
-              {ministerio.nombre}
-            </Text>
-            <Text style={{ fontFamily: fonts.sans }} className="mt-1 text-[15px] text-navy-soft">
-              {subtitulo}
-            </Text>
-
-            {/* Un ministerio no tiene día fijo: en lugar de la próxima reunión,
-                la última que se cargó. */}
-            {puedeGestionar && (
-              <View
-                style={{ backgroundColor: acuarela.panel }}
-                className="mt-5 flex-row items-center gap-3 rounded-[14px] py-3.5 pl-4 pr-3.5"
-              >
-                <View className="flex-1">
-                  <Text
-                    style={{ fontFamily: fonts.sansSemibold, letterSpacing: 1 }}
-                    className="text-[11px] uppercase text-navy-soft"
-                  >
-                    Última reunión
-                  </Text>
-                  <Text
-                    style={{ fontFamily: fonts.sansSemibold }}
-                    className="mt-0.5 text-base text-white"
-                  >
-                    {ultima ? formatFechaCorta(ultima.fecha) : "Sin reuniones"}
-                  </Text>
-                  <Text
-                    numberOfLines={1}
-                    style={{ fontFamily: fonts.sans }}
-                    className="text-[13px] text-navy-soft"
-                  >
-                    {ultima ? ultima.tema || "Sin tema" : "Registrá la primera"}
-                  </Text>
-                </View>
-                <Button
-                  title="Registrar"
-                  variant="goldContainer"
-                  size="sm"
-                  hitSlop={8}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/reunion/nueva",
-                      params: { origen: "ministerio", ministerioId },
-                    })
-                  }
-                />
-              </View>
-            )}
-          </View>
+        {/* La portada es siempre la acuarela: la imagen propia del ministerio
+            va en la foto de la hoja, no de fondo. */}
+        <FondoEncabezado velo={false}>
+          <View style={{ height: insets.top + ALTO_PORTADA + SOLAPA_DE_HOJA }} />
         </FondoEncabezado>
 
-        {puedeGestionar && (
-          <View className="flex-row gap-2.5 px-4" style={{ marginTop: -52 }}>
-            <Dato
-              valor={String(activos.length)}
-              titulo={activos.length === 1 ? "Integrante" : "Integrantes"}
-              detalle="activos"
-            />
-            <Dato
-              valor={String(delMes?.reuniones.length ?? 0)}
-              titulo={delMes?.reuniones.length === 1 ? "Reunión" : "Reuniones"}
-              detalle={nombreMes}
-            />
-            <Dato valor={formatMoneda(delMes?.total ?? 0)} titulo="Ofrenda" detalle={nombreMes} />
+        {/* La hoja va de borde a borde (sin `px-5`): <Paneles> mide el ancho de
+            la pantalla, así que el margen lo pone cada bloque adentro. */}
+        <View
+          className="flex-1"
+          style={{
+            marginTop: -SOLAPA_DE_HOJA,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            backgroundColor: FONDO_HOJA,
+            paddingBottom: insets.bottom + 32,
+          }}
+        >
+          <View className="px-5">
+          {/* Foto del ministerio: la sube un líder desde «Editar». Sin ella, la
+              inicial del nombre. El borde del color de la hoja la despega de la
+              portada. La imagen no se recorta al subirla: `cover` toma el
+              centro, que en un cuadrado es lo que se ve. */}
+          <View
+            className="items-center justify-center overflow-hidden"
+            style={{
+              marginTop: -40,
+              width: 84,
+              height: 84,
+              borderRadius: 24,
+              borderWidth: 4,
+              borderColor: FONDO_HOJA,
+              backgroundColor: colors.primary,
+            }}
+          >
+            {ministerio.imagen_url ? (
+              <Image
+                source={{ uri: ministerio.imagen_url }}
+                resizeMode="cover"
+                accessibilityIgnoresInvertColors
+                style={{ width: "100%", height: "100%" }}
+              />
+            ) : (
+              <Text
+                style={{ fontFamily: fonts.serifBold, fontSize: 34, lineHeight: 40 }}
+                className="text-gold-dim"
+              >
+                {ministerio.nombre.charAt(0).toUpperCase()}
+              </Text>
+            )}
           </View>
-        )}
 
-        <View className="px-4">
-          {ministerio.descripcion ? (
-            <Card className="mt-6">
-              <RichTextView descripcion={ministerio.descripcion} />
-            </Card>
-          ) : null}
+          <Text
+            style={{ fontFamily: fonts.serifBold, fontSize: 30, lineHeight: 36 }}
+            className="mt-3 text-navy"
+          >
+            {ministerio.nombre}
+          </Text>
 
-          {/* Anuncios del ministerio */}
-          {(participo || puedeGestionar) && (
-            <>
-              <View className="mb-2 mt-7 flex-row items-center justify-between">
-                <Label>Anuncios</Label>
-                {puedeGestionar && (
+          {(soyLider || participo || puedeGestionar) && (
+            <View className="mt-3 flex-row flex-wrap gap-2">
+              {soyLider ? (
+                <Chip tone="gold">Liderás este ministerio</Chip>
+              ) : participo ? (
+                <Chip tone="gold">Participás</Chip>
+              ) : null}
+              {puedeGestionar && (
+                <Chip tone="neutral">
+                  {activos.length} {activos.length === 1 ? "integrante" : "integrantes"}
+                </Chip>
+              )}
+              {puedeGestionar && ministerio.activo === false && (
+                <Chip tone="danger">Dado de baja</Chip>
+              )}
+            </View>
+          )}
+
+          {solapas.length > 1 && (
+            <BarraSolapas solapas={solapas} activa={solapa} onCambiar={setSolapa} />
+          )}
+          </View>
+
+          {/* Un hijo por solapa, en el mismo orden que `solapas`: los que no
+              corresponden a esta audiencia quedan en `false` y Paneles los
+              descarta. */}
+          <Paneles
+            index={Math.max(solapas.findIndex((s) => s.id === solapa), 0)}
+            onIndexChange={onIndexChange}
+            carruseles={carruseles}
+            altoVariable
+          >
+          {/* ====================== Inicio ====================== */}
+            <View className={solapas.length > 1 ? "px-5" : "mt-2 px-5"}>
+              {/* Un ministerio no tiene día fijo: en lugar de la próxima
+                  reunión, la última que se cargó. */}
+              {puedeGestionar && (
+                <View
+                  style={{ backgroundColor: colors.primary, borderRadius: 18 }}
+                  className="mt-5 flex-row items-center gap-3 py-3.5 pl-4 pr-3.5"
+                >
+                  <View className="flex-1">
+                    <Text
+                      style={{ fontFamily: fonts.sansSemibold, letterSpacing: 1 }}
+                      className="text-[11px] uppercase text-navy-soft"
+                    >
+                      {ultima ? `Última reunión · ${formatFechaCorta(ultima.fecha)}` : "Última reunión"}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      style={{ fontFamily: fonts.sansSemibold }}
+                      className="mt-0.5 text-base text-white"
+                    >
+                      {ultima ? ultima.tema || "Sin tema" : "Sin reuniones"}
+                    </Text>
+                    <Text style={{ fontFamily: fonts.sans }} className="text-[13px] text-navy-soft">
+                      {ultima
+                        ? `${delMes?.reuniones.length ?? 0} en ${nombreMes}`
+                        : "Registrá la primera"}
+                    </Text>
+                  </View>
                   <Button
-                    title="+ Publicar"
-                    variant="ghost"
+                    title="Registrar"
+                    variant="goldContainer"
                     size="sm"
+                    hitSlop={8}
                     onPress={() =>
+                      router.push({
+                        pathname: "/reunion/nueva",
+                        params: { origen: "ministerio", ministerioId },
+                      })
+                    }
+                  />
+                </View>
+              )}
+
+              {ministerio.descripcion ? (
+                <Card className="mt-5" style={TARJETA}>
+                  <RichTextView descripcion={ministerio.descripcion} />
+                </Card>
+              ) : null}
+
+              <Encabezado
+                titulo={
+                  lideres.length === 1 ? "Lo lidera" : `Lo lideran (${lideres.length})`
+                }
+              />
+              {lideres.length === 0 ? (
+                <Card style={TARJETA}>
+                  <Muted>Sin líderes asignados todavía.</Muted>
+                </Card>
+              ) : (
+                <PilaDeLideres lideres={lideres} />
+              )}
+
+              {(participo || puedeGestionar) && (
+                <>
+                  <Encabezado
+                    titulo="Anuncios"
+                    accion={puedeGestionar ? "+ Publicar" : undefined}
+                    onAccion={() =>
                       router.push({ pathname: "/anuncios", params: { ministerioId } })
                     }
                   />
-                )}
-              </View>
-              {anunciosDelMinisterio.length === 0 ? (
-                <Card>
+                  {anunciosDelMinisterio.length === 0 ? (
+                    <Card style={TARJETA}>
+                      <Muted>
+                        {puedeGestionar
+                          ? "Todavía no publicaste nada. Los anuncios les llegan a los integrantes del ministerio."
+                          : "Todavía no hay anuncios de este ministerio."}
+                      </Muted>
+                    </Card>
+                  ) : (
+                    // Carrusel a lo ancho: se sale del margen de la hoja para que
+                    // la tarjeta cortada a la derecha avise que hay más.
+                    <GestureDetector gesture={carruselAnuncios}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      className="-mx-5"
+                      contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 2, paddingBottom: 12, gap: 10 }}
+                    >
+                      {anunciosDelMinisterio.map((a) => (
+                        <Pressable
+                          key={a.id}
+                          onPress={() => router.push("/anuncios")}
+                          className="active:opacity-80"
+                        >
+                          <Card className="px-4 py-3.5" style={[TARJETA, { width: 240 }]}>
+                            <Text
+                              style={{ fontFamily: fonts.sansBold, letterSpacing: 1 }}
+                              className={`text-xs uppercase ${a.fijado ? "text-gold" : "text-ink-muted"}`}
+                            >
+                              {a.fijado ? "Fijado" : formatFechaCorta(a.created_at.slice(0, 10))}
+                            </Text>
+                            <Title className="mt-1 text-[17px]" numberOfLines={2}>
+                              {a.titulo}
+                            </Title>
+                            {a.fijado ? (
+                              <Muted className="mt-1">
+                                {formatFechaCorta(a.created_at.slice(0, 10))}
+                              </Muted>
+                            ) : null}
+                          </Card>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                    </GestureDetector>
+                  )}
+                </>
+              )}
+
+              {!participo && !puedeGestionar && (
+                <Card className="mt-6" style={TARJETA}>
                   <Muted>
-                    {puedeGestionar
-                      ? "Todavía no publicaste nada. Los anuncios les llegan a los integrantes del ministerio."
-                      : "Todavía no hay anuncios de este ministerio."}
+                    No participás de este ministerio. Si querés sumarte, hablá con alguno de
+                    sus líderes.
                   </Muted>
                 </Card>
-              ) : (
-                <View className="gap-2.5">
-                  {anunciosDelMinisterio.map((a) => (
-                    <Pressable
-                      key={a.id}
-                      onPress={() => router.push("/anuncios")}
-                      className="active:opacity-80"
-                    >
-                      <Card>
-                        <View className="flex-row items-center gap-2">
-                          {a.fijado ? (
-                            <Ionicons name="pin" size={14} color={colors.tertiary} />
-                          ) : null}
-                          <Title className="flex-1 text-base" numberOfLines={1}>
-                            {a.titulo}
-                          </Title>
-                        </View>
-                        <Muted className="mt-1">{formatFechaCorta(a.created_at.slice(0, 10))}</Muted>
-                      </Card>
-                    </Pressable>
-                  ))}
-                </View>
               )}
-            </>
-          )}
+            </View>
 
-          {/* Roster — solo gestión */}
+          {/* ==================== Integrantes ==================== */}
           {puedeGestionar && (
-            <>
-              <View className="mb-2 mt-7 flex-row items-center justify-between">
-                <Label>Integrantes ({activos.length})</Label>
-                <Button
-                  title="Gestionar"
-                  variant="ghost"
-                  size="sm"
-                  onPress={() =>
-                    router.push({ pathname: "/ministerio/integrantes", params: { id: ministerioId } })
-                  }
-                />
-              </View>
+            <View className="px-5">
+              <Encabezado
+                titulo={`${activos.length} ${activos.length === 1 ? "activo" : "activos"}`}
+                accion="Gestionar"
+                onAccion={() =>
+                  router.push({ pathname: "/ministerio/integrantes", params: { id: ministerioId } })
+                }
+              />
               {activos.length === 0 ? (
-                <Card>
+                <Card style={TARJETA}>
                   <Muted>
                     Todavía no hay nadie en este ministerio. Sumá gente desde
                     «Gestionar».
                   </Muted>
                 </Card>
               ) : (
-                <View className="gap-2.5">
-                  {activos.map((i) => (
-                    <Card key={i.miembro_id} className="flex-row items-center gap-3 py-3.5">
-                      <Avatar name={i.nombre} size={38} tone="gold" />
-                      <View className="flex-1">
-                        <Body className="text-ink">
-                          {`${i.nombre} ${i.apellido ?? ""}`.trim()}
-                        </Body>
-                        {i.telefono ? <Muted>{i.telefono}</Muted> : null}
-                      </View>
-                    </Card>
-                  ))}
-                </View>
+                <GrillaAsistencia
+                  style={TARJETA}
+                  reuniones={reunionesConAsistencia}
+                  encabezado="Integrante"
+                  filas={activos.map((i) => ({
+                    key: i.miembro_id,
+                    miembroId: i.miembro_id,
+                    nombre: i.nombre,
+                    apellido: i.apellido,
+                  }))}
+                  // La ficha completa solo la lee el admin (RLS de `miembros`,
+                  // 0014); a un líder `miembro` lo llevaría a una pantalla vacía.
+                  onPress={
+                    isAdmin
+                      ? (f) => router.push({ pathname: "/miembro/[id]", params: { id: f.miembroId } })
+                      : undefined
+                  }
+                />
               )}
-            </>
+            </View>
           )}
 
-          {/* Historial */}
-          {puedeGestionar ? (
-            <>
-              <Label className="mb-2 mt-7">Historial de reuniones</Label>
-              {meses.length === 0 ? (
-                <Card>
-                  <Muted>Sin reuniones registradas.</Muted>
-                </Card>
-              ) : (
-                <View className="gap-3">
-                  {meses.map((mes, idx) => {
-                    const abierto = mesAbierto(mes.clave, idx);
-                    return (
-                      <Card key={mes.clave} className="overflow-hidden p-0">
-                        <Pressable
-                          onPress={() => toggleMes(mes.clave, idx)}
-                          className="flex-row items-center gap-3 p-4 active:opacity-80"
-                        >
-                          <View className="flex-1">
-                            <Title className="text-base capitalize">{labelMes(mes.clave)}</Title>
-                            <Muted>
-                              {mes.reuniones.length}{" "}
-                              {mes.reuniones.length === 1 ? "reunión" : "reuniones"}
-                            </Muted>
-                          </View>
-                          <Title className="text-base text-gold">{formatMoneda(mes.total)}</Title>
-                          <Ionicons
-                            name={abierto ? "chevron-up" : "chevron-down"}
-                            size={18}
-                            color={colors.outline}
-                          />
-                        </Pressable>
+          {/* ===================== Reuniones ===================== */}
+          {(puedeGestionar || participo) && (
+            <View className="px-5">
+            {puedeGestionar ? (
+              <View>
+                <View className="mt-5 flex-row gap-2.5">
+                  <Dato
+                    valor={String(delMes?.reuniones.length ?? 0)}
+                    titulo={delMes?.reuniones.length === 1 ? "Reunión" : "Reuniones"}
+                    detalle={nombreMes}
+                  />
+                  <Dato valor={formatMoneda(delMes?.total ?? 0)} titulo="Ofrenda" detalle={nombreMes} />
+                </View>
 
-                        {abierto && (
-                          <View className="border-t border-black/10">
-                            {mes.reuniones.map((r) => (
-                              <Pressable
-                                key={r.id}
-                                onPress={() =>
-                                  router.push({
-                                    pathname: "/reunion/[id]",
-                                    params: { id: r.id, origen: "ministerio" },
-                                  })
-                                }
-                                className="border-b border-black/5 px-4 py-3 active:opacity-80"
-                              >
-                                <View className="flex-row items-center gap-3">
-                                  <View className="flex-1">
-                                    <Body className="text-ink">{formatFechaCorta(r.fecha)}</Body>
-                                    {r.tema ? <Muted numberOfLines={1}>{r.tema}</Muted> : null}
+                <Encabezado titulo="Historial" />
+                {meses.length === 0 ? (
+                  <Card style={TARJETA}>
+                    <Muted>Sin reuniones registradas.</Muted>
+                  </Card>
+                ) : (
+                  <View className="gap-3">
+                    {meses.map((mes, idx) => {
+                      const abierto = mesAbierto(mes.clave, idx);
+                      return (
+                        <Card key={mes.clave} className="overflow-hidden p-0" style={TARJETA}>
+                          <Pressable
+                            onPress={() => toggleMes(mes.clave, idx)}
+                            className="flex-row items-center gap-3 p-4 active:opacity-80"
+                          >
+                            <View className="flex-1">
+                              <Title className="text-base capitalize">{labelMes(mes.clave)}</Title>
+                              <Muted>
+                                {mes.reuniones.length}{" "}
+                                {mes.reuniones.length === 1 ? "reunión" : "reuniones"}
+                              </Muted>
+                            </View>
+                            <Title className="text-base text-gold">{formatMoneda(mes.total)}</Title>
+                            <Ionicons
+                              name={abierto ? "chevron-up" : "chevron-down"}
+                              size={18}
+                              color={colors.outline}
+                            />
+                          </Pressable>
+
+                          {abierto && (
+                            <View className="border-t border-black/10">
+                              {mes.reuniones.map((r) => (
+                                <Pressable
+                                  key={r.id}
+                                  onPress={() =>
+                                    router.push({
+                                      pathname: "/reunion/[id]",
+                                      params: { id: r.id, origen: "ministerio" },
+                                    })
+                                  }
+                                  className="border-b border-black/5 px-4 py-3 active:opacity-80"
+                                >
+                                  <View className="flex-row items-center gap-3">
+                                    <View className="flex-1">
+                                      <Body className="text-ink">{formatFechaCorta(r.fecha)}</Body>
+                                      {r.tema ? <Muted numberOfLines={1}>{r.tema}</Muted> : null}
+                                    </View>
+                                    <Chip tone="success">{formatMoneda(r.ofrenda_total)}</Chip>
+                                    <Ionicons name="chevron-forward" size={16} color={colors.outline} />
                                   </View>
-                                  <Chip tone="success">{formatMoneda(r.ofrenda_total)}</Chip>
-                                  <Ionicons name="chevron-forward" size={16} color={colors.outline} />
-                                </View>
-                              </Pressable>
-                            ))}
-                          </View>
-                        )}
-                      </Card>
-                    );
-                  })}
-                </View>
-              )}
-            </>
-          ) : participo ? (
-            <>
-              <Label className="mb-2 mt-7">Reuniones ({reunionesParticipante.length})</Label>
-              {reunionesParticipante.length === 0 ? (
-                <Card>
-                  <Muted>Todavía no hay reuniones registradas en este ministerio.</Muted>
-                </Card>
-              ) : (
-                <View className="gap-3">
-                  {reunionesParticipante.map((r, i) => (
-                    <ReunionParticipanteCard key={r.id} r={r} abiertaPorDefecto={i === 0} />
-                  ))}
-                </View>
-              )}
-            </>
-          ) : (
-            <Card className="mt-7">
-              <Muted>
-                No participás de este ministerio. Si querés sumarte, hablá con alguno de
-                sus líderes.
-              </Muted>
-            </Card>
+                                </Pressable>
+                              ))}
+                            </View>
+                          )}
+                        </Card>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View>
+                <Encabezado titulo={`Reuniones · ${reunionesParticipante.length}`} />
+                {reunionesParticipante.length === 0 ? (
+                  <Card style={TARJETA}>
+                    <Muted>Todavía no hay reuniones registradas en este ministerio.</Muted>
+                  </Card>
+                ) : (
+                  <View className="gap-3">
+                    {reunionesParticipante.map((r, i) => (
+                      <ReunionParticipanteCard key={r.id} r={r} abiertaPorDefecto={i === 0} />
+                    ))}
+                  </View>
+                )}
+              </View>
+            )}
+            </View>
           )}
+          </Paneles>
         </View>
       </ScrollView>
     </Screen>

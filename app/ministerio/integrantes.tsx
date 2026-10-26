@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Alert, View } from "react-native";
-import { BuscadorPersonas, ListaPersonas } from "../../components/SelectorPersonas";
+import { GrillaAsistencia } from "../../components/GrillaAsistencia";
+import { BuscadorPersonas } from "../../components/SelectorPersonas";
 import {
   Button,
   Card,
@@ -20,13 +21,16 @@ import {
   useIntegrantesMinisterio,
   useMinisterio,
   useQuitarIntegrante,
+  useReunionesMinisterioConAsistencia,
   useSoyLiderDe,
 } from "../../lib/queries/ministerios";
 import { colors } from "../../lib/theme";
 import { IntegranteMinisterio, Sexo } from "../../lib/types";
 
-// Gestión del roster de un ministerio: sumar gente del padrón, crear la ficha
-// de quien todavía no está, y dar de baja a quien dejó de participar.
+// Roster de un ministerio, con la misma grilla de asistencia que los
+// discípulos de un discipulado: quién viene a las reuniones, sumar gente del
+// padrón, crear la ficha de quien todavía no está, y dar de baja a quien dejó
+// de participar.
 //
 // Buscar en el padrón va por RPC (`candidatos_para_ministerio`) y no por una
 // consulta a `miembros`: desde 0014 la RLS del padrón solo deja leer al admin y
@@ -41,12 +45,17 @@ function nombreCompleto(p: { nombre: string; apellido: string | null }): string 
 export default function IntegrantesMinisterio() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const ministerioId = String(id);
+  const router = useRouter();
   const { isAdmin } = useAuth();
   const { soyLider } = useSoyLiderDe(ministerioId);
   const puedeGestionar = isAdmin || soyLider;
 
   const { data: ministerio } = useMinisterio(ministerioId);
   const { data: integrantes = [], isLoading } = useIntegrantesMinisterio(
+    ministerioId,
+    puedeGestionar
+  );
+  const { data: reuniones = [] } = useReunionesMinisterioConAsistencia(
     ministerioId,
     puedeGestionar
   );
@@ -66,6 +75,7 @@ export default function IntegrantesMinisterio() {
   // asomaba un frame de "no encontramos a nadie".
   const buscando = isFetching || (isPending && !errorBusqueda);
 
+  const [showAgregar, setShowAgregar] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
@@ -74,10 +84,20 @@ export default function IntegrantesMinisterio() {
 
   const activos = integrantes.filter((i) => i.activo);
 
+  const cerrarAgregar = () => {
+    setShowAgregar(false);
+    setShowForm(false);
+    setBusqueda("");
+    setNombre("");
+    setApellido("");
+    setTelefono("");
+    setSexo("M");
+  };
+
   const onAgregar = async (miembroId: string) => {
     try {
       await agregar.mutateAsync(miembroId);
-      setBusqueda("");
+      cerrarAgregar();
     } catch (e: any) {
       Alert.alert("Error", e.message ?? "No se pudo sumar a esta persona.");
     }
@@ -110,12 +130,7 @@ export default function IntegrantesMinisterio() {
         sexo,
         telefono: telefono.trim() || null,
       });
-      setNombre("");
-      setApellido("");
-      setTelefono("");
-      setSexo("M");
-      setShowForm(false);
-      setBusqueda("");
+      cerrarAgregar();
     } catch (e: any) {
       Alert.alert("Error", e.message ?? "No se pudo crear la ficha.");
     }
@@ -136,91 +151,117 @@ export default function IntegrantesMinisterio() {
     <KeyboardScrollView>
       <Stack.Screen options={{ title: ministerio?.nombre ?? "Integrantes" }} />
 
-      {/* Sumar gente */}
-      <Label className="mb-1.5">Sumar al ministerio</Label>
-      <BuscadorPersonas
-        busqueda={busqueda}
-        onBusqueda={setBusqueda}
-        candidatos={candidatos.map((c) => ({
-          id: c.id,
-          nombre: nombreCompleto(c),
-          detalle: c.telefono_parcial,
-        }))}
-        onAgregar={(p) => onAgregar(p.id)}
-        placeholder="Buscar en el padrón por nombre o teléfono"
-        minCaracteres={2}
-        buscando={buscando}
-        error={errorBusqueda ? `No se pudo buscar en el padrón: ${errorBusqueda.message}` : null}
-        agregando={agregar.isPending}
-        sinResultados="No encontramos a nadie con ese nombre en el padrón (o ya está en el ministerio). Podés crear la ficha más abajo."
-      />
-
-      {/* Alta de una ficha nueva */}
       <View className="mb-2 flex-row items-center justify-between">
-        <Label>¿No está en el padrón?</Label>
+        <Label>Integrantes ({activos.length})</Label>
         <Button
-          title={showForm ? "Cancelar" : "+ Crear ficha"}
+          title={showAgregar ? "Cancelar" : "+ Agregar"}
           variant="ghost"
           size="sm"
-          onPress={() => setShowForm((v) => !v)}
+          onPress={() => (showAgregar ? cerrarAgregar() : setShowAgregar(true))}
         />
       </View>
 
-      {showForm && (
-        <Card className="mb-5">
-          <Field label="Nombre" value={nombre} onChangeText={setNombre} autoCapitalize="words" />
-          <Field
-            label="Apellido"
-            value={apellido}
-            onChangeText={setApellido}
-            placeholder="Opcional"
-            autoCapitalize="words"
+      {showAgregar && (
+        <View className="mb-3">
+          {/* Sumar gente */}
+          <BuscadorPersonas
+            busqueda={busqueda}
+            onBusqueda={setBusqueda}
+            candidatos={candidatos.map((c) => ({
+              id: c.id,
+              nombre: nombreCompleto(c),
+              detalle: c.telefono_parcial,
+            }))}
+            onAgregar={(p) => onAgregar(p.id)}
+            placeholder="Buscar en el padrón por nombre o teléfono"
+            minCaracteres={2}
+            buscando={buscando}
+            error={errorBusqueda ? `No se pudo buscar en el padrón: ${errorBusqueda.message}` : null}
+            agregando={agregar.isPending}
+            sinResultados="No encontramos a nadie con ese nombre en el padrón (o ya está en el ministerio). Podés crear la ficha más abajo."
+            autoFocus
           />
-          <Field
-            label="Teléfono"
-            value={telefono}
-            onChangeText={setTelefono}
-            placeholder="Opcional"
-            keyboardType="phone-pad"
-          />
-          <Label className="mb-1.5">Sexo</Label>
-          <View className="mb-4 flex-row gap-2">
-            {(["M", "F"] as Sexo[]).map((s) => (
-              <View key={s} className="flex-1">
-                <Button
-                  title={s === "M" ? "Masculino" : "Femenino"}
-                  variant={sexo === s ? "primary" : "outline"}
-                  size="sm"
-                  onPress={() => setSexo(s)}
-                />
-              </View>
-            ))}
+
+          {/* Alta de una ficha nueva */}
+          <View className="mb-2 flex-row items-center justify-between">
+            <Label>¿No está en el padrón?</Label>
+            <Button
+              title={showForm ? "Cancelar" : "+ Crear ficha"}
+              variant="ghost"
+              size="sm"
+              onPress={() => setShowForm((v) => !v)}
+            />
           </View>
-          <Muted className="mb-3">
-            Se crea una ficha en el padrón de la iglesia y se suma al ministerio. El
-            resto de los datos los completa después un admin, su discipulador, o
-            ella misma desde «Mis datos».
-          </Muted>
-          <Button title="Crear y sumar" onPress={onCrear} loading={crear.isPending} />
-        </Card>
+
+          {showForm && (
+            <Card>
+              <Field label="Nombre" value={nombre} onChangeText={setNombre} autoCapitalize="words" />
+              <Field
+                label="Apellido"
+                value={apellido}
+                onChangeText={setApellido}
+                placeholder="Opcional"
+                autoCapitalize="words"
+              />
+              <Field
+                label="Teléfono"
+                value={telefono}
+                onChangeText={setTelefono}
+                placeholder="Opcional"
+                keyboardType="phone-pad"
+              />
+              <Label className="mb-1.5">Sexo</Label>
+              <View className="mb-4 flex-row gap-2">
+                {(["M", "F"] as Sexo[]).map((s) => (
+                  <View key={s} className="flex-1">
+                    <Button
+                      title={s === "M" ? "Masculino" : "Femenino"}
+                      variant={sexo === s ? "primary" : "outline"}
+                      size="sm"
+                      onPress={() => setSexo(s)}
+                    />
+                  </View>
+                ))}
+              </View>
+              <Muted className="mb-3">
+                Se crea una ficha en el padrón de la iglesia y se suma al ministerio. El
+                resto de los datos los completa después un admin, su discipulador, o
+                ella misma desde «Mis datos».
+              </Muted>
+              <Button title="Crear y sumar" onPress={onCrear} loading={crear.isPending} />
+            </Card>
+          )}
+        </View>
       )}
 
-      {/* Roster actual */}
-      <Label className="mb-2 mt-4">Integrantes ({activos.length})</Label>
+      {/* Roster actual, con su asistencia */}
       {isLoading ? (
         <View className="items-center py-4">
           <ActivityIndicator color={colors.primary} />
         </View>
+      ) : activos.length === 0 ? (
+        <Card>
+          <Muted>Todavía no hay nadie en este ministerio.</Muted>
+        </Card>
       ) : (
-        <ListaPersonas
-          personas={activos.map((i) => ({
-            id: i.miembro_id,
-            nombre: nombreCompleto(i),
-            detalle: i.telefono,
+        <GrillaAsistencia
+          reuniones={reuniones}
+          encabezado="Integrante"
+          filas={activos.map((i) => ({
+            key: i.miembro_id,
+            miembroId: i.miembro_id,
+            nombre: i.nombre,
+            apellido: i.apellido,
           }))}
-          vacio="Todavía no hay nadie en este ministerio."
-          onQuitar={(p) => {
-            const i = activos.find((a) => a.miembro_id === p.id);
+          // La ficha completa solo la puede leer el admin (RLS de `miembros`,
+          // 0014); a un líder `miembro` lo llevaría a una pantalla vacía.
+          onPress={
+            isAdmin
+              ? (f) => router.push({ pathname: "/miembro/[id]", params: { id: f.miembroId } })
+              : undefined
+          }
+          onQuitar={(f) => {
+            const i = activos.find((a) => a.miembro_id === f.miembroId);
             if (i) onQuitar(i);
           }}
         />
@@ -231,7 +272,7 @@ export default function IntegrantesMinisterio() {
           {integrantes.length - activos.length}{" "}
           {integrantes.length - activos.length === 1 ? "persona salió" : "personas salieron"} del
           ministerio. Siguen figurando en las reuniones donde estuvieron; volvé a
-          sumarlas desde el buscador de arriba.
+          sumarlas desde «+ Agregar».
         </Muted>
       ) : null}
 

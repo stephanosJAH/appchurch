@@ -2,14 +2,18 @@
   "expo": {
     "name": "pdapp",
     "slug": "appchurch",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon-pda-centro.png",
     "scheme": "appchurch",
     "userInterfaceStyle": "light",
     "backgroundColor": "#ffffff",
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.ampiup.appchurch",
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.ampiup.appchurch",
@@ -27,7 +31,9 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true

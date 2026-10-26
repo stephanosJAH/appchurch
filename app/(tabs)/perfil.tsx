@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { useMemo } from "react";
 import { Alert, Pressable, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
+import { EliminarCuentaButton } from "../../components/EliminarCuenta";
 import { Avatar, Body, Button, Card, Chip, Display, Headline, Label, Muted, Screen, Title } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { formatMoneda, toISODate } from "../../lib/date";
@@ -298,6 +299,9 @@ export default function Perfil() {
         )}
 
         <Button title="Cerrar sesión" variant="danger" onPress={confirmSignOut} />
+        <View className="mt-3">
+          <EliminarCuentaButton />
+        </View>
       </ScrollView>
     </Screen>
   );

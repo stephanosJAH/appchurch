@@ -63,7 +63,7 @@ export default function Contenido() {
         onPress={abrirCanal}
       />
     </View>
-  ) : null;
+  ) : undefined;
 
   return (
     <Screen>
@@ -79,7 +79,7 @@ export default function Contenido() {
         ItemSeparatorComponent={() => <View style={{ height: SEPARACION }} />}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={encabezado}
-        ListFooterComponent={videos.length > 0 && !isLoading ? pie : null}
+        ListFooterComponent={videos.length > 0 && !isLoading ? pie : undefined}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching && !isLoading}

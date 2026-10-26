@@ -68,7 +68,7 @@ export default function AdminBajas() {
             <Card>
               <Muted>No hay discipulados dados de baja.</Muted>
             </Card>
-          ) : null
+          ) : undefined
         }
       />
     </Screen>

@@ -183,7 +183,8 @@ export type RegistrarReunionInput = {
   tema: string | null;
   material_url: string | null;
   modalidad: Modalidad | null;
-  ofrenda: number;
+  ofrenda_presencial: number;
+  ofrenda_virtual: number;
   notas: string | null;
   asistencias: AsistenciaInput[];
 };
@@ -199,7 +200,11 @@ export function useRegistrarReunion() {
         p_tema: input.tema,
         p_material_url: input.material_url,
         p_modalidad: input.modalidad,
-        p_ofrenda: input.ofrenda,
+        // El total lo calcula la RPC (0036); `p_ofrenda` queda por las apps
+        // viejas, que mandan solo el total.
+        p_ofrenda: input.ofrenda_presencial + input.ofrenda_virtual,
+        p_ofrenda_presencial: input.ofrenda_presencial,
+        p_ofrenda_virtual: input.ofrenda_virtual,
         p_notas: input.notas,
         p_asistencias: input.asistencias,
         p_reunion_id: input.reunion_id ?? null,

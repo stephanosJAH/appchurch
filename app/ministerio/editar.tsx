@@ -1,8 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
-import { FondoEncabezado } from "../../components/FondoEncabezado";
+import { Alert, Image, Pressable, View } from "react-native";
 import { RichTextEditor } from "../../components/RichTextEditor";
 import { BuscadorPersonas, ListaPersonas, PersonaOpcion } from "../../components/SelectorPersonas";
 import { Button, Card, Field, KeyboardScrollView, Label, Muted, Screen } from "../../components/ui";
@@ -22,15 +21,15 @@ import {
   elegirImagen,
   subirImagenMinisterio,
 } from "../../lib/storage";
-import { colors, fonts } from "../../lib/theme";
+import { colors } from "../../lib/theme";
 import { Profile } from "../../lib/types";
 
 // Alta y edición de un ministerio.
 //
 // Dos audiencias en la misma pantalla, y el corte NO es el rol:
 //   * el admin crea, edita todo y asigna los líderes;
-//   * cualquier líder del ministerio edita nombre, descripción, ícono e
-//     imagen de fondo —
+//   * cualquier líder del ministerio edita nombre, descripción, ícono y
+//     foto —
 //     aunque su rol sea `miembro`, porque el poder viene de la asignación.
 // Quién lidera lo sigue decidiendo el admin (policy `minlid_admin`, 0024): es
 // la única cosa en la que los líderes no son autosuficientes, para que uno no
@@ -131,6 +130,8 @@ export default function EditarMinisterio() {
       }),
     [lideres, profiles, ministerio?.lideres]
   );
+
+  const previa = imagenNueva?.uri ?? (quitarImagen ? null : imagenGuardada);
 
   const cambiarImagen = async () => {
     const img = await elegirImagen();
@@ -249,33 +250,31 @@ export default function EditarMinisterio() {
         })}
       </View>
 
-      <Label className="mb-1.5">Imagen de fondo</Label>
+      <Label className="mb-1.5">Foto del ministerio</Label>
       <Muted className="mb-2">
-        Se ve detrás del nombre, arriba del detalle del ministerio. Sin imagen se usa
-        el fondo de la iglesia.
+        Se ve en un cuadrado arriba del nombre, en el detalle del ministerio. Sin
+        foto se muestra la inicial.
       </Muted>
-      {/* Vista previa con el mismo fondo y velo del detalle: lo que se ve acá
-          es lo que va a ver la gente. */}
-      <View className="mb-2 overflow-hidden rounded-xl">
-        <FondoEncabezado
-          imagenUrl={imagenNueva?.uri ?? (quitarImagen ? null : imagenGuardada)}
+      {/* Vista previa del mismo tamaño y recorte que en el detalle: lo que se ve
+          acá es lo que va a ver la gente. */}
+      {previa ? (
+        <View
+          className="mb-3 overflow-hidden"
+          style={{ width: 84, height: 84, borderRadius: 24, backgroundColor: colors.primary }}
         >
-          <View className="h-28 justify-end px-4 pb-3">
-            <Text
-              numberOfLines={1}
-              style={{ fontFamily: fonts.serifSemibold, fontSize: 22, lineHeight: 28 }}
-              className="text-white"
-            >
-              {nombre.trim() || "Nombre del ministerio"}
-            </Text>
-          </View>
-        </FondoEncabezado>
-      </View>
+          <Image
+            source={{ uri: previa }}
+            resizeMode="cover"
+            accessibilityIgnoresInvertColors
+            style={{ width: "100%", height: "100%" }}
+          />
+        </View>
+      ) : null}
       <View className="mb-5 flex-row gap-2">
         <View className="flex-1">
           <Button
             title={
-              imagenNueva || (imagenGuardada && !quitarImagen) ? "Cambiar imagen" : "Subir imagen"
+              imagenNueva || (imagenGuardada && !quitarImagen) ? "Cambiar foto" : "Subir foto"
             }
             variant="outline"
             size="sm"

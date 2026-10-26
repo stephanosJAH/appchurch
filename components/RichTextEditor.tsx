@@ -1,6 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import { useRef, useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, Text, TextInput, type TextInputInstance, View } from "react-native";
 import { RE_PREFIJO_BLOQUE } from "../lib/richText";
 import { colors, fonts } from "../lib/theme";
 import { RichTextView } from "./RichTextView";
@@ -56,7 +56,7 @@ export function RichTextEditor({
   placeholder?: string;
   ayuda?: string;
 }) {
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const [seleccion, setSeleccion] = useState<Rango>({ start: 0, end: 0 });
   // Solo se controla la selección justo después de tocar la barra; el resto del
   // tiempo se deja libre para que el cursor no salte mientras se escribe.

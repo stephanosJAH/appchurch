@@ -140,7 +140,7 @@ export default function AdminUsuarios() {
                 No hay usuarios todavía. Cada persona aparece acá cuando crea su cuenta en la app.
               </Muted>
             </Card>
-          ) : null
+          ) : undefined
         }
       />
     </Screen>

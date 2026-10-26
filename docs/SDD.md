@@ -57,7 +57,7 @@ acceso distintos sobre ella.
 | O2 | Que el PII quede en capas y no se filtre por descuido del cliente | Autorización 100% en Postgres (RLS + `security definer`), nunca en la app |
 | O3 | Que entre gente sin correo electrónico | Identificador sintético (`lib/authIdentity.ts`): login por teléfono o usuario |
 | O4 | Que una cuenta recién creada sea inofensiva | Rol `pendiente` por defecto; activar = resolver identidad contra el padrón |
-| O5 | Que corra en el dispositivo de cualquiera sin build nativo | Expo SDK 57 / Expo Go 57; ninguna dependencia fuera del runtime de Expo Go |
+| O5 | Que corra en el dispositivo de cualquiera sin build nativo | Expo SDK 58 / Expo Go 58; ninguna dependencia fuera del runtime de Expo Go |
 | O6 | Que no haya un backend que mantener | Supabase como única infraestructura (Postgres + Auth + Storage) |
 
 ### 1.3 Fuera de alcance (explícito)
@@ -102,7 +102,7 @@ permisos. Asume familiaridad con React Native y con RLS de Postgres.
                     ┌──────────────────────────────┐
                     │   Dispositivo del usuario     │
                     │  ┌────────────────────────┐   │
-                    │  │  pdapp (Expo Go 57     │   │
+                    │  │  pdapp (Expo Go 58     │   │
                     │  │  o APK de EAS)         │   │
                     │  │                        │   │
                     │  │  expo-router           │   │
@@ -141,7 +141,7 @@ permisos. Asume familiaridad con React Native y con RLS de Postgres.
 
 ### 2.3 Restricciones del entorno
 
-- **Expo Go 57 es el piso**: el usuario corre la app en Expo Go 57, que no ejecuta
+- **Expo Go 58 es el piso**: el usuario corre la app en Expo Go 58, que no ejecuta
   apps de otro SDK. **No se sube el SDK sin confirmar** (ver `AGENTS.md`). De ahí
   que no haya módulos nativos propios: `expo-secure-store`, `expo-crypto`,
   `aes-js` y `expo-document-picker` se eligieron por correr en Expo Go.
@@ -182,10 +182,10 @@ autorización en su primera línea. Ese patrón se repite y está estandarizado 
 
 | Capa | Elección | Versión | Nota |
 |---|---|---|---|
-| Runtime | Expo SDK | `~57.0.21` | Expo Go 57; nueva arquitectura (ya no es opcional desde SDK 55) |
-| | React Native | `0.86.3` | |
-| | React | `19.2.3` | `react-dom` pineado a la misma versión (rompe el build de EAS si divergen) |
-| Routing | expo-router | `~57.0.20` | File-based; `typedRoutes` activado |
+| Runtime | Expo SDK | `~58.0.19` | Expo Go 58; nueva arquitectura (ya no es opcional desde SDK 55) |
+| | React Native | `0.88.0` | |
+| | React | `19.3.0` | `react-dom` pineado a la misma versión (rompe el build de EAS si divergen) |
+| Routing | expo-router | `~58.0.26` | File-based; `typedRoutes` activado |
 | Estado servidor | TanStack Query | `^5.101.2` | Única fuente de estado remoto |
 | Backend | supabase-js | `^2.110.0` | Postgres + Auth + Storage |
 | Estilos | NativeWind / Tailwind | `^4.2.6` / `^3.4.17` | Tokens en `tailwind.config.js` y `lib/theme.ts` |
@@ -654,7 +654,7 @@ hallazgo de seguridad #4.
 
 | Bucket | Público | Lee | Escribe | Uso actual |
 |---|---|---|---|---|
-| `adjuntos` | **Sí, por diseño** | Cualquiera con la URL | Admin; líderes de un ministerio en `ministerios/<id>/…` (0033) | Flyers de eventos y actividades; fondo del encabezado de ministerios |
+| `adjuntos` | **Sí, por diseño** | Cualquiera con la URL | Admin; líderes de un ministerio en `ministerios/<id>/…` (0033) | Flyers de eventos y actividades; foto de cada ministerio |
 | `materiales` | No | Autenticado | Dueño de la carpeta `<uid>/…` o admin | **Ninguno** (scaffolding de Fase 2) |
 
 `adjuntos` es público porque son flyers pensados para difusión. Para que la URL no
@@ -1024,7 +1024,7 @@ esa persona.
 ### 8.1 Comandos
 
 ```bash
-npm start          # dev server — escanear el QR con Expo Go 57
+npm start          # dev server — escanear el QR con Expo Go 58
 npm run android    # emulador/dispositivo
 npm run ios        # simulador (solo macOS)
 npm run web        # target web
@@ -1211,7 +1211,7 @@ un integrante, y si un líder puede sumar colíderes.
 - **¿Tocás `registrar_reunion`?** El mismo cambio va en
   `registrar_reunion_ministerio`, y viceversa.
 - **¿Nuevo lugar que muestre una descripción recortada?** Pasala por `aTextoPlano()`.
-- **¿Dependencia nueva?** Verificá que corra en **Expo Go 57**. Si exige un módulo
+- **¿Dependencia nueva?** Verificá que corra en **Expo Go 58**. Si exige un módulo
   nativo, es una decisión de producto (salir de Expo Go), no un detalle técnico.
 
 ---

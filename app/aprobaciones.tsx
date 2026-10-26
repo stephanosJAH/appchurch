@@ -66,7 +66,7 @@ export default function Aprobaciones() {
             <Card>
               <Muted>No hay cuentas esperando aprobación.</Muted>
             </Card>
-          ) : null
+          ) : undefined
         }
       />
     </Screen>
@@ -168,7 +168,7 @@ function ResolverIdentidad({ profile, onVolver }: { profile: Profile; onVolver: 
         // corre no aparece — ofrecer "crear" antes de saber si ya existe es
         // justo cómo se llega a la ficha duplicada que 0018 vino a evitar.
         ListFooterComponent={
-          isLoading ? null : (
+          isLoading ? undefined : (
             <View className="mt-2">
               {candidatos.length > 0 ? (
                 <Muted className="mb-2">¿No es ninguna de estas personas?</Muted>

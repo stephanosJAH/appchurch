@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { EliminarCuentaButton } from "../components/EliminarCuenta";
 import { Body, Button, Card, Display, Muted, Screen } from "../components/ui";
 import { useAuth } from "../lib/auth";
 import { cardShadow, colors } from "../lib/theme";
@@ -61,6 +62,7 @@ export default function Pendiente() {
           icon="log-out-outline"
           onPress={() => signOut()}
         />
+        <EliminarCuentaButton />
       </View>
     </Screen>
   );

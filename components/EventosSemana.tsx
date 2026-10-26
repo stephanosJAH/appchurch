@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { Gesture, GestureDetector, type NativeGesture } from "react-native-gesture-handler";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import {
   addDays,
   formatFechaCorta,
@@ -131,7 +131,7 @@ export function EventosSemana({
 }: {
   eventos: Evento[];
   className?: string;
-  swipeGesture?: NativeGesture;
+  swipeGesture?: ReturnType<typeof Gesture.Native>;
   cargando?: boolean;
 }) {
   const router = useRouter();

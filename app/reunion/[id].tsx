@@ -13,6 +13,7 @@ import {
   Screen,
   Title,
 } from "../../components/ui";
+import { RichTextView } from "../../components/RichTextView";
 import { useAuth } from "../../lib/auth";
 import { formatMoneda } from "../../lib/date";
 import {
@@ -159,7 +160,8 @@ export default function ReunionDetalle() {
         <Card className="mb-4 bg-navy">
           <Muted>{dueno}</Muted>
           <Title className="mt-1 capitalize">{fechaLarga(reunion.fecha)}</Title>
-          {reunion.modalidad_usada ? (
+          {/* Las de ministerio son siempre presenciales: no hay nada que mostrar */}
+          {!esMinisterio && reunion.modalidad_usada ? (
             <View className="mt-3">
               <Chip tone="gold">{reunion.modalidad_usada}</Chip>
             </View>
@@ -167,14 +169,29 @@ export default function ReunionDetalle() {
         </Card>
 
         {/* Ofrenda */}
-        <Card className="mb-4 flex-row items-center justify-between">
-          <View>
-            <Label>Ofrenda total</Label>
-            <Display className="mt-1">{formatMoneda(Number(reunion.ofrenda_total ?? 0))}</Display>
+        <Card className="mb-4">
+          <View className="flex-row items-center justify-between">
+            <View>
+              <Label>Ofrenda total</Label>
+              <Display className="mt-1">{formatMoneda(Number(reunion.ofrenda_total ?? 0))}</Display>
+            </View>
+            <View className="h-12 w-12 items-center justify-center rounded-full bg-surface-mid">
+              <Ionicons name="wallet-outline" size={24} color={colors.primaryContainer} />
+            </View>
           </View>
-          <View className="h-12 w-12 items-center justify-center rounded-full bg-surface-mid">
-            <Ionicons name="wallet-outline" size={24} color={colors.primaryContainer} />
-          </View>
+          {/* Desglose (0036); las reuniones cargadas antes solo tienen total. */}
+          {reunion.ofrenda_presencial != null || reunion.ofrenda_virtual != null ? (
+            <View className="mt-3 flex-row gap-5 border-t border-black/5 pt-3">
+              <View className="flex-row items-center gap-1.5">
+                <Ionicons name="business-outline" size={14} color={colors.outline} />
+                <Muted>Presencial {formatMoneda(Number(reunion.ofrenda_presencial ?? 0))}</Muted>
+              </View>
+              <View className="flex-row items-center gap-1.5">
+                <Ionicons name="videocam-outline" size={14} color={colors.outline} />
+                <Muted>Virtual {formatMoneda(Number(reunion.ofrenda_virtual ?? 0))}</Muted>
+              </View>
+            </View>
+          ) : null}
         </Card>
 
         {/* Tema */}
@@ -192,7 +209,11 @@ export default function ReunionDetalle() {
           <>
             <Label className="mb-2">Notas</Label>
             <Card className="mb-4">
-              <Body className="text-ink">{reunion.notas}</Body>
+              {esMinisterio ? (
+                <RichTextView descripcion={reunion.notas} />
+              ) : (
+                <Body className="text-ink">{reunion.notas}</Body>
+              )}
             </Card>
           </>
         ) : null}
@@ -218,7 +239,7 @@ export default function ReunionDetalle() {
               >
                 <Avatar name={a.nombre} size={38} tone={a.presente ? "navy" : "gold"} />
                 <Body className="flex-1 text-ink">{a.nombre}</Body>
-                {a.presente && a.modalidad && a.modalidad !== "ambos" ? (
+                {!esMinisterio && a.presente && a.modalidad && a.modalidad !== "ambos" ? (
                   <View className="flex-row items-center gap-1">
                     <Ionicons
                       name={a.modalidad === "virtual" ? "videocam-outline" : "business-outline"}

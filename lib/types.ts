@@ -120,6 +120,9 @@ export type Reunion = {
   material_url: string | null;
   modalidad_usada: Modalidad | null;
   ofrenda_total: number | null;
+  // Desglose (0036). Las dos null en reuniones cargadas antes: solo hay total.
+  ofrenda_presencial: number | null;
+  ofrenda_virtual: number | null;
   notas: string | null;
   registrado_por: string | null;
   created_at: string;
@@ -160,6 +163,8 @@ export type LiderMinisterio = {
   ministerio_id: string;
   profile_id: string;
   nombre_completo: string | null;
+  // Con la regla del directorio (0035): null si la persona no lo publica.
+  telefono: string | null;
 };
 
 // Un ministerio propio, visto por el RPC `mis_ministerios()`. `soy_lider` es lo
@@ -217,6 +222,9 @@ export type ReunionMinisterio = {
   tema: string | null;
   modalidad_usada: Modalidad | null;
   ofrenda_total: number | null;
+  // Desglose (0036). Las dos null en reuniones cargadas antes: solo hay total.
+  ofrenda_presencial: number | null;
+  ofrenda_virtual: number | null;
   notas: string | null;
   registrado_por: string | null;
   created_at: string;

@@ -3,6 +3,14 @@ import { Tabs } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, fonts } from "../../lib/theme";
 
+// Desde RN 0.88 el `color` que pasa la tab es un ColorValue (admite number y
+// null), pero Ionicons solo acepta string. Las tints de arriba son strings.
+const icono =
+  (name: keyof typeof Ionicons.glyphMap) =>
+  ({ color, size }: { color: unknown; size: number }) => (
+    <Ionicons name={name} color={color as string} size={size - 2} />
+  );
+
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, 8);
@@ -27,45 +35,35 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Inicio",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid-outline" color={color} size={size - 2} />
-          ),
+          tabBarIcon: icono("grid-outline"),
         }}
       />
       <Tabs.Screen
         name="calendario"
         options={{
           title: "Calendario",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" color={color} size={size - 2} />
-          ),
+          tabBarIcon: icono("calendar-outline"),
         }}
       />
       <Tabs.Screen
         name="discipulado"
         options={{
           title: "Mi discipulado",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" color={color} size={size - 2} />
-          ),
+          tabBarIcon: icono("people-outline"),
         }}
       />
       <Tabs.Screen
         name="actividades"
         options={{
           title: "Actividades",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="megaphone-outline" color={color} size={size - 2} />
-          ),
+          tabBarIcon: icono("megaphone-outline"),
         }}
       />
       <Tabs.Screen
         name="perfil"
         options={{
           title: "Perfil",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" color={color} size={size - 2} />
-          ),
+          tabBarIcon: icono("person-outline"),
         }}
       />
     </Tabs>

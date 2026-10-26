@@ -189,3 +189,18 @@ export function useResolverIdentidad() {
     },
   });
 }
+
+// Borra la cuenta de quien llama (RPC eliminar_mi_cuenta, 0037): login y
+// perfil. La ficha del padrón queda, es de la iglesia. No hay `onSuccess` de
+// caché: el signOut dispara SIGNED_OUT y `lib/auth.tsx` borra todas las
+// queries. `scope: "local"` porque las sesiones del servidor ya se fueron con
+// el usuario y un signOut global devolvería error.
+export function useEliminarMiCuenta() {
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("eliminar_mi_cuenta");
+      if (error) throw error;
+      await supabase.auth.signOut({ scope: "local" });
+    },
+  });
+}

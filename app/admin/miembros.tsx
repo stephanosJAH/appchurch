@@ -226,7 +226,7 @@ export default function AdminMiembros() {
             <Card>
               <Muted>{q ? "Nadie coincide con la búsqueda." : "No hay miembros cargados."}</Muted>
             </Card>
-          ) : null
+          ) : undefined
         }
       />
     </KeyboardAvoidingView>

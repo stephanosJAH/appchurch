@@ -124,7 +124,7 @@ export function useVideosCanal() {
   const refrescar = useCallback(async () => {
     forzarFeed.current = true;
     try {
-      return await refetch();
+      await refetch();
     } finally {
       forzarFeed.current = false;
     }

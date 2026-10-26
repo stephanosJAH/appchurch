@@ -1,4 +1,4 @@
-import { Children, ReactNode, useCallback, useEffect, useMemo } from "react";
+import { Children, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
 import { Gesture, GestureDetector, GestureType } from "react-native-gesture-handler";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
@@ -16,18 +16,41 @@ type PanelesProps = {
   // (carruseles). Tiene que ser una referencia estable —memoizala—, por lo mismo
   // que `SIN_CARRUSELES`.
   carruseles?: readonly GestureType[];
-  // Un hijo por panel. Cada uno tiene que ser `flex-1`: acá se lo envuelve en un
-  // View del ancho de la pantalla que el contenido rellena a lo alto.
+  // Para paneles que viven dentro de un ScrollView vertical (las solapas del
+  // ministerio): cada panel toma su alto natural y el contenedor mide lo que el
+  // panel a la vista. Sin esto el más largo estiraría a todos y el corto
+  // scrollearía hacia un vacío.
+  altoVariable?: boolean;
+  // Un hijo por panel. Cada uno tiene que ser `flex-1` (salvo con
+  // `altoVariable`): acá se lo envuelve en un View del ancho de la pantalla que
+  // el contenido rellena a lo alto.
   children: ReactNode;
 };
 
 // Paneles hermanos que se deslizan de a uno, con tap en el header o arrastre.
-// Lo usan el feed (Inicio/Nosotros) y "Eventos y actividades"
-// (Actividades/Eventos); el movimiento tiene que sentirse igual en los dos.
-export function Paneles({ index, onIndexChange, carruseles = SIN_CARRUSELES, children }: PanelesProps) {
+// Lo usan el feed (Inicio/Nosotros), "Eventos y actividades"
+// (Actividades/Eventos) y las solapas del ministerio; el movimiento tiene que
+// sentirse igual en todos.
+export function Paneles({
+  index,
+  onIndexChange,
+  carruseles = SIN_CARRUSELES,
+  altoVariable = false,
+  children,
+}: PanelesProps) {
   const { width } = useWindowDimensions();
   const paneles = Children.toArray(children);
   const ultimo = Math.max(paneles.length - 1, 0);
+  // Alto medido de cada panel, solo con `altoVariable`.
+  const [altos, setAltos] = useState<number[]>([]);
+  const medir = useCallback((i: number, alto: number) => {
+    setAltos((prev) => {
+      if (prev[i] === alto) return prev;
+      const next = [...prev];
+      next[i] = alto;
+      return next;
+    });
+  }, []);
 
   const translateX = useSharedValue(-index * width);
   const dragStartX = useSharedValue(0);
@@ -75,6 +98,8 @@ export function Paneles({ index, onIndexChange, carruseles = SIN_CARRUSELES, chi
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
+        // Con un solo panel no hay adónde ir: ni la gomita.
+        .enabled(ultimo > 0)
         .activeOffsetX([-12, 12])
         .failOffsetY([-12, 12])
         // Sin esto el pan gana el gesto y arrastrar entre tarjetas de un
@@ -122,14 +147,27 @@ export function Paneles({ index, onIndexChange, carruseles = SIN_CARRUSELES, chi
     transform: [{ translateX: translateX.value }],
   }));
 
+  // Con `altoVariable`, antes de la primera medición el alto queda libre (el del
+  // más largo) y después se ajusta al panel a la vista; el resto se recorta.
+  // Durante el arrastre el que entra asoma recortado al alto del que sale, y
+  // se acomoda al soltar, cuando cambia el índice.
   return (
-    <View style={{ flex: 1, overflow: "hidden" }}>
+    <View style={altoVariable ? { height: altos[index], overflow: "hidden" } : { flex: 1, overflow: "hidden" }}>
       <GestureDetector gesture={panGesture}>
         <Animated.View
-          style={[{ flex: 1, flexDirection: "row", width: width * paneles.length }, slideStyle]}
+          style={[
+            altoVariable
+              ? { flexDirection: "row", alignItems: "flex-start", width: width * paneles.length }
+              : { flex: 1, flexDirection: "row", width: width * paneles.length },
+            slideStyle,
+          ]}
         >
           {paneles.map((panel, i) => (
-            <View key={i} style={{ width }}>
+            <View
+              key={i}
+              style={{ width }}
+              onLayout={altoVariable ? (e) => medir(i, e.nativeEvent.layout.height) : undefined}
+            >
               {panel}
             </View>
           ))}

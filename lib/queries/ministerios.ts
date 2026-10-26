@@ -34,6 +34,8 @@ export const ministeriosKeys = {
   candidatos: (id: string, texto: string) =>
     ["ministerios", id, "candidatos", texto] as const,
   reuniones: (id: string) => ["reuniones-ministerio", id] as const,
+  reunionesConAsistencia: (id: string) =>
+    ["reuniones-ministerio", id, "asistencia"] as const,
   reunionesDeParticipante: (id: string) =>
     ["ministerios", id, "reuniones-participante"] as const,
   reunionDetalle: (reunionId: string) =>
@@ -395,6 +397,11 @@ export type ReunionMinisterioDetalle = ReunionMinisterio & {
   asistencias?: { id: string; miembro_id: string; presente: boolean; modalidad: Modalidad | null }[];
 };
 
+// Reunión con quién vino y quién no, para las cuentas de lib/asistencia.
+export type ReunionMinisterioConAsistencia = ReunionMinisterio & {
+  asistencias: { miembro_id: string; presente: boolean }[];
+};
+
 export function useReunionMinisterio(reunionId: string) {
   return useQuery({
     queryKey: ministeriosKeys.reunionDetalle(reunionId),
@@ -425,6 +432,27 @@ export function useReunionesMinisterio(ministerioId?: string, enabled = true) {
         .order("fecha", { ascending: false });
       if (error) throw error;
       return data as ReunionMinisterio[];
+    },
+  });
+}
+
+// Historial con la asistencia embebida (más recientes primero), para la grilla
+// del roster (ministerio/integrantes). Espejo de `useReunionesConAsistencia`
+// de discipulados; la RLS de `asistencias_ministerio` (0032) deja leerla a los
+// líderes y al admin. La key cuelga de "reuniones-ministerio", así que
+// registrar o editar una reunión ya la invalida.
+export function useReunionesMinisterioConAsistencia(ministerioId?: string, enabled = true) {
+  return useQuery({
+    queryKey: ministeriosKeys.reunionesConAsistencia(ministerioId ?? ""),
+    enabled: enabled && !!ministerioId,
+    queryFn: async (): Promise<ReunionMinisterioConAsistencia[]> => {
+      const { data, error } = await supabase
+        .from("reuniones_ministerio")
+        .select("*, asistencias:asistencias_ministerio(miembro_id, presente)")
+        .eq("ministerio_id", ministerioId)
+        .order("fecha", { ascending: false });
+      if (error) throw error;
+      return data as ReunionMinisterioConAsistencia[];
     },
   });
 }
@@ -490,7 +518,8 @@ export type RegistrarReunionMinisterioInput = {
   fecha: string;
   tema: string | null;
   modalidad: Modalidad | null;
-  ofrenda: number;
+  ofrenda_presencial: number;
+  ofrenda_virtual: number;
   notas: string | null;
   asistencias: AsistenciaInput[];
 };
@@ -507,7 +536,11 @@ export function useRegistrarReunionMinisterio() {
         p_fecha: input.fecha,
         p_tema: input.tema,
         p_modalidad: input.modalidad,
-        p_ofrenda: input.ofrenda,
+        // El total lo calcula la RPC (0036); `p_ofrenda` queda por las apps
+        // viejas, que mandan solo el total.
+        p_ofrenda: input.ofrenda_presencial + input.ofrenda_virtual,
+        p_ofrenda_presencial: input.ofrenda_presencial,
+        p_ofrenda_virtual: input.ofrenda_virtual,
         p_notas: input.notas,
         p_asistencias: input.asistencias,
         p_reunion_id: input.reunion_id ?? null,
