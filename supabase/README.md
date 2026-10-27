@@ -45,6 +45,7 @@ falla más tarde y en otro lado (ver "Verificar qué está aplicado" abajo).
 | 0035 | `0035_lideres_ministerio_telefono.sql` | `ministerios_lideres` suma el teléfono del líder, con la regla del directorio (`mostrar_contacto`, adultos) |
 | 0036 | `0036_ofrenda_presencial_virtual.sql` | la ofrenda se carga separada en presencial y virtual (los dos libros); `ofrenda_total` pasa a ser la suma |
 | 0037 | `0037_eliminar_mi_cuenta.sql` | cada uno borra su propia cuenta desde la app (`eliminar_mi_cuenta`), exigido por la App Store; la ficha del padrón queda |
+| 0038 | `0038_anuncios_tipo_y_destinatarios.sql` | día/hora opcionales de reunión del ministerio; `tipo` (ícono/color) y `audiencia` (integrantes / solo líderes) en anuncios, con la RLS y `anuncios_visibles` recortando por audiencia |
 
 Al agregar una migración nueva, sumale la fila acá y, si crea un objeto que
 otras van a referenciar, sumalo también a la query de verificación de abajo.
@@ -94,7 +95,8 @@ with esperado(migracion, tipo, objeto) as (values
   ('0033','columna','ministerios.imagen_url'),      ('0033','funcion','lidera_carpeta_de_ministerio'),
   ('0034','funcion','asistentes_de_reunion'),     ('0035','columna','ministerios_lideres.telefono'),
   ('0036','columna','reuniones.ofrenda_presencial'),('0036','columna','reuniones_ministerio.ofrenda_virtual'),
-  ('0037','funcion','eliminar_mi_cuenta')
+  ('0037','funcion','eliminar_mi_cuenta'),         ('0038','columna','ministerios.dia_semana'),
+  ('0038','columna','anuncios.audiencia')
 )
 select migracion, tipo, objeto,
        case when case tipo

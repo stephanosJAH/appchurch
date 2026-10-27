@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Platform, Pressable, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, Text, View } from "react-native";
 import { RichTextEditor } from "../components/RichTextEditor";
 import { RichTextView } from "../components/RichTextView";
 import {
@@ -17,6 +17,7 @@ import {
   SwitchField,
   Title,
 } from "../components/ui";
+import { ORDEN_TIPOS_ANUNCIO, TIPOS_ANUNCIO, vencimientoPorDefecto } from "../lib/anuncios";
 import { useAuth } from "../lib/auth";
 import { dateToFecha, fechaLabel, fechaToDate, formatFechaHoraCorta } from "../lib/date";
 import {
@@ -26,8 +27,8 @@ import {
   useUpsertAnuncio,
 } from "../lib/queries/anuncios";
 import { useMisMinisterios } from "../lib/queries/ministerios";
-import { colors } from "../lib/theme";
-import { Anuncio } from "../lib/types";
+import { colors, fonts } from "../lib/theme";
+import { Anuncio, AudienciaAnuncio, TipoAnuncio } from "../lib/types";
 
 // Anuncios: el aviso a la gente, in-app (feed + badge). El push al celular con
 // la app cerrada quedó fuera de alcance a propósito — necesita salir de Expo Go
@@ -40,6 +41,15 @@ import { Anuncio } from "../lib/types";
 // solo evita ofrecer lo que iría a fallar.
 //
 // Abrir la pantalla marca todo como leído (`profiles.anuncios_leidos_hasta`).
+//
+// El anuncio de ministerio elige además destinatarios (todos los integrantes o
+// solo los líderes — el corte lo hace la RLS, 0038) y propone vencer el día de
+// la próxima reunión del ministerio, si tiene día cargado.
+
+const AUDIENCIAS: { id: AudienciaAnuncio; nombre: string }[] = [
+  { id: "integrantes", nombre: "Todos los integrantes" },
+  { id: "lideres", nombre: "Solo los líderes" },
+];
 
 // Quien puede publicar y borrar este anuncio: el admin en cualquiera, y
 // cualquier líder en los de su ministerio — incluidos los que escribió otro
@@ -61,15 +71,29 @@ function AnuncioCard({
   onBorrar: () => void;
 }) {
   const vencido = !!a.vence_el && a.vence_el < new Date().toISOString().slice(0, 10);
+  const tipo = TIPOS_ANUNCIO[a.tipo] ?? TIPOS_ANUNCIO.informacion;
   return (
     <Card>
-      <View className="flex-row items-start gap-2">
+      <View className="flex-row items-start gap-3">
+        <View
+          style={{ borderRadius: 10, backgroundColor: tipo.fondo }}
+          className="h-11 w-11 items-center justify-center"
+        >
+          <Ionicons name={tipo.icono} size={22} color={tipo.tinta} />
+        </View>
         <View className="flex-1">
           <View className="mb-1.5 flex-row flex-wrap items-center gap-2">
             {a.fijado ? <Ionicons name="pin" size={14} color={colors.tertiary} /> : null}
+            <Text
+              style={{ color: tipo.tinta, fontFamily: fonts.sansBold, letterSpacing: 0.8 }}
+              className="text-[10px] uppercase"
+            >
+              {tipo.etiqueta}
+            </Text>
             <Chip tone={a.ministerio_id ? "neutral" : "navy"}>
               {a.ministerio_nombre ?? "Toda la iglesia"}
             </Chip>
+            {a.audiencia === "lideres" ? <Chip tone="gold">Solo líderes</Chip> : null}
             {vencido ? <Chip tone="danger">Vencido</Chip> : null}
           </View>
           <Title className="text-base">{a.titulo}</Title>
@@ -137,11 +161,24 @@ export default function Anuncios() {
   const [editando, setEditando] = useState<Anuncio | null>(null);
   const [componiendo, setComponiendo] = useState(false);
   const [alcance, setAlcance] = useState<string | null>(null);
+  const [audiencia, setAudiencia] = useState<AudienciaAnuncio>("integrantes");
+  const [tipo, setTipo] = useState<TipoAnuncio>("informacion");
   const [titulo, setTitulo] = useState("");
   const [cuerpo, setCuerpo] = useState("");
   const [fijado, setFijado] = useState(false);
   const [vence, setVence] = useState<string | null>(null);
   const [showPicker, setShowPicker] = useState(false);
+  // Si la fecha la eligió (o la quitó) quien publica, ya no se recalcula al
+  // cambiar de ministerio.
+  const venceTocado = useRef(false);
+
+  // Vencimiento por defecto de un anuncio nuevo: hasta la próxima reunión del
+  // ministerio elegido. El general, o un ministerio sin día cargado, arranca
+  // sin vencimiento. Al editar manda lo que ya tenía guardado.
+  useEffect(() => {
+    if (!componiendo || editando || venceTocado.current) return;
+    setVence(alcance ? vencimientoPorDefecto(mios.find((m) => m.id === alcance)) : null);
+  }, [componiendo, editando, alcance, mios]);
 
   // Llegar desde el detalle de un ministerio abre el compositor ya apuntado a
   // ese ministerio.
@@ -159,8 +196,11 @@ export default function Anuncios() {
     setComponiendo(false);
     setTitulo("");
     setCuerpo("");
+    setTipo("informacion");
+    setAudiencia("integrantes");
     setFijado(false);
     setVence(null);
+    venceTocado.current = false;
     setAlcance(alcances[0]?.id ?? null);
   };
 
@@ -168,6 +208,8 @@ export default function Anuncios() {
     setEditando(a);
     setComponiendo(true);
     setAlcance(a.ministerio_id);
+    setAudiencia(a.audiencia);
+    setTipo(a.tipo);
     setTitulo(a.titulo);
     setCuerpo(a.cuerpo);
     setFijado(a.fijado);
@@ -187,6 +229,9 @@ export default function Anuncios() {
       await upsert.mutateAsync({
         ...(editando ? { id: editando.id } : {}),
         ministerio_id: alcance,
+        // "Solo líderes" no existe para el general (check de 0038).
+        audiencia: alcance ? audiencia : "integrantes",
+        tipo,
         titulo: titulo.trim(),
         cuerpo: cuerpo.trim(),
         fijado,
@@ -226,7 +271,7 @@ export default function Anuncios() {
         <Card className="mb-5">
           <Label className="mb-2">{editando ? "Editar anuncio" : "Nuevo anuncio"}</Label>
 
-          <Label className="mb-1.5">¿A quién le llega?</Label>
+          <Label className="mb-1.5">Destinatarios</Label>
           <View className="mb-4 gap-2">
             {alcances.map((op) => {
               const sel = alcance === op.id;
@@ -246,6 +291,65 @@ export default function Anuncios() {
                     />
                     <Body className="flex-1 text-ink">{op.nombre}</Body>
                   </View>
+                  {/* Dentro del ministerio elegido: a todos o solo a los
+                      líderes. El anuncio "solo líderes" el participante no lo
+                      ve ni le suma al badge. */}
+                  {sel && op.id ? (
+                    <View className="mt-3 flex-row flex-wrap gap-2 pl-7">
+                      {AUDIENCIAS.map((au) => {
+                        const on = audiencia === au.id;
+                        return (
+                          <Pressable
+                            key={au.id}
+                            onPress={() => setAudiencia(au.id)}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected: on }}
+                            className={`flex-row items-center gap-1.5 rounded-full px-3 py-1.5 ${
+                              on ? "bg-navy" : "bg-surface-mid"
+                            }`}
+                          >
+                            <Ionicons
+                              name={au.id === "lideres" ? "lock-closed-outline" : "people-outline"}
+                              size={14}
+                              color={on ? "#fff" : colors.outline}
+                            />
+                            <Text
+                              style={{ fontFamily: fonts.sansSemibold }}
+                              className={`text-sm ${on ? "text-white" : "text-ink-variant"}`}
+                            >
+                              {au.nombre}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Label className="mb-1.5">Tipo</Label>
+          <View className="mb-4 flex-row flex-wrap gap-2">
+            {ORDEN_TIPOS_ANUNCIO.map((t) => {
+              const cfg = TIPOS_ANUNCIO[t];
+              const on = tipo === t;
+              return (
+                <Pressable
+                  key={t}
+                  onPress={() => setTipo(t)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
+                  className="flex-row items-center gap-1.5 rounded-full px-3 py-1.5 active:opacity-80"
+                  style={{ backgroundColor: on ? cfg.tinta : cfg.fondo }}
+                >
+                  <Ionicons name={cfg.icono} size={15} color={on ? "#fff" : cfg.tinta} />
+                  <Text
+                    style={{ fontFamily: fonts.sansSemibold, color: on ? "#fff" : cfg.tinta }}
+                    className="text-sm"
+                  >
+                    {cfg.etiqueta}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -284,7 +388,15 @@ export default function Anuncios() {
               <Ionicons name="calendar-outline" size={18} color={colors.outline} />
             </Pressable>
             {vence ? (
-              <Button title="Quitar" variant="outline" size="sm" onPress={() => setVence(null)} />
+              <Button
+                title="Quitar"
+                variant="outline"
+                size="sm"
+                onPress={() => {
+                  venceTocado.current = true;
+                  setVence(null);
+                }}
+              />
             ) : null}
           </View>
           {showPicker && (
@@ -294,11 +406,17 @@ export default function Anuncios() {
               display={Platform.OS === "ios" ? "inline" : "default"}
               onChange={(event, selected) => {
                 if (Platform.OS !== "ios") setShowPicker(false);
-                if (event.type === "set" && selected) setVence(dateToFecha(selected));
+                if (event.type === "set" && selected) {
+                  venceTocado.current = true;
+                  setVence(dateToFecha(selected));
+                }
               }}
             />
           )}
           <Muted className="mb-4">
+            {alcance && !editando
+              ? "Por defecto vence el día de la próxima reunión del ministerio. "
+              : ""}
             Después de esa fecha el anuncio se cae solo del feed. Vos lo seguís
             viendo acá para poder borrarlo.
           </Muted>

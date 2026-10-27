@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Image, Pressable, View } from "react-native";
+import { Alert, Image, Pressable, Text, View } from "react-native";
 import { RichTextEditor } from "../../components/RichTextEditor";
 import { BuscadorPersonas, ListaPersonas, PersonaOpcion } from "../../components/SelectorPersonas";
 import { Button, Card, Field, KeyboardScrollView, Label, Muted, Screen } from "../../components/ui";
@@ -21,8 +21,9 @@ import {
   elegirImagen,
   subirImagenMinisterio,
 } from "../../lib/storage";
-import { colors } from "../../lib/theme";
-import { Profile } from "../../lib/types";
+import { formatHora } from "../../lib/date";
+import { colors, fonts } from "../../lib/theme";
+import { DIAS_SEMANA, Profile } from "../../lib/types";
 
 // Alta y edición de un ministerio.
 //
@@ -80,6 +81,10 @@ export default function EditarMinisterio() {
   const [imagenNueva, setImagenNueva] = useState<ImagenLocal | null>(null);
   const [quitarImagen, setQuitarImagen] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
+  // Día y horario de la reunión (0038): opcionales, hay ministerios sin
+  // cadencia fija. Hoy proponen el vencimiento de los anuncios.
+  const [dia, setDia] = useState<number | null>(null);
+  const [hora, setHora] = useState("");
   const [lideres, setLideres] = useState<string[]>([]);
   const [showBaja, setShowBaja] = useState(false);
   const [motivo, setMotivo] = useState("");
@@ -93,6 +98,8 @@ export default function EditarMinisterio() {
     setDescripcion(ministerio.descripcion ?? "");
     setIcono(ministerio.icono ?? "sparkles-outline");
     setImagenGuardada(ministerio.imagen_url);
+    setDia(ministerio.dia_semana);
+    setHora(ministerio.hora_inicio ? formatHora(ministerio.hora_inicio) : "");
     setLideres((ministerio.lideres ?? []).map((l) => l.profile_id));
     cargado.current = true;
   }, [editingId, ministerio, cargandoLideres]);
@@ -145,11 +152,19 @@ export default function EditarMinisterio() {
       Alert.alert("Falta el nombre", "Un ministerio necesita un nombre (ej. «Jóvenes»).");
       return;
     }
+    const horaLimpia = hora.trim();
+    if (horaLimpia && !/^\d{2}:\d{2}$/.test(horaLimpia)) {
+      Alert.alert("Hora inválida", "Usá el formato HH:MM (ej. 19:00).");
+      return;
+    }
     try {
       const datos = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim() || null,
         icono,
+        dia_semana: dia,
+        // Sin día la hora no se guarda (check `ministerios_hora_con_dia`).
+        hora_inicio: dia !== null && horaLimpia ? `${horaLimpia}:00` : null,
       };
       // La carpeta del bucket lleva el id del ministerio (es lo que autoriza al
       // líder a subir, 0033): al editar se sube antes y va en el mismo guardado;
@@ -303,6 +318,37 @@ export default function EditarMinisterio() {
         placeholder="Qué hace el ministerio, cuándo se junta, a quién está dirigido…"
         ayuda="Se ve en el detalle del ministerio. Admite títulos, viñetas y enlaces."
       />
+
+      <Label className="mb-1.5">Día de reunión</Label>
+      <Muted className="mb-2">
+        Opcional. Los anuncios del ministerio vencen por defecto el día de la
+        próxima reunión.
+      </Muted>
+      <View className="mb-4 flex-row flex-wrap gap-2">
+        {[null, ...DIAS_SEMANA.map((_, i) => i)].map((i) => (
+          <Text
+            key={i ?? "sin-dia"}
+            onPress={() => setDia(i)}
+            style={{ fontFamily: fonts.sansSemibold }}
+            className={`rounded-full px-3.5 py-1.5 text-sm ${
+              dia === i ? "bg-navy text-white" : "bg-surface-mid text-ink-variant"
+            }`}
+          >
+            {i === null ? "Sin día fijo" : DIAS_SEMANA[i].slice(0, 3)}
+          </Text>
+        ))}
+      </View>
+
+      {dia !== null && (
+        <Field
+          label="Hora de inicio (opcional)"
+          icon="time-outline"
+          value={hora}
+          onChangeText={setHora}
+          placeholder="19:00"
+          autoCapitalize="none"
+        />
+      )}
 
       {isAdmin && (
         <>

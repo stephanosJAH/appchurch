@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { authKeys } from "../auth";
 import { supabase } from "../supabase";
-import { Anuncio } from "../types";
+import { Anuncio, AudienciaAnuncio, TipoAnuncio } from "../types";
 
 // Anuncios (0026): el aviso a la gente. `ministerio_id` null = toda la iglesia
-// (solo admin), con uuid = solo los participantes y líderes de ese ministerio.
+// (solo admin), con uuid = solo los participantes y líderes de ese ministerio
+// — o solo sus líderes, con `audiencia = 'lideres'` (0038).
 //
 // La LECTURA va por el RPC `anuncios_visibles` y no por la tabla porque
 // `autor_id` apunta a `profiles`, que la RLS solo deja leer de uno mismo: sin
@@ -64,6 +65,9 @@ export type AnuncioInput = {
   ministerio_id: string | null;
   titulo: string;
   cuerpo: string;
+  tipo: TipoAnuncio;
+  // "lideres" solo con ministerio_id (check `anuncios_audiencia_valida`, 0038).
+  audiencia: AudienciaAnuncio;
   fijado: boolean;
   vence_el: string | null;
 };

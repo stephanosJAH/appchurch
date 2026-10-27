@@ -51,6 +51,21 @@ export const colors = {
   hairline: "rgba(26, 43, 68, 0.10)", // borde navy tenue
 };
 
+// Tipos de anuncio (0038): color del ícono (`tinta`) sobre su fondo claro
+// (`fondo`). Fuera de la paleta navy/dorado a propósito: el color es lo que
+// hace reconocible el tipo de un vistazo en el feed. Cada `tinta` sobre su
+// `fondo` y sobre blanco pasa AA para texto chico (es también el color de la
+// línea de arriba de la tarjeta).
+export const avisos = {
+  informacion: { tinta: "#2c5a96", fondo: "#dce6f4" },
+  atencion: { tinta: "#9a5b00", fondo: "#ffe6c2" },
+  recordatorio: { tinta: "#7a5a12", fondo: "#ffdea5" },
+  urgente: { tinta: "#ba1a1a", fondo: "#ffdad6" },
+  cambio: { tinta: "#1d6763", fondo: "#d3ebe8" },
+  oracion: { tinta: "#5f4596", fondo: "#e9e1f5" },
+  celebracion: { tinta: "#3f6b3f", fondo: "#dcebd6" },
+};
+
 // Azules de la acuarela de fondo (assets/images-2/FONDO.jpg), por ahora solo en
 // el encabezado del detalle de discipulado y de ministerio. No reemplazan a `primary`: el resto
 // de la app sigue en el navy de arriba hasta que se decida llevarlos a todo.

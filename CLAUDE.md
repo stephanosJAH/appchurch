@@ -107,8 +107,10 @@ This depends on **email confirmation being OFF** in the Supabase Auth dashboard
   with **several equally-powered leaders** (`ministerio_lideres`), its own roster
   (`ministerio_miembros`) and its **own, deliberately separate accounting book**
   (`reuniones_ministerio` + `asistencias_ministerio`, via
-  `registrar_reunion_ministerio`). No fixed day/time — a ministry that meets every
-  week is an `actividad`.
+  `registrar_reunion_ministerio`). An **optional, informative** meeting day/time
+  (`dia_semana`/`hora_inicio`, `0038`) — it only seeds the default expiry of the
+  ministry's announcements; it generates no calendar occurrences. A ministry
+  activity people should see on the calendar is still an `actividad`.
 - **`actividades`** — recurring weekly activity (e.g. "prayer meeting, Tuesdays
   8pm"), informative only, no attendance tracking. `dias_semana` is an array —
   one activity can repeat on multiple days with one shared time.

@@ -164,10 +164,12 @@ export type MinisterioInput = {
   descripcion: string | null;
   icono: string | null;
   imagen_url: string | null;
+  dia_semana: number | null;
+  hora_inicio: string | null;
 };
 
 // Alta y edición. El admin puede lo que quiera; el líder solo edita nombre,
-// descripción, ícono e imagen de su ministerio (`min_lider_update` + el trigger
+// descripción, ícono, imagen y horario de su ministerio (`min_lider_update` + el trigger
 // `trg_solo_admin_baja_ministerio`, que le corta la baja).
 export function useUpsertMinisterio() {
   const qc = useQueryClient();

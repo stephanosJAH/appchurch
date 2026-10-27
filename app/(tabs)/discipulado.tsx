@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
 import { MiGrupoDetalle } from "../../components/MiGrupo";
 import { Body, Card, Chip, Label, Muted, Screen, Title } from "../../components/ui";
@@ -55,23 +55,44 @@ function GrupoCard({ g, onPress }: { g: GrupoItem; onPress: () => void }) {
   );
 }
 
-// Tarjeta de ministerio: no tiene día ni horario propios (un ministerio que se
-// junta todas las semanas es una `actividad`, ver el diferido #1 de
-// docs/MINISTERIOS.md), así que muestra el ícono, los líderes y el rol propio.
+// Tarjeta de ministerio: la foto del ministerio (0033) —o su ícono, si no
+// subieron ninguna—, el día/hora de reunión si lo tiene cargado (0038, es
+// opcional), los líderes y el rol propio.
 function MinisterioCard({ m, onPress }: { m: MiMinisterio; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} className="active:opacity-80">
       <Card>
         <View className="flex-row items-center gap-3">
-          <View className="h-11 w-11 items-center justify-center rounded-full bg-gold-container">
-            <Ionicons
-              name={(m.icono as keyof typeof Ionicons.glyphMap) ?? "sparkles-outline"}
-              size={20}
-              color={colors.onTertiaryContainer}
-            />
+          <View
+            style={{ borderRadius: 12 }}
+            className="h-14 w-14 items-center justify-center overflow-hidden bg-gold-container"
+          >
+            {m.imagen_url ? (
+              <Image
+                source={{ uri: m.imagen_url }}
+                resizeMode="cover"
+                accessibilityIgnoresInvertColors
+                style={{ width: "100%", height: "100%" }}
+              />
+            ) : (
+              <Ionicons
+                name={(m.icono as keyof typeof Ionicons.glyphMap) ?? "sparkles-outline"}
+                size={22}
+                color={colors.onTertiaryContainer}
+              />
+            )}
           </View>
           <View className="flex-1">
             <Title numberOfLines={1}>{m.nombre}</Title>
+            {m.dia_semana != null ? (
+              <View className="mt-0.5 flex-row items-center gap-1.5">
+                <Ionicons name="calendar-outline" size={14} color={colors.tertiary} />
+                <Muted className="text-gold">
+                  {DIAS_SEMANA[m.dia_semana]}
+                  {m.hora_inicio ? ` · ${formatHora(m.hora_inicio)}` : ""}
+                </Muted>
+              </View>
+            ) : null}
             <View className="mt-0.5 flex-row items-center gap-1.5">
               <Ionicons name="person-outline" size={13} color={colors.outline} />
               <Muted numberOfLines={1}>

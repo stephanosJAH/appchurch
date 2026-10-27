@@ -277,6 +277,7 @@ iglesia). **No cuelga de ningún grupo** y **no registra ofrenda**. Ver
 | Crear / editar / borrar eventos | ✗ | ✗ | ✗⁴ | ✓ |
 | Ver anuncios generales (toda la iglesia) | ✗ | ✓ | ✓ | ✓ |
 | Ver anuncios de un ministerio | ✗ | Solo su gente | Solo su gente | ✓ |
+| Ver anuncios "solo líderes" de un ministerio (`0038`) | ✗ | Solo sus líderes | Solo sus líderes | ✓ |
 | Publicar anuncios generales | ✗ | ✗ | ✗ | ✓ |
 | Publicar / editar / borrar anuncios de un ministerio | ✗ | ✗⁷ | ✗⁷ | ✓ |
 

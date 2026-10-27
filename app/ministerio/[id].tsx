@@ -2,9 +2,19 @@ import { Ionicons } from "@expo/vector-icons";
 import { Stack, useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Image, Linking, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  Linking,
+  Pressable,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AnuncioFila } from "../../components/AnuncioFila";
 import { Dato } from "../../components/Dato";
 import { FondoEncabezado } from "../../components/FondoEncabezado";
 import { GrillaAsistencia } from "../../components/GrillaAsistencia";
@@ -23,7 +33,7 @@ import {
   Title,
 } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
-import { fechaLabel, formatFechaCorta, formatMoneda, toISODate } from "../../lib/date";
+import { fechaLabel, formatFechaCorta, formatHora, formatMoneda, toISODate } from "../../lib/date";
 import { useAnuncios } from "../../lib/queries/anuncios";
 import {
   useIntegrantesMinisterio,
@@ -34,7 +44,12 @@ import {
   useSoyLiderDe,
 } from "../../lib/queries/ministerios";
 import { acuarela, cardShadow, colors, fonts } from "../../lib/theme";
-import { LiderMinisterio, ReunionDeMiMinisterio, ReunionMinisterio } from "../../lib/types";
+import {
+  DIAS_SEMANA,
+  LiderMinisterio,
+  ReunionDeMiMinisterio,
+  ReunionMinisterio,
+} from "../../lib/types";
 
 // Detalle de un ministerio. La misma pantalla sirve a tres audiencias, y el
 // corte NO es el rol (un líder de ministerio puede ser `miembro`):
@@ -324,6 +339,9 @@ export default function MinisterioDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // Las filas de anuncio son las de actividad (ícono + texto): a 240 px no
+  // entran. Casi el ancho de la hoja, con la siguiente asomando a la derecha.
+  const anchoAnuncio = Math.min(useWindowDimensions().width - 72, 360);
   const enFoco = useIsFocused();
   const ministerioId = String(id);
   const { isAdmin } = useAuth();
@@ -531,6 +549,15 @@ export default function MinisterioDetalle() {
           >
             {ministerio.nombre}
           </Text>
+          {ministerio.dia_semana != null ? (
+            <View className="mt-1 flex-row items-center gap-1.5">
+              <Ionicons name="calendar-outline" size={14} color={colors.outline} />
+              <Muted>
+                Se reúne: {DIAS_SEMANA[ministerio.dia_semana]}
+                {ministerio.hora_inicio ? ` · ${formatHora(ministerio.hora_inicio)}` : ""}
+              </Muted>
+            </View>
+          ) : null}
 
           {(soyLider || participo || puedeGestionar) && (
             <View className="mt-3 flex-row flex-wrap gap-2">
@@ -566,7 +593,7 @@ export default function MinisterioDetalle() {
           >
           {/* ====================== Inicio ====================== */}
             <View className={solapas.length > 1 ? "px-5" : "mt-2 px-5"}>
-              {/* Un ministerio no tiene día fijo: en lugar de la próxima
+              {/* El día de reunión es opcional (0038): en lugar de la próxima
                   reunión, la última que se cargó. */}
               {puedeGestionar && (
                 <View
@@ -655,28 +682,14 @@ export default function MinisterioDetalle() {
                       contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 2, paddingBottom: 12, gap: 10 }}
                     >
                       {anunciosDelMinisterio.map((a) => (
-                        <Pressable
-                          key={a.id}
-                          onPress={() => router.push("/anuncios")}
-                          className="active:opacity-80"
-                        >
-                          <Card className="px-4 py-3.5" style={[TARJETA, { width: 240 }]}>
-                            <Text
-                              style={{ fontFamily: fonts.sansBold, letterSpacing: 1 }}
-                              className={`text-xs uppercase ${a.fijado ? "text-gold" : "text-ink-muted"}`}
-                            >
-                              {a.fijado ? "Fijado" : formatFechaCorta(a.created_at.slice(0, 10))}
-                            </Text>
-                            <Title className="mt-1 text-[17px]" numberOfLines={2}>
-                              {a.titulo}
-                            </Title>
-                            {a.fijado ? (
-                              <Muted className="mt-1">
-                                {formatFechaCorta(a.created_at.slice(0, 10))}
-                              </Muted>
-                            ) : null}
-                          </Card>
-                        </Pressable>
+                        <View key={a.id} style={{ width: anchoAnuncio }}>
+                          <AnuncioFila
+                            a={a}
+                            mostrarAlcance={false}
+                            onPress={() => router.push("/anuncios")}
+                            style={TARJETA}
+                          />
+                        </View>
                       ))}
                     </ScrollView>
                     </GestureDetector>

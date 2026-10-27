@@ -158,6 +158,16 @@ create table anuncios (
 alter table profiles add column anuncios_leidos_hasta timestamptz;
 ```
 
+**`0038`** le suma al anuncio un `tipo` (información, atención, recordatorio,
+urgente, cambio, oración, celebración — define ícono y color, mapa en
+`lib/anuncios.ts`) y una `audiencia` para los de ministerio: `integrantes`
+(participantes + líderes, lo de siempre) o `lideres` (solo los líderes). El corte
+de la audiencia es de lectura —`anun_select` y `anuncios_visibles`—, así que el
+badge tampoco se lo cuenta a un participante. También le da al ministerio un
+día/hora de reunión **opcional e informativo** (`dia_semana`, `hora_inicio`): el
+compositor lo usa para proponer que el anuncio venza el día de la próxima
+reunión. No genera ocurrencias en el calendario.
+
 ## Autorización
 
 Sigue el principio de siempre: **el poder viene de la asignación, no del rol**.

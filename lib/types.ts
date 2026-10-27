@@ -150,6 +150,10 @@ export type Ministerio = {
   // Foto del ministerio, en el cuadrado sobre el nombre del detalle (bucket
   // `adjuntos`, 0033). Null = la inicial del nombre.
   imagen_url: string | null;
+  // Día y horario en que se reúne (0038). Opcionales e informativos: hoy solo
+  // proponen el vencimiento de los anuncios. `hora_inicio` exige día.
+  dia_semana: number | null;
+  hora_inicio: string | null;
   activo: boolean;
   motivo_baja: string | null;
   fecha_baja: string | null;
@@ -175,6 +179,10 @@ export type MiMinisterio = {
   nombre: string;
   descripcion: string | null;
   icono: string | null;
+  // Foto (0033) y día/hora de reunión (0038), para la tarjeta de "Mi discipulado".
+  imagen_url: string | null;
+  dia_semana: number | null;
+  hora_inicio: string | null;
   soy_lider: boolean;
   lideres: string[];
   integrantes: number | null;
@@ -247,6 +255,20 @@ export type ReunionDeMiMinisterio = {
   participantes: string[];
 };
 
+// Tipo de anuncio (0038): define ícono y color (lib/anuncios.ts).
+export type TipoAnuncio =
+  | "informacion"
+  | "atencion"
+  | "recordatorio"
+  | "urgente"
+  | "cambio"
+  | "oracion"
+  | "celebracion";
+
+// A quién le llega un anuncio de ministerio (0038). El general es siempre
+// "integrantes".
+export type AudienciaAnuncio = "integrantes" | "lideres";
+
 // Anuncio (0026). `ministerio_id` null = toda la iglesia.
 export type Anuncio = {
   id: string;
@@ -254,6 +276,8 @@ export type Anuncio = {
   ministerio_nombre: string | null;
   titulo: string;
   cuerpo: string; // con marcas (lib/richText.ts)
+  tipo: TipoAnuncio;
+  audiencia: AudienciaAnuncio;
   autor_id: string | null;
   autor: string | null;
   fijado: boolean;
