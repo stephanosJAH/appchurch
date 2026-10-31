@@ -9,7 +9,6 @@ import {
   Body,
   Button,
   Card,
-  Chip,
   Field,
   KeyboardScrollView,
   Label,
@@ -17,7 +16,7 @@ import {
   SwitchField,
   Title,
 } from "../components/ui";
-import { ORDEN_TIPOS_ANUNCIO, TIPOS_ANUNCIO, vencimientoPorDefecto } from "../lib/anuncios";
+import { ORDEN_TIPOS_ANUNCIO, TIPOS_ANUNCIO, tintaListado, vencimientoPorDefecto } from "../lib/anuncios";
 import { useAuth } from "../lib/auth";
 import { dateToFecha, fechaLabel, fechaToDate, formatFechaHoraCorta } from "../lib/date";
 import {
@@ -59,68 +58,64 @@ function puedeEditar(a: Anuncio, isAdmin: boolean, ministeriosQueLidero: string[
   return !!a.ministerio_id && ministeriosQueLidero.includes(a.ministerio_id);
 }
 
-function AnuncioCard({
+// Sin tarjeta, separados por una línea fina; ícono de contorno en el color de
+// su tipo, y la etiqueta en gris salvo el urgente (`tintaListado`). Las mismas
+// reglas que la fila del feed (components/AnuncioFila.tsx).
+function AnuncioItem({
   a,
+  ultimo,
   editable,
   onEditar,
   onBorrar,
 }: {
   a: Anuncio;
+  ultimo: boolean;
   editable: boolean;
   onEditar: () => void;
   onBorrar: () => void;
 }) {
   const vencido = !!a.vence_el && a.vence_el < new Date().toISOString().slice(0, 10);
   const tipo = TIPOS_ANUNCIO[a.tipo] ?? TIPOS_ANUNCIO.informacion;
+  const tinta = tintaListado(a.tipo);
+  const alcance =
+    (a.ministerio_nombre ?? "Toda la iglesia") + (a.audiencia === "lideres" ? ", solo líderes" : "");
   return (
-    <Card>
-      <View className="flex-row items-start gap-3">
-        <View
-          style={{ borderRadius: 10, backgroundColor: tipo.fondo }}
-          className="h-11 w-11 items-center justify-center"
-        >
-          <Ionicons name={tipo.icono} size={22} color={tipo.tinta} />
+    <View
+      className="flex-row items-start gap-3.5 py-4"
+      style={ultimo ? undefined : { borderBottomWidth: 1, borderBottomColor: colors.hairline }}
+    >
+      <Ionicons name={tipo.iconoLinea} size={20} color={tipo.tinta} style={{ marginTop: 3 }} />
+      <View className="flex-1">
+        <View className="flex-row items-start gap-2">
+          <Title className="flex-1" style={{ fontFamily: fonts.serifBold, fontSize: 18, lineHeight: 24, color: colors.primary }}>
+            {a.titulo}
+          </Title>
+          {editable && (
+            <View className="flex-row gap-3 pt-0.5">
+              <Pressable onPress={onEditar} hitSlop={8} className="active:opacity-60">
+                <Ionicons name="create-outline" size={18} color={colors.outline} />
+              </Pressable>
+              <Pressable onPress={onBorrar} hitSlop={8} className="active:opacity-60">
+                <Ionicons name="trash-outline" size={18} color={colors.outline} />
+              </Pressable>
+            </View>
+          )}
         </View>
-        <View className="flex-1">
-          <View className="mb-1.5 flex-row flex-wrap items-center gap-2">
-            {a.fijado ? <Ionicons name="pin" size={14} color={colors.tertiary} /> : null}
-            <Text
-              style={{ color: tipo.tinta, fontFamily: fonts.sansBold, letterSpacing: 0.8 }}
-              className="text-[10px] uppercase"
-            >
-              {tipo.etiqueta}
-            </Text>
-            <Chip tone={a.ministerio_id ? "neutral" : "navy"}>
-              {a.ministerio_nombre ?? "Toda la iglesia"}
-            </Chip>
-            {a.audiencia === "lideres" ? <Chip tone="gold">Solo líderes</Chip> : null}
-            {vencido ? <Chip tone="danger">Vencido</Chip> : null}
-          </View>
-          <Title className="text-base">{a.titulo}</Title>
+
+        <View className="mt-1">
+          <RichTextView descripcion={a.cuerpo} />
         </View>
-        {editable && (
-          <View className="flex-row gap-1">
-            <Pressable onPress={onEditar} hitSlop={8} className="active:opacity-60">
-              <Ionicons name="create-outline" size={19} color={colors.outline} />
-            </Pressable>
-            <Pressable onPress={onBorrar} hitSlop={8} className="active:opacity-60">
-              <Ionicons name="trash-outline" size={19} color={colors.error} />
-            </Pressable>
-          </View>
-        )}
-      </View>
 
-      <View className="mt-2">
-        <RichTextView descripcion={a.cuerpo} />
-      </View>
-
-      <View className="mt-3 flex-row items-center gap-1.5 border-t border-black/5 pt-3">
-        <Ionicons name="person-outline" size={13} color={colors.outline} />
-        <Muted className="flex-1" numberOfLines={1}>
-          {a.autor ?? "Sin autor"} · {formatFechaHoraCorta(a.created_at)}
+        <Muted className="mt-2" style={{ fontSize: 13, lineHeight: 18 }}>
+          <Text style={{ color: tinta, fontFamily: a.tipo === "urgente" ? fonts.sansSemibold : fonts.sans }}>
+            {tipo.etiqueta}
+          </Text>
+          {` · ${alcance} · ${a.autor ?? "Sin autor"} · ${formatFechaHoraCorta(a.created_at)}`}
+          {a.fijado ? " · Fijado" : ""}
+          {vencido ? <Text style={{ color: colors.error, fontFamily: fonts.sansSemibold }}> · Vencido</Text> : null}
         </Muted>
       </View>
-    </Card>
+    </View>
   );
 }
 
@@ -451,11 +446,12 @@ export default function Anuncios() {
           </Muted>
         </Card>
       ) : (
-        <View className="gap-3">
-          {anuncios.map((a) => (
-            <AnuncioCard
+        <View>
+          {anuncios.map((a, i) => (
+            <AnuncioItem
               key={a.id}
               a={a}
+              ultimo={i === anuncios.length - 1}
               editable={puedeEditar(a, isAdmin, ministeriosQueLidero)}
               onEditar={() => abrirEdicion(a)}
               onBorrar={() => confirmarBorrado(a)}

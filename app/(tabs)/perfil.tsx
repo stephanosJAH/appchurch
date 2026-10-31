@@ -1,9 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useMemo } from "react";
+import { ReactNode, useMemo } from "react";
 import { Alert, Pressable, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
 import { EliminarCuentaButton } from "../../components/EliminarCuenta";
+import { FotoMinisterio } from "../../components/FotoMinisterio";
 import { Avatar, Body, Button, Card, Chip, Display, Headline, Label, Muted, Screen, Title } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { formatMoneda, toISODate } from "../../lib/date";
@@ -19,13 +20,17 @@ import { useParticipaciones } from "../../lib/queries/participaciones";
 import { useReunionesMes } from "../../lib/queries/reuniones";
 import { colors } from "../../lib/theme";
 
+// `inicio` reemplaza al ícono cuando la fila lleva su propia imagen (la foto
+// del ministerio).
 function Row({
   icon,
+  inicio,
   label,
   onPress,
   last,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon?: keyof typeof Ionicons.glyphMap;
+  inicio?: ReactNode;
   label: string;
   onPress: () => void;
   last?: boolean;
@@ -35,9 +40,11 @@ function Row({
       className={`flex-row items-center gap-3 py-3.5 active:opacity-70 ${last ? "" : "border-b border-black/5"}`}
       onTouchEnd={onPress}
     >
-      <View className="h-9 w-9 items-center justify-center rounded-full bg-surface-mid">
-        <Ionicons name={icon} size={18} color={colors.primaryContainer} />
-      </View>
+      {inicio ?? (
+        <View className="h-9 w-9 items-center justify-center rounded-full bg-surface-mid">
+          <Ionicons name={icon ?? "ellipse-outline"} size={18} color={colors.primaryContainer} />
+        </View>
+      )}
       <Body className="flex-1 text-ink">{label}</Body>
       <Ionicons name="chevron-forward" size={18} color={colors.outline} />
     </View>
@@ -195,7 +202,7 @@ export default function Perfil() {
             {misMinisterios.map((m, i) => (
               <Row
                 key={m.id}
-                icon={(m.icono as keyof typeof Ionicons.glyphMap) ?? "sparkles-outline"}
+                inicio={<FotoMinisterio nombre={m.nombre} imagenUrl={m.imagen_url} size={36} />}
                 label={m.soy_lider ? `${m.nombre} · liderás` : m.nombre}
                 onPress={() => router.push({ pathname: "/ministerio/[id]", params: { id: m.id } })}
                 last={i === misMinisterios.length - 1}

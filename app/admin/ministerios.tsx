@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Alert, Pressable, ScrollView, View } from "react-native";
+import { FotoMinisterio } from "../../components/FotoMinisterio";
 import { Body, Button, Card, Label, Muted, Screen, Title } from "../../components/ui";
 import {
   useMinisterios,
@@ -67,13 +68,7 @@ export default function AdminMinisterios() {
               >
                 <Card>
                   <View className="flex-row items-center gap-3">
-                    <View className="h-10 w-10 items-center justify-center rounded-full bg-gold-container">
-                      <Ionicons
-                        name={(m.icono as keyof typeof Ionicons.glyphMap) ?? "sparkles-outline"}
-                        size={19}
-                        color={colors.onTertiaryContainer}
-                      />
-                    </View>
+                    <FotoMinisterio nombre={m.nombre} imagenUrl={m.imagen_url} size={44} />
                     <Title numberOfLines={1} className="flex-1">
                       {m.nombre}
                     </Title>

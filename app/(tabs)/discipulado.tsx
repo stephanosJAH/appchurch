@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { ActivityIndicator, Image, Pressable, ScrollView, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
+import { FotoMinisterio } from "../../components/FotoMinisterio";
 import { MiGrupoDetalle } from "../../components/MiGrupo";
 import { Body, Card, Chip, Label, Muted, Screen, Title } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
@@ -55,7 +56,7 @@ function GrupoCard({ g, onPress }: { g: GrupoItem; onPress: () => void }) {
   );
 }
 
-// Tarjeta de ministerio: la foto del ministerio (0033) —o su ícono, si no
+// Tarjeta de ministerio: la foto del ministerio (0033) —o su inicial, si no
 // subieron ninguna—, el día/hora de reunión si lo tiene cargado (0038, es
 // opcional), los líderes y el rol propio.
 function MinisterioCard({ m, onPress }: { m: MiMinisterio; onPress: () => void }) {
@@ -63,25 +64,7 @@ function MinisterioCard({ m, onPress }: { m: MiMinisterio; onPress: () => void }
     <Pressable onPress={onPress} className="active:opacity-80">
       <Card>
         <View className="flex-row items-center gap-3">
-          <View
-            style={{ borderRadius: 12 }}
-            className="h-14 w-14 items-center justify-center overflow-hidden bg-gold-container"
-          >
-            {m.imagen_url ? (
-              <Image
-                source={{ uri: m.imagen_url }}
-                resizeMode="cover"
-                accessibilityIgnoresInvertColors
-                style={{ width: "100%", height: "100%" }}
-              />
-            ) : (
-              <Ionicons
-                name={(m.icono as keyof typeof Ionicons.glyphMap) ?? "sparkles-outline"}
-                size={22}
-                color={colors.onTertiaryContainer}
-              />
-            )}
-          </View>
+          <FotoMinisterio nombre={m.nombre} imagenUrl={m.imagen_url} />
           <View className="flex-1">
             <Title numberOfLines={1}>{m.nombre}</Title>
             {m.dia_semana != null ? (

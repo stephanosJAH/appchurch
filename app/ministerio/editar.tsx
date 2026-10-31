@@ -1,7 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Image, Pressable, Text, View } from "react-native";
+import { Alert, Image, Text, View } from "react-native";
 import { RichTextEditor } from "../../components/RichTextEditor";
 import { BuscadorPersonas, ListaPersonas, PersonaOpcion } from "../../components/SelectorPersonas";
 import { Button, Card, Field, KeyboardScrollView, Label, Muted, Screen } from "../../components/ui";
@@ -29,28 +28,11 @@ import { DIAS_SEMANA, Profile } from "../../lib/types";
 //
 // Dos audiencias en la misma pantalla, y el corte NO es el rol:
 //   * el admin crea, edita todo y asigna los líderes;
-//   * cualquier líder del ministerio edita nombre, descripción, ícono y
-//     foto —
-//     aunque su rol sea `miembro`, porque el poder viene de la asignación.
+//   * cualquier líder del ministerio edita nombre, descripción, foto y
+//     horario — aunque su rol sea `miembro`, porque el poder viene de la asignación.
 // Quién lidera lo sigue decidiendo el admin (policy `minlid_admin`, 0024): es
 // la única cosa en la que los líderes no son autosuficientes, para que uno no
 // se vuelva administrador de hecho de su área sumando cuentas.
-
-// Íconos ofrecidos para el ministerio. Lista corta y curada a propósito: un
-// buscador de los ~1300 ionicons sería una pantalla propia, y lo que se guarda
-// es el nombre del ícono, así que agregar opciones acá no migra nada.
-const ICONOS: { nombre: keyof typeof Ionicons.glyphMap; etiqueta: string }[] = [
-  { nombre: "sparkles-outline", etiqueta: "General" },
-  { nombre: "musical-notes-outline", etiqueta: "Alabanza" },
-  { nombre: "people-outline", etiqueta: "Jóvenes" },
-  { nombre: "happy-outline", etiqueta: "Niños" },
-  { nombre: "heart-outline", etiqueta: "Acción social" },
-  { nombre: "book-outline", etiqueta: "Enseñanza" },
-  { nombre: "megaphone-outline", etiqueta: "Evangelismo" },
-  { nombre: "hand-left-outline", etiqueta: "Oración" },
-  { nombre: "videocam-outline", etiqueta: "Medios" },
-  { nombre: "home-outline", etiqueta: "Hospitalidad" },
-];
 
 export default function EditarMinisterio() {
   const router = useRouter();
@@ -74,7 +56,6 @@ export default function EditarMinisterio() {
 
   const [nombre, setNombre] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [icono, setIcono] = useState<string>("sparkles-outline");
   // La imagen guardada, la elegida y todavía sin subir, y si se quitó. Se
   // sube recién al guardar: elegir y cancelar no deja archivos en el bucket.
   const [imagenGuardada, setImagenGuardada] = useState<string | null>(null);
@@ -96,7 +77,6 @@ export default function EditarMinisterio() {
     if (cargado.current || !editingId || !ministerio || cargandoLideres) return;
     setNombre(ministerio.nombre);
     setDescripcion(ministerio.descripcion ?? "");
-    setIcono(ministerio.icono ?? "sparkles-outline");
     setImagenGuardada(ministerio.imagen_url);
     setDia(ministerio.dia_semana);
     setHora(ministerio.hora_inicio ? formatHora(ministerio.hora_inicio) : "");
@@ -161,7 +141,6 @@ export default function EditarMinisterio() {
       const datos = {
         nombre: nombre.trim(),
         descripcion: descripcion.trim() || null,
-        icono,
         dia_semana: dia,
         // Sin día la hora no se guarda (check `ministerios_hora_con_dia`).
         hora_inicio: dia !== null && horaLimpia ? `${horaLimpia}:00` : null,
@@ -246,29 +225,10 @@ export default function EditarMinisterio() {
         autoCapitalize="words"
       />
 
-      <Label className="mb-1.5">Ícono</Label>
-      <View className="mb-4 flex-row flex-wrap gap-2">
-        {ICONOS.map((i) => {
-          const sel = icono === i.nombre;
-          return (
-            <Pressable
-              key={i.nombre}
-              onPress={() => setIcono(i.nombre)}
-              accessibilityLabel={i.etiqueta}
-              className={`h-12 w-12 items-center justify-center rounded-xl border ${
-                sel ? "border-navy bg-navy" : "border-black/10 bg-surface"
-              }`}
-            >
-              <Ionicons name={i.nombre} size={21} color={sel ? "#fff" : colors.outline} />
-            </Pressable>
-          );
-        })}
-      </View>
-
       <Label className="mb-1.5">Foto del ministerio</Label>
       <Muted className="mb-2">
-        Se ve en un cuadrado arriba del nombre, en el detalle del ministerio. Sin
-        foto se muestra la inicial.
+        Es la imagen del ministerio: se ve en el detalle y en las tarjetas de
+        «Mi discipulado» y del perfil. Sin foto se muestra la inicial.
       </Muted>
       {/* Vista previa del mismo tamaño y recorte que en el detalle: lo que se ve
           acá es lo que va a ver la gente. */}

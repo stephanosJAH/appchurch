@@ -1,24 +1,35 @@
 import { Ionicons } from "@expo/vector-icons";
 import { addDays, proximaOcurrencia, toISODate } from "./date";
-import { avisos } from "./theme";
+import { avisos, colors } from "./theme";
 import { Ministerio, TipoAnuncio } from "./types";
 
 // Lo que se dibuja de cada tipo de anuncio (0038). La base solo guarda el
 // nombre; ícono, etiqueta y color viven acá, así que cambiar un ícono no migra
 // nada. Sumar un tipo sí: hay que agregarlo también al check
 // `anuncios_tipo_valido`.
+//
+// `icono` (relleno) es el del selector de tipo al publicar; `iconoLinea`, el
+// de contorno que usa el listado, pintado con `tinta`. La etiqueta del tipo, en
+// cambio, va en gris: el color solo se mantiene en el urgente (`tintaListado`).
+type Icono = keyof typeof Ionicons.glyphMap;
 export const TIPOS_ANUNCIO: Record<
   TipoAnuncio,
-  { etiqueta: string; icono: keyof typeof Ionicons.glyphMap; tinta: string; fondo: string }
+  { etiqueta: string; icono: Icono; iconoLinea: Icono; tinta: string; fondo: string }
 > = {
-  informacion: { etiqueta: "Información", icono: "information-circle", ...avisos.informacion },
-  atencion: { etiqueta: "Atención", icono: "warning", ...avisos.atencion },
-  recordatorio: { etiqueta: "Recordatorio", icono: "alarm", ...avisos.recordatorio },
-  urgente: { etiqueta: "Urgente", icono: "alert-circle", ...avisos.urgente },
-  cambio: { etiqueta: "Cambio", icono: "swap-horizontal", ...avisos.cambio },
-  oracion: { etiqueta: "Oración", icono: "hand-left", ...avisos.oracion },
-  celebracion: { etiqueta: "Celebración", icono: "sparkles", ...avisos.celebracion },
+  informacion: { etiqueta: "Información", icono: "information-circle", iconoLinea: "information-circle-outline", ...avisos.informacion },
+  atencion: { etiqueta: "Atención", icono: "warning", iconoLinea: "warning-outline", ...avisos.atencion },
+  recordatorio: { etiqueta: "Recordatorio", icono: "alarm", iconoLinea: "alarm-outline", ...avisos.recordatorio },
+  urgente: { etiqueta: "Urgente", icono: "alert-circle", iconoLinea: "alert-circle-outline", ...avisos.urgente },
+  cambio: { etiqueta: "Cambio", icono: "swap-horizontal", iconoLinea: "swap-horizontal-outline", ...avisos.cambio },
+  oracion: { etiqueta: "Oración", icono: "hand-left", iconoLinea: "hand-left-outline", ...avisos.oracion },
+  celebracion: { etiqueta: "Celebración", icono: "sparkles", iconoLinea: "sparkles-outline", ...avisos.celebracion },
 };
+
+// Color de la etiqueta del tipo en el listado: gris para todos,
+// salvo el urgente, que conserva su rojo para que se note entre los demás.
+export function tintaListado(tipo: TipoAnuncio): string {
+  return tipo === "urgente" ? TIPOS_ANUNCIO.urgente.tinta : colors.onSurfaceVariant;
+}
 
 // Orden en el que se ofrecen al publicar.
 export const ORDEN_TIPOS_ANUNCIO = Object.keys(TIPOS_ANUNCIO) as TipoAnuncio[];
