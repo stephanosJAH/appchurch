@@ -40,6 +40,7 @@
   "devDependencies": {
     "@types/aes-js": "^3.1.4",
     "@types/react": "~19.3.0",
+    "supabase": "^2.122.0",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -47,7 +48,9 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:apk": "eas build --platform android --profile preview"
+    "build:apk": "eas build --platform android --profile preview",
+    "db:status": "supabase migration list",
+    "db:push": "supabase db push"
   },
   "private": true
 }

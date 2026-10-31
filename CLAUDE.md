@@ -19,7 +19,14 @@ npm run android    # emulator/device
 npm run ios        # simulator (macOS only)
 npm run web        # web target
 npm run build:apk  # eas build --platform android --profile preview
+npm run db:status  # supabase migration list — qué migraciones corrieron (Local vs Remote)
+npm run db:push    # supabase db push — aplica y registra las que faltan
 ```
+
+Migrations are tracked in `supabase_migrations.schema_migrations` by the
+Supabase CLI. Don't tell the user to paste a migration into the SQL Editor:
+that runs it without recording it. Setup and the one-time baseline are in
+`supabase/README.md`.
 
 There is no lint or test script configured in `package.json` — don't invent one
 to run. `tsconfig.json` has `strict: true`; use `tsc --noEmit` if you need a

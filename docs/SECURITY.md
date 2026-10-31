@@ -22,6 +22,14 @@
 | 11 | ALTA | `profiles.miembro_id` auto-editable → IDOR de PII | [x] `0029_profiles_columnas_editables.sql` |
 | 12 | MEDIA | Policies `for all` en los dos libros de reuniones habilitan DELETE/UPDATE por REST | [x] `0032_reuniones_solo_lectura.sql` |
 | 13 | MEDIA | `es_discipulador_del_miembro` ignora `participaciones.activo`: el ex líder conserva la ficha | [x] `0034_discipulador_solo_participacion_activa.sql` |
+| 14 | MEDIA | `username` sale de los metadatos del signup: suplantación al aprobar | [x] `0039_endurecimiento_seguridad.sql` |
+| 15 | MEDIA-BAJA | `anuncios.autor_id` falsificable en el alta | [x] `0039_endurecimiento_seguridad.sql` |
+| 16 | BAJA | Bucket `adjuntos` sin límite de tamaño ni tipo en el servidor | [x] `0039_endurecimiento_seguridad.sql` |
+| 17 | BAJA | Ofrenda negativa por el camino sin desglose | [x] `0039_endurecimiento_seguridad.sql` |
+| 18 | BAJA | `part_all` / `minmiem_all` `for all`: DELETE físico de rosters por REST | [x] `0039_endurecimiento_seguridad.sql` |
+| 19 | MEDIA-ALTA | El obrero se asigna a cualquiera del padrón y lee su ficha completa | [ ] decisión de producto |
+| 20 | BAJA-MEDIA | `integrantes_de_mi_ministerio` da el teléfono de menores | [ ] decisión de producto |
+| 21 | BAJA | Los RPC de reunión aceptan asistentes que no están en el roster | [ ] |
 
 **El patrón de fondo**: la app delega correctamente la autorización al backend,
 pero las policies de RLS tienen agujeros que anulan esa protección. Como
@@ -279,6 +287,52 @@ anónimo con solo la anon key pública (embebida en el bundle y en `eas.json`).
     sigue dando acceso a su gente activa. Es decisión de producto aparte.
   - **Detectado**: revisión de seguridad del 2026-09-24; quedó registrado solo en
     las notas del revisor y se pasa acá al cerrarlo.
+
+> **#14-#21** — revisión del 2026-10-25. Los cinco cerrados (#14-#18) van todos
+> en `0039`, cuyo encabezado de cada sección tiene el detalle; acá el resumen.
+
+## 14. MEDIA — `username` sale de los metadatos del signup: suplantación al aprobar
+
+- **Ubicación**: `handle_new_user` (`0013`), consumido por `app/aprobaciones.tsx` y `candidatos_para_perfil` (`0018`).
+- **Explotabilidad**: con `signUp` a mano, email cualquiera + `username` = el teléfono de otra persona + su nombre. El obrero ve esa identidad y la ficha de la víctima con similitud 1.0; si aprueba, el atacante queda enlazado a la ficha ajena. Además el `unique` de `username` le impide registrarse al dueño real del teléfono.
+- **Estado (2026-10-30)**: RESUELTO en `0039` (sección A). El trigger deriva `username` de la parte local del email sintético (`@u.appchurch.app`) e ignora el metadato; un email real queda sin username. No se hizo backfill de cuentas existentes: la query para detectar discrepancias está en el encabezado de la sección.
+
+## 15. MEDIA-BAJA — `anuncios.autor_id` falsificable en el alta
+
+- **Ubicación**: `anuncios` (`0026`).
+- **Explotabilidad**: el `default auth.uid()` no aplica si el cliente manda la columna, y el trigger que congela el autor es solo de UPDATE. Un líder de ministerio publicaba firmado por el pastor o un admin.
+- **Estado (2026-10-30)**: RESUELTO en `0039` (sección B): trigger `before insert` que fija `autor_id := auth.uid()`. De paso se revierte una regresión de `0038`, que había vuelto a firmar `anuncios_visibles` con `profiles.nombre_completo` (texto libre del registro) en vez de `nombre_de_perfil()` (`0027`).
+
+## 16. BAJA — Bucket `adjuntos` sin límite de tamaño ni tipo en el servidor
+
+- **Ubicación**: bucket `adjuntos` (`0007`), escribible por líderes de ministerio desde `0033`.
+- **Explotabilidad**: los topes de `lib/storage.ts` son del cliente; por REST se subía cualquier archivo de cualquier tamaño a un bucket público.
+- **Estado (2026-10-30)**: RESUELTO en `0039` (sección C): `file_size_limit` de 10 MB y lista explícita de imágenes + PDF (sin `image/svg+xml`).
+
+## 17. BAJA — Ofrenda negativa por el camino sin desglose
+
+- **Ubicación**: `registrar_reunion` / `registrar_reunion_ministerio` (`0036`), parámetro `p_ofrenda`.
+- **Estado (2026-10-30)**: RESUELTO en `0039` (sección D): `check (ofrenda_total >= 0)` en los dos libros, `not valid` para no fallar con datos viejos. Pendiente: correr la query del encabezado y `validate constraint`.
+
+## 18. BAJA — Rosters `for all`: DELETE físico por REST
+
+- **Ubicación**: `part_all` (`0002`), `minmiem_all` (`0024`).
+- **Estado (2026-10-30)**: RESUELTO en `0039` (sección E): separadas en select/insert/update con los mismos `using`; sin delete, como `0032`.
+
+## 19. MEDIA-ALTA — El obrero se asigna a cualquiera del padrón y lee su ficha completa
+
+- **Ubicación**: `part_all` / `part_insert` + `useAgregarParticipacion` (`lib/queries/participaciones.ts`), `candidatos_para_discipulado` (`0028`).
+- **Explotabilidad**: el upsert a `participaciones` no restringe a quién se suma. Sumar a alguien —aunque esté en otro grupo— hace verdadero `es_discipulador_del_miembro` y abre `miembros(*)`: email, teléfono aunque `mostrar_contacto = false`, nacimiento y las **notas pastorales de otro líder**, que además puede pisar con `guardar_notas_miembro`. Desasociarlo después borra casi todo rastro.
+- **Abierto**: requiere decidir si una persona puede estar en más de un grupo y quién la mueve (p. ej. RPC de alta que rechace a quien tiene participación activa en otro grupo, salvo admin).
+
+## 20. BAJA-MEDIA — `integrantes_de_mi_ministerio` da el teléfono de menores
+
+- **Ubicación**: `0024`. A diferencia de `directorio` y `ministerios_lideres`, no filtra adultos. Un líder de ministerio (puede ser `miembro`) suma a un menor y recibe su teléfono.
+- **Abierto**: decidir si el líder necesita el contacto de los menores de su ministerio.
+
+## 21. BAJA — Los RPC de reunión aceptan asistentes que no están en el roster
+
+- **Ubicación**: `p_asistencias` de los tres RPC de reunión. Se puede registrar a cualquier `miembro_id`; ensucia reportes y `asistentes_de_reunion` devuelve su nombre. El arreglo toca los espejos, así que va en los tres a la vez.
 
 ---
 

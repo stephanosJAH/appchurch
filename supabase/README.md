@@ -46,6 +46,7 @@ falla más tarde y en otro lado (ver "Verificar qué está aplicado" abajo).
 | 0036 | `0036_ofrenda_presencial_virtual.sql` | la ofrenda se carga separada en presencial y virtual (los dos libros); `ofrenda_total` pasa a ser la suma |
 | 0037 | `0037_eliminar_mi_cuenta.sql` | cada uno borra su propia cuenta desde la app (`eliminar_mi_cuenta`), exigido por la App Store; la ficha del padrón queda |
 | 0038 | `0038_anuncios_tipo_y_destinatarios.sql` | día/hora opcionales de reunión del ministerio; `tipo` (ícono/color) y `audiencia` (integrantes / solo líderes) en anuncios, con la RLS y `anuncios_visibles` recortando por audiencia |
+| 0039 | `0039_endurecimiento_seguridad.sql` | seguridad #14-#18: `username` sale del email de login; el alta de anuncio fija `autor_id` (y la firma vuelve al padrón); límites de tamaño/tipo en `adjuntos`; ofrenda no negativa; rosters sin DELETE por REST |
 
 Al agregar una migración nueva, sumale la fila acá y, si crea un objeto que
 otras van a referenciar, sumalo también a la query de verificación de abajo.
@@ -57,20 +58,59 @@ RSS esté caído.
 
 ## Cómo aplicarlas
 
-**Opción A — SQL Editor (rápido):** abrí el SQL Editor del proyecto en supabase.com,
-pegá y ejecutá cada archivo en orden.
-
-**Opción B — Supabase CLI:**
+Con la **Supabase CLI** (devDependency del proyecto, `npx supabase`). La CLI
+lleva el registro en la tabla `supabase_migrations.schema_migrations` de la base:
+una fila por migración aplicada, con el número del prefijo del archivo como
+`version`. Es la fuente de verdad de qué corrió y qué no.
 
 ```bash
-supabase link --project-ref TU_REF
-supabase db push
+npm run db:status   # supabase migration list: columna Local vs Remote
+npm run db:push     # aplica, en orden, las que faltan en Remote, y las registra
 ```
 
-## Verificar qué está aplicado
+`db:push` pide confirmación y lista lo que va a aplicar antes de hacerlo;
+`npx supabase db push --dry-run` muestra la lista sin tocar nada.
 
-No hay tabla de migraciones: se aplican a mano, así que la base no lleva
-registro de cuáles corrieron. Peor, **saltearse una no da error en el momento**.
+**No apliques migraciones desde el SQL Editor.** Ahí no se escribe la tabla de
+migraciones: la base queda con la migración corrida pero sin registro, y el
+próximo `db:push` la vuelve a correr. Si alguna vez pasa (un hotfix a mano),
+registrala con `npx supabase migration repair --status applied <número>`.
+
+Numeración: seguí con el prefijo de 4 dígitos (`0040_...sql`), escrito a mano.
+`supabase migration new` genera un prefijo de timestamp: funciona (ordena
+después), pero mezcla dos formatos en la misma carpeta.
+
+### Una sola vez por máquina: vincular el proyecto
+
+```bash
+npx supabase login                          # abre el navegador
+npx supabase link --project-ref <ref>       # pide el password de la base
+```
+
+El `<ref>` es el subdominio de `EXPO_PUBLIC_SUPABASE_URL`. El password es el de
+la base (Project Settings → Database), no la anon key. La vinculación queda en
+`supabase/.temp/`, que no se versiona.
+
+### Una sola vez por proyecto: registrar lo que ya estaba aplicado
+
+Hasta `0038` las migraciones se aplicaron por SQL Editor, así que la tabla de
+migraciones arrancó vacía. Para no re-correrlas, se marcan como aplicadas
+**solo las que de verdad están en la base** — la query de abajo lo dice —:
+
+```bash
+npx supabase migration repair --status applied 0001 0002 … 0038
+```
+
+`repair` solo escribe la tabla de migraciones; no ejecuta ningún SQL.
+
+## Verificar qué está aplicado (antes de la CLI)
+
+Esta query es de **antes** de usar la tabla de migraciones: chequea por objetos
+(columnas, funciones, tablas) en vez de por registro. Sirve para hacer el
+`repair` inicial de arriba y para auditar una base de la que no se sabe la
+historia. Para el día a día, `npm run db:status`.
+
+Por qué hace falta: **saltearse una migración no da error en el momento**.
 PL/pgSQL no valida las referencias a columnas al hacer `create function`, solo
 la sintaxis: una RPC que lee una columna que todavía no existe se crea sin
 quejarse y recién revienta en la primera llamada, desde la app y con un mensaje
@@ -96,7 +136,7 @@ with esperado(migracion, tipo, objeto) as (values
   ('0034','funcion','asistentes_de_reunion'),     ('0035','columna','ministerios_lideres.telefono'),
   ('0036','columna','reuniones.ofrenda_presencial'),('0036','columna','reuniones_ministerio.ofrenda_virtual'),
   ('0037','funcion','eliminar_mi_cuenta'),         ('0038','columna','ministerios.dia_semana'),
-  ('0038','columna','anuncios.audiencia')
+  ('0038','columna','anuncios.audiencia'),         ('0039','funcion','anuncios_fija_autor')
 )
 select migracion, tipo, objeto,
        case when case tipo

@@ -1063,9 +1063,10 @@ Estas dos cosas no están versionadas y **el sistema no funciona sin ellas**:
 
 ### 8.4 Migraciones
 
-`supabase/migrations/0001` … `0029`, **en orden numérico**, por SQL Editor o
-`supabase db push`. No hay CI que las aplique ni verificación automática de que la
-base esté al día.
+`supabase/migrations/`, **en orden numérico**, con `npm run db:push` (Supabase
+CLI). Qué corrió lo registra la tabla `supabase_migrations.schema_migrations` y lo
+muestra `npm run db:status`; hasta `0038` se aplicaban por SQL Editor, sin
+registro (ver `supabase/README.md`). No hay CI que las aplique.
 
 **Riesgo operativo real**: la app y la base se despliegan por caminos distintos
 (EAS Update / SQL a mano). Un update OTA que llame a una RPC con una firma nueva
