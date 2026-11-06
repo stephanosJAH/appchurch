@@ -3,6 +3,7 @@ import { PropsWithChildren, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   DimensionValue,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -493,9 +494,33 @@ export function SkeletonRows({ count = 3, accesorio }: { count?: number; accesor
 
 /* ============================ Avatar ============================ */
 
-export function Avatar({ name, size = 40, tone = "navy" }: { name?: string | null; size?: number; tone?: "navy" | "gold" }) {
+export function Avatar({
+  name,
+  foto,
+  size = 40,
+  tone = "navy",
+}: {
+  name?: string | null;
+  foto?: string | null;
+  size?: number;
+  tone?: "navy" | "gold";
+}) {
   const bg = tone === "gold" ? "bg-gold-container" : "bg-navy-container";
   const fg = tone === "gold" ? "text-gold-on" : "text-white";
+  // Si la foto no carga (sin red, archivo borrado) vuelve a la inicial.
+  const [fotoFallida, setFotoFallida] = useState<string | null>(null);
+  if (foto && foto !== fotoFallida) {
+    return (
+      <Image
+        source={{ uri: foto }}
+        resizeMode="cover"
+        accessibilityIgnoresInvertColors
+        onError={() => setFotoFallida(foto)}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+        className={bg}
+      />
+    );
+  }
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2 }} className={`items-center justify-center ${bg}`}>
       <Text style={{ fontFamily: fonts.serifSemibold, fontSize: size * 0.42 }} className={fg}>

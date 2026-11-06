@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { authKeys } from "../auth";
+import { borrarFotosPerfil, subirFotoPerfil } from "../storage";
 import { supabase } from "../supabase";
 import { Profile, RolApp, Sexo } from "../types";
 
@@ -195,12 +197,56 @@ export function useResolverIdentidad() {
 // caché: el signOut dispara SIGNED_OUT y `lib/auth.tsx` borra todas las
 // queries. `scope: "local"` porque las sesiones del servidor ya se fueron con
 // el usuario y un signOut global devolvería error.
+//
+// La foto se borra ANTES: el bucket es público y sin sesión ya no se podría
+// (Storage no se limpia con el cascade). Si falla no se sigue, para no dejar
+// la cara de alguien publicada con la cuenta ya borrada. A cambio, si después
+// la RPC rechaza el borrado (último admin), la persona se queda sin foto.
 export function useEliminarMiCuenta() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      const userId = data.session?.user.id;
+      if (userId) {
+        const { error: errorFoto } = await supabase
+          .from("profiles")
+          .update({ foto_path: null })
+          .eq("id", userId);
+        if (errorFoto) throw errorFoto;
+        await borrarFotosPerfil(userId);
+      }
       const { error } = await supabase.rpc("eliminar_mi_cuenta");
       if (error) throw error;
       await supabase.auth.signOut({ scope: "local" });
+    },
+    onError: () => {
+      qc.invalidateQueries({ queryKey: ["auth", "profile"] });
+    },
+  });
+}
+
+// Pone (`foto`) o quita (null) la foto de perfil de la propia cuenta. Primero
+// sube y guarda, y recién después borra la anterior: si algo falla en el medio,
+// la persona conserva la foto que tenía. Al reemplazar, un borrado fallido solo
+// deja un archivo viejo que se lleva el próximo cambio; al quitar, sí es un
+// error, porque pidió que la foto deje de estar publicada.
+export function useGuardarFotoPerfil() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, foto }: { userId: string; foto: ArrayBuffer | null }) => {
+      const path = foto ? await subirFotoPerfil(userId, foto) : null;
+      const { error } = await supabase
+        .from("profiles")
+        .update({ foto_path: path })
+        .eq("id", userId);
+      if (error) throw error;
+      if (path) await borrarFotosPerfil(userId, path).catch(() => {});
+      else await borrarFotosPerfil(userId);
+    },
+    onSuccess: (_data, { userId }) => {
+      qc.invalidateQueries({ queryKey: authKeys.profile(userId) });
+      qc.invalidateQueries({ queryKey: ["directorio"] });
     },
   });
 }

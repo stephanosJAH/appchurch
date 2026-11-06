@@ -32,6 +32,8 @@ export type DirectorioEntry = {
   sexo: Sexo;
   fecha_nacimiento: string | null;
   telefono: string | null;
+  // De la cuenta enlazada a la ficha (0040); null si no tiene cuenta o foto.
+  foto_path: string | null;
 };
 
 export type Profile = {
@@ -45,6 +47,9 @@ export type Profile = {
   // Marca de agua de lectura de anuncios (0026): lo creado después está sin
   // leer. La escribe el propio cliente; null = nunca abrió los anuncios.
   anuncios_leidos_hasta: string | null;
+  // Path en el bucket `fotos_perfil` (0040); la URL la arma `urlFotoPerfil`.
+  // Null = la inicial del nombre.
+  foto_path: string | null;
   created_at: string;
   // Embed opcional de la ficha del padrón enlazada (profiles.miembro_id, 0018).
   // Solo viene si la consulta lo pidió (ver `useProfiles`); null si la cuenta

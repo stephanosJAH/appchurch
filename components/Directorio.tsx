@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { FlatList, Linking, Pressable, View } from "react-native";
 import { diasHastaCumple, formatCumple } from "../lib/date";
 import { useDirectorio } from "../lib/queries/directorio";
+import { urlFotoPerfil } from "../lib/storage";
 import { colors } from "../lib/theme";
 import { DirectorioEntry } from "../lib/types";
 import { Avatar, Body, Card, Field, Label, Muted, SkeletonRows } from "./ui";
@@ -33,7 +34,7 @@ export function DirectorioList() {
     const cumpleHoy = diasHastaCumple(p.fecha_nacimiento) === 0;
     return (
       <Card className="mb-2.5 flex-row items-center gap-3">
-        <Avatar name={nombre} size={42} />
+        <Avatar name={nombre} foto={urlFotoPerfil(p.foto_path)} size={42} />
         <View className="flex-1">
           <Body className="text-ink" numberOfLines={1}>
             {nombre}

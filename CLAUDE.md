@@ -181,7 +181,10 @@ session). Don't swap this back to a plain AsyncStorage adapter.
 design** — read publicly, write admin-only except `ministerios/<id>/…`, which
 that ministry's leaders can write (`0033`); paths use `Crypto.randomUUID()` for
 non-enumerability.
-`materiales` (lesson docs, not yet used by any screen) is private, scoped to
+`fotos_perfil` (profile photos, `0040`) is public too, so directory avatars can be
+cached: each active account writes only to `<uid>/`, nobody else can list it, and
+`profiles.foto_path` stores a **path, not a URL**, so it can't point at a foreign
+server. `materiales` (lesson docs, not yet used by any screen) is private, scoped to
 `<uid>/...` folders. Any URL opened via `Linking` must go through
 `abrirAdjunto()` in `lib/storage.ts`, which validates `https://` before opening.
 

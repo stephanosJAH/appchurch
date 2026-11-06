@@ -5,6 +5,7 @@ import { Alert, Pressable, ScrollView, View } from "react-native";
 import { AppBar } from "../../components/AppBar";
 import { EliminarCuentaButton } from "../../components/EliminarCuenta";
 import { FotoMinisterio } from "../../components/FotoMinisterio";
+import { FotoPerfilEditable } from "../../components/FotoPerfil";
 import { Avatar, Body, Button, Card, Chip, Display, Headline, Label, Muted, Screen, Title } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 import { formatMoneda, toISODate } from "../../lib/date";
@@ -170,12 +171,21 @@ export default function Perfil() {
       <AppBar title="Perfil" />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
         <Card className="mb-5 items-center py-7">
-          <Avatar name={profile?.nombre_completo} size={72} />
+          {profile ? (
+            <FotoPerfilEditable
+              userId={profile.id}
+              nombre={profile.nombre_completo}
+              fotoPath={profile.foto_path}
+            />
+          ) : (
+            <Avatar name={null} size={72} />
+          )}
           <Title className="mt-3 text-xl">{profile?.nombre_completo ?? "Sin nombre"}</Title>
           <Muted className="mt-0.5">{profile?.username ?? session?.user.email}</Muted>
           <View className="mt-3">
             <Chip tone={isAdmin ? "gold" : "navy"}>{rolLabel}</Chip>
           </View>
+          <Muted className="mt-3 text-center">Tu foto se ve en el directorio de la iglesia.</Muted>
         </Card>
 
         <Card className="mb-5">

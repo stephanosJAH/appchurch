@@ -301,9 +301,13 @@ iglesia). **No cuelga de ningún grupo** y **no registra ofrenda**. Ver
 |---|---|---|
 | **`adjuntos`** (flyers de eventos, fondo de ministerios) | Público (cualquiera con la URL) | `admin`; además, los líderes de un ministerio en `ministerios/<su id>/…` (0033) |
 | **`materiales`** (material de lección, Fase 2) | Autenticado (`miembro`+) | Dueño de la carpeta (`<uid>/…`) o `admin` |
+| **`fotos_perfil`** (foto de cada cuenta) | Público (cualquiera con la URL); listar, solo el dueño | Sube el dueño de la carpeta (`<uid>/…`) con cuenta activa; borra el dueño (0040) |
 
 > `adjuntos` es **público por diseño** (difusión de flyers), con nombres UUID no
 > enumerables. `materiales` es privado y aún no se usa desde la app.
+> `fotos_perfil` es público para poder cachear los avatares del directorio: la
+> foto se ve en la app solo donde la expone la vista `directorio` (adultos activos)
+> y en el Perfil propio. Se borra al quitarla y al eliminar la cuenta.
 
 ---
 

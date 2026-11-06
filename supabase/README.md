@@ -47,6 +47,7 @@ falla más tarde y en otro lado (ver "Verificar qué está aplicado" abajo).
 | 0037 | `0037_eliminar_mi_cuenta.sql` | cada uno borra su propia cuenta desde la app (`eliminar_mi_cuenta`), exigido por la App Store; la ficha del padrón queda |
 | 0038 | `0038_anuncios_tipo_y_destinatarios.sql` | día/hora opcionales de reunión del ministerio; `tipo` (ícono/color) y `audiencia` (integrantes / solo líderes) en anuncios, con la RLS y `anuncios_visibles` recortando por audiencia |
 | 0039 | `0039_endurecimiento_seguridad.sql` | seguridad #14-#18: `username` sale del email de login; el alta de anuncio fija `autor_id` (y la firma vuelve al padrón); límites de tamaño/tipo en `adjuntos`; ofrenda no negativa; rosters sin DELETE por REST |
+| 0040 | `0040_foto_de_perfil.sql` | foto de perfil: `profiles.foto_path`, bucket público `fotos_perfil` (cada cuenta activa escribe en su carpeta) y la foto en la vista `directorio` |
 
 Al agregar una migración nueva, sumale la fila acá y, si crea un objeto que
 otras van a referenciar, sumalo también a la query de verificación de abajo.
