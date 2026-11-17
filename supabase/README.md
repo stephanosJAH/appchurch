@@ -49,6 +49,7 @@ falla más tarde y en otro lado (ver "Verificar qué está aplicado" abajo).
 | 0039 | `0039_endurecimiento_seguridad.sql` | seguridad #14-#18: `username` sale del email de login; el alta de anuncio fija `autor_id` (y la firma vuelve al padrón); límites de tamaño/tipo en `adjuntos`; ofrenda no negativa; rosters sin DELETE por REST |
 | 0040 | `0040_foto_de_perfil.sql` | foto de perfil: `profiles.foto_path`, bucket público `fotos_perfil` (cada cuenta activa escribe en su carpeta) y la foto en la vista `directorio` |
 | 0041 | `0041_reuniones_generales.sql` | reunión general: participantes + resumen, misma forma que la de obreros en tablas propias (`reuniones_generales`, admin-only) |
+| 0042 | `0042_reunion_sin_fecha_futura.sql` | trigger en `reuniones` y `reuniones_ministerio`: no se registra una reunión con fecha futura (tolerancia de un día por huso horario) |
 
 Al agregar una migración nueva, sumale la fila acá y, si crea un objeto que
 otras van a referenciar, sumalo también a la query de verificación de abajo.
@@ -139,7 +140,8 @@ with esperado(migracion, tipo, objeto) as (values
   ('0036','columna','reuniones.ofrenda_presencial'),('0036','columna','reuniones_ministerio.ofrenda_virtual'),
   ('0037','funcion','eliminar_mi_cuenta'),         ('0038','columna','ministerios.dia_semana'),
   ('0038','columna','anuncios.audiencia'),         ('0039','funcion','anuncios_fija_autor'),
-  ('0041','tabla',  'reuniones_generales'),         ('0041','funcion','registrar_reunion_general')
+  ('0041','tabla',  'reuniones_generales'),         ('0041','funcion','registrar_reunion_general'),
+  ('0042','funcion','reuniones_sin_fecha_futura')
 )
 select migracion, tipo, objeto,
        case when case tipo

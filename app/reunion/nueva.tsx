@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, usePreventRemove, useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -109,16 +109,18 @@ export default function NuevaReunion() {
   const { data: discipulado } = useDiscipulado(!esMinisterio ? grupoId : "");
   const { data: ministerio } = useMinisterio(esMinisterio ? grupoId : "");
 
-  /* ---------- Fechas ya ocupadas (aviso de pisada) ---------- */
-  // El alta hace upsert por (dueño, fecha): cargar una fecha que ya tiene
-  // reunión CORRIGE la que estaba en vez de duplicarla. Es el comportamiento
-  // deseado —una reunión por día—, pero conviene avisarlo en lugar de pisar en
-  // silencio.
+  /* ---------- Fechas ya ocupadas ---------- */
+  // Una reunión por día y por dueño. En el alta, el backend hace upsert por
+  // (dueño, fecha): guardar sobre una fecha ocupada REEMPLAZA tema, ofrenda y
+  // notas de la que estaba con lo que haya en este formulario —que arranca
+  // vacío—, así que se puede borrar una ofrenda ya cargada sin notarlo. Por eso
+  // no se deja guardar: se ofrece abrir esa reunión en modo edición. Al editar,
+  // mover la fecha a una ocupada lo rechaza el backend; acá se avisa antes.
   const reunionesDisc = useReuniones(!esMinisterio ? grupoId : "");
   const reunionesMin = useReunionesMinisterio(grupoId, esMinisterio);
   const fechasOcupadas = useMemo(() => {
     const fuente = esMinisterio ? reunionesMin.data ?? [] : reunionesDisc.data ?? [];
-    return new Set(fuente.filter((r) => r.id !== editandoId).map((r) => r.fecha));
+    return new Map(fuente.filter((r) => r.id !== editandoId).map((r) => [r.fecha, r.id]));
   }, [esMinisterio, reunionesMin.data, reunionesDisc.data, editandoId]);
 
   const registrarDisc = useRegistrarReunion();
@@ -140,6 +142,11 @@ export default function NuevaReunion() {
   const [presentes, setPresentes] = useState<Record<string, boolean>>({});
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<FiltroAsistencia>("todos");
+  // Si el usuario tocó algún dato (fuera de la fecha, que se compara aparte):
+  // salir sin guardar pide confirmación. Marcar la asistencia de un grupo
+  // grande lleva su rato y un "atrás" sin querer lo perdía entero.
+  const [tocado, setTocado] = useState(false);
+  const [fechaInicial, setFechaInicial] = useState(todayISO());
 
   // Dos pestañas que se deslizan de costado: los datos de la reunión y la
   // asistencia, que con grupos grandes es larga y conviene tenerla aparte.
@@ -160,15 +167,23 @@ export default function NuevaReunion() {
   // dar de alta, la modalidad por defecto es la configurada en el grupo. Las
   // reuniones de ministerio son siempre presenciales: no se elige modalidad ni
   // por reunión ni por persona, y al editar una vieja se normaliza a presencial.
-  const cargado = useRef(false);
+  // `cargado` guarda PARA QUÉ reunión se cargó ("alta" o su id): "Editar esa
+  // reunión" reemplaza la ruta por la misma pantalla con otro `reunionId`, y si
+  // la navegación reusa el componente hay que volver a cargar los datos.
+  const cargado = useRef<string | null>(null);
   useEffect(() => {
-    if (cargado.current) return;
+    const clave = editandoId ?? "alta";
+    if (cargado.current === clave) return;
     if (editandoId) {
-      if (!reunion) return;
+      if (!reunion || reunion.id !== editandoId) return;
       setFecha(reunion.fecha);
+      setFechaInicial(reunion.fecha);
       setTema(reunion.tema ?? "");
       if (!esMinisterio) setModalidad(reunion.modalidad_usada ?? "presencial");
       const aTexto = (n: number | null | undefined) => (Number(n ?? 0) ? String(Number(n)) : "");
+      setOfrendaPresencial("");
+      setOfrendaVirtual("");
+      setSinDesglose(false);
       if (reunion.ofrenda_presencial != null || reunion.ofrenda_virtual != null) {
         setOfrendaPresencial(aTexto(reunion.ofrenda_presencial));
         setOfrendaVirtual(aTexto(reunion.ofrenda_virtual));
@@ -188,12 +203,34 @@ export default function NuevaReunion() {
       }
       setPresentes(pres);
       setModalidadesMiembro(mods);
-      cargado.current = true;
+      setTocado(false);
+      cargado.current = clave;
     } else if (!esMinisterio && discipulado?.modalidad) {
       setModalidad(discipulado.modalidad);
-      cargado.current = true;
+      cargado.current = clave;
     }
   }, [editandoId, reunion, esMinisterio, discipulado?.modalidad]);
+
+  /* ---------- Salir sin guardar ---------- */
+  const hayCambios = tocado || fecha !== fechaInicial;
+  const dejarSalir = usePreventRemove(hayCambios, ({ repeat }) => {
+    Alert.alert(
+      "¿Descartar los cambios?",
+      "Si salís ahora se pierde lo que cargaste en esta reunión.",
+      [
+        { text: "Seguir editando", style: "cancel" },
+        {
+          text: "Descartar",
+          style: "destructive",
+          onPress: () => {
+            setTocado(false);
+            setFechaInicial(fecha);
+            repeat();
+          },
+        },
+      ]
+    );
+  });
 
   // Lista de asistencia: los integrantes activos más, al editar, quienes
   // figuran en la reunión aunque ya no estén. Sacarlos sería reescribir el
@@ -252,22 +289,35 @@ export default function NuevaReunion() {
   // En el alta todos arrancan presentes. Al editar manda lo registrado: quien
   // no tiene asistencia (se sumó después) arranca ausente.
   const presenteDe = (mid: string) => presentes[mid] ?? !editandoId;
-  const toggle = (mid: string) => setPresentes((p) => ({ ...p, [mid]: !presenteDe(mid) }));
+  const toggle = (mid: string) => {
+    setTocado(true);
+    setPresentes((p) => ({ ...p, [mid]: !presenteDe(mid) }));
+  };
   // En bloque, sobre todo el roster (no solo lo filtrado): se arranca del
   // extremo más cercano y se corrige a los pocos que difieren.
-  const marcarTodos = (presente: boolean) =>
+  const marcarTodos = (presente: boolean) => {
+    setTocado(true);
     setPresentes(Object.fromEntries(roster.map((f) => [f.miembro_id, presente])));
+  };
 
   const modalidadPorDefecto: ModalidadMiembro = modalidad === "virtual" ? "virtual" : "presencial";
   const modalidadDe = (mid: string): ModalidadMiembro => modalidadesMiembro[mid] ?? modalidadPorDefecto;
-  const setModalidadMiembro = (mid: string, m: ModalidadMiembro) =>
+  const setModalidadMiembro = (mid: string, m: ModalidadMiembro) => {
+    setTocado(true);
     setModalidadesMiembro((prev) => ({ ...prev, [mid]: m }));
+  };
   // Solo para presencial/ambos ofrecemos elegir quién estuvo online vs presencial.
   const permiteElegirModalidad = !esMinisterio && modalidad !== "virtual";
 
   // Cambiar la modalidad de la reunión resetea los overrides por miembro para
   // que todos vuelvan al default de esa modalidad.
+  const cambiarNotas = (t: string) => {
+    setTocado(true);
+    setNotas(t);
+  };
+
   const elegirModalidad = (m: Modalidad) => {
+    setTocado(true);
     setModalidad(m);
     setModalidadesMiembro({});
   };
@@ -287,7 +337,32 @@ export default function NuevaReunion() {
     [roster, presentes, editandoId]
   );
 
-  const fechaPisa = !editandoId && fechasOcupadas.has(fecha);
+  // La reunión que ya ocupa la fecha elegida (alta: hay que editarla a ella;
+  // edición: hay que elegir otra fecha).
+  const idPisado = fechasOcupadas.get(fecha) ?? null;
+  const hoy = todayISO();
+  // Una reunión no puede ser futura (0042). Al editar se perdona la fecha que
+  // ya tenía guardada, para poder corregir una vieja sin tener que moverla.
+  const esFutura = fecha > hoy && fecha !== (editandoId ? reunion?.fecha : undefined);
+
+  // Abrir en modo edición la reunión que ya tiene esa fecha, con sus datos.
+  const editarReunionPisada = () => {
+    if (!idPisado) return;
+    const ir = () => {
+      setTocado(false);
+      dejarSalir();
+      router.replace({ pathname: "/reunion/nueva", params: { origen, reunionId: idPisado } });
+    };
+    if (!tocado) return ir();
+    Alert.alert(
+      "Abrir la reunión de esa fecha",
+      "Lo que cargaste en este formulario se descarta y se abre la reunión ya registrada para editarla.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Abrir", onPress: ir },
+      ]
+    );
+  };
 
   // Montos como se escriben acá: "1.500,50", "1500,5", "1.500" (mil
   // quinientos, no uno coma cinco) o "1500.5". NaN si no es un monto.
@@ -310,6 +385,19 @@ export default function NuevaReunion() {
   const onSubmit = async () => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
       Alert.alert("Fecha inválida", "Usá el formato AAAA-MM-DD.");
+      return;
+    }
+    if (esFutura) {
+      Alert.alert("Fecha futura", "Solo se registran reuniones que ya ocurrieron: elegí hoy o una fecha anterior.");
+      return;
+    }
+    if (idPisado) {
+      Alert.alert(
+        "Fecha ocupada",
+        editandoId
+          ? "Esa fecha ya tiene otra reunión registrada. Elegí otra fecha."
+          : "Esa fecha ya tiene una reunión registrada. Abrila para editarla en vez de cargar otra."
+      );
       return;
     }
     if (!grupoId) {
@@ -362,9 +450,11 @@ export default function NuevaReunion() {
           asistencias,
         });
       }
-      Alert.alert("Listo", editandoId ? "Reunión actualizada." : "Reunión registrada.", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+      // Guardado: se vuelve directo. La reunión aparece en la pantalla de
+      // origen, que es la confirmación; el cartel con "OK" era un toque de más.
+      setTocado(false);
+      dejarSalir();
+      router.back();
     } catch (e: any) {
       Alert.alert("Error", e.message ?? "No se pudo guardar la reunión.");
     }
@@ -488,6 +578,7 @@ export default function NuevaReunion() {
             {showPicker && (
               <DateTimePicker
                 value={fechaToDate(fecha)}
+                maximumDate={fechaToDate(hoy)}
                 mode="date"
                 display={Platform.OS === "ios" ? "inline" : "default"}
                 onChange={(event, selected) => {
@@ -498,18 +589,44 @@ export default function NuevaReunion() {
               />
             )}
 
-            {/* Solo una reunión por día: guardar acá corrige la que ya está */}
-            {fechaPisa && (
+            {/* Solo una reunión por día: no se carga otra encima */}
+            {idPisado && (
+              <View className="mb-4 rounded-lg bg-gold-container p-3">
+                <View className="flex-row items-start gap-2">
+                  <Ionicons name="alert-circle-outline" size={16} color={colors.onTertiaryContainer} />
+                  <Muted className="flex-1" style={{ color: colors.onTertiaryContainer }}>
+                    {editandoId
+                      ? "Esa fecha ya tiene otra reunión registrada. Elegí otra fecha para guardar."
+                      : "Esa fecha ya tiene una reunión registrada. Abrila para corregirla con sus datos, o elegí otra fecha."}
+                  </Muted>
+                </View>
+                {!editandoId && (
+                  <View className="mt-2.5 self-start">
+                    <Button title="Editar esa reunión" variant="outline" size="sm" onPress={editarReunionPisada} />
+                  </View>
+                )}
+              </View>
+            )}
+
+            {esFutura && (
               <View className="mb-4 flex-row items-start gap-2 rounded-lg bg-gold-container p-3">
                 <Ionicons name="alert-circle-outline" size={16} color={colors.onTertiaryContainer} />
                 <Muted className="flex-1" style={{ color: colors.onTertiaryContainer }}>
-                  Esa fecha ya tiene una reunión registrada. Si guardás, se actualiza
-                  con lo que cargues acá en vez de crear otra.
+                  Es una fecha futura: solo se registran reuniones que ya ocurrieron.
                 </Muted>
               </View>
             )}
 
-            <Field label="Tema / lección" value={tema} onChangeText={setTema} placeholder="Tema dado en la reunión" multiline />
+            <Field
+              label="Tema / lección"
+              value={tema}
+              onChangeText={(t) => {
+                setTocado(true);
+                setTema(t);
+              }}
+              placeholder="Tema dado en la reunión"
+              multiline
+            />
 
             {!esMinisterio && (
               <>
@@ -534,6 +651,7 @@ export default function NuevaReunion() {
                   label="Presencial"
                   value={ofrendaPresencial}
                   onChangeText={(t) => {
+                    setTocado(true);
                     setOfrendaPresencial(t);
                     setSinDesglose(false);
                   }}
@@ -546,6 +664,7 @@ export default function NuevaReunion() {
                   label="Virtual"
                   value={ofrendaVirtual}
                   onChangeText={(t) => {
+                    setTocado(true);
                     setOfrendaVirtual(t);
                     setSinDesglose(false);
                   }}
@@ -567,11 +686,32 @@ export default function NuevaReunion() {
 
             <View className="mt-5">
               {esMinisterio ? (
-                <RichTextEditor label="Notas" valor={notas} onChange={setNotas} placeholder="Observaciones (opcional)" />
+                <RichTextEditor label="Notas" valor={notas} onChange={cambiarNotas} placeholder="Observaciones (opcional)" />
               ) : (
-                <Field label="Notas" value={notas} onChangeText={setNotas} placeholder="Observaciones (opcional)" multiline />
+                <Field label="Notas" value={notas} onChangeText={cambiarNotas} placeholder="Observaciones (opcional)" multiline />
               )}
             </View>
+
+            {/* La asistencia vive en la otra pestaña: el resumen queda a la vista
+                acá, antes de guardar, para no guardar con todos presentes sin querer */}
+            {roster.length > 0 && (
+              <Pressable
+                onPress={() => irA(1)}
+                accessibilityRole="button"
+                accessibilityLabel={`Asistencia: ${totalPresentes} de ${roster.length} presentes. Tocá para revisarla.`}
+                className="mt-2 flex-row items-center gap-3 rounded-lg border border-black/10 bg-surface px-4 py-3.5 active:opacity-70"
+              >
+                <Ionicons name="people-outline" size={18} color={colors.outline} />
+                <View className="flex-1">
+                  <Label>Asistencia</Label>
+                  <Body className="text-ink">
+                    {totalPresentes} de {roster.length} presentes
+                  </Body>
+                </View>
+                <Muted className="text-gold">Revisar</Muted>
+                <Ionicons name="chevron-forward" size={16} color={colors.outline} />
+              </Pressable>
+            )}
 
           </ScrollView>
 

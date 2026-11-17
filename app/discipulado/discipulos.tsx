@@ -21,6 +21,7 @@ import {
   useAgregarDiscipuloNuevo,
   useAgregarParticipacion,
   useCandidatosDiscipulado,
+  useDesasociarParticipacion,
   useParticipaciones,
 } from "../../lib/queries/participaciones";
 import { useReunionesConAsistencia } from "../../lib/queries/reuniones";
@@ -42,6 +43,29 @@ export default function DiscipulosDelGrupo() {
   const { data: reuniones = [] } = useReunionesConAsistencia(discipuladoId);
   const agregar = useAgregarDiscipuloNuevo(discipuladoId);
   const sumar = useAgregarParticipacion(discipuladoId);
+  const desasociar = useDesasociarParticipacion();
+
+  // Baja lógica (`participaciones.activo = false`): la ficha y el historial de
+  // asistencia quedan, y se la puede volver a sumar desde «+ Agregar». Es la
+  // misma acción que el botón «Quitar» de la ficha del miembro.
+  const onQuitar = (participacionId: string, nombreCompleto: string) => {
+    Alert.alert(
+      "Quitar del discipulado",
+      `¿Sacar a ${nombreCompleto} del grupo? Su historial de asistencia se conserva y podés volver a sumarlo.`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Quitar",
+          style: "destructive",
+          onPress: () =>
+            desasociar.mutate(participacionId, {
+              onError: (e: any) =>
+                Alert.alert("Error", e.message ?? "No se pudo quitar del discipulado."),
+            }),
+        },
+      ]
+    );
+  };
 
   // Agregar un discípulo es primero buscarlo en el padrón y recién después
   // crearlo: si la persona ya tiene ficha (otro grupo, un ministerio, su
@@ -230,6 +254,15 @@ export default function DiscipulosDelGrupo() {
             };
           })}
           onPress={(f) => router.push({ pathname: "/miembro/[id]", params: { id: f.miembroId } })}
+          onQuitar={
+            canManage
+              ? (f) =>
+                  onQuitar(
+                    f.key,
+                    `${f.nombre ?? ""} ${f.apellido ?? ""}`.trim() || "esta persona"
+                  )
+              : undefined
+          }
         />
       )}
     </KeyboardScrollView>

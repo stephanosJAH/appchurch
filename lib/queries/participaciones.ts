@@ -104,10 +104,11 @@ export function useParticipacionesDeMiembro(miembroId: string) {
   });
 }
 
-// Desasociar (baja lógica) a alguien de un grupo: activo = false. El botón vive
-// en la ficha del miembro (app/miembro/[id].tsx), donde una persona puede estar
-// en más de un grupo, así que la participación se elige en cada llamada y no al
-// crear el hook.
+// Desasociar (baja lógica) a alguien de un grupo: activo = false. Hay dos
+// botones: en la ficha del miembro (app/miembro/[id].tsx), donde una persona
+// puede estar en más de un grupo, y en el roster del grupo
+// (app/discipulado/discipulos.tsx). Por eso la participación se elige en cada
+// llamada y no al crear el hook.
 //
 // Invalida toda la rama `participaciones`: además del roster del grupo hay que
 // rehacer la lista de grupos de esa persona. `refetchType: "all"` para que la
