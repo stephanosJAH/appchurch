@@ -34,6 +34,11 @@ resto del cuerpo **no** es espejo y no debe sincronizarse.
 
 ## Por qué la UI no reusa `reunion/nueva.tsx`
 
+> La pantalla vive en `components/ReunionesConActa.tsx` y la comparte con la
+> reunión general (`0041`): mismos campos, dos juegos de hooks. El formulario
+> está dividido en pestañas **Datos** / **Participantes**, con el mismo patrón
+> de pager que `reunion/nueva.tsx`.
+
 `app/reunion/nueva.tsx` se comparte entre discipulado y ministerio porque son
 **los mismos campos** con dos hooks distintos, y ya tiene **29 ramas
 `esMinisterio`**. Acá los campos son otros: el acta es el campo principal, no
@@ -112,7 +117,12 @@ permiso.**
    `registrar_reunion_ministerio` (ambos definer), así que el **"Borrar no
    existe"** de [`ROLES-Y-PERMISOS.md`](./ROLES-Y-PERMISOS.md) y `SDD.md` §4.4
    ahora lo garantiza la base y no la UI.
-3. **La reunión general del domingo** (el culto) quedó **fuera de alcance**. No
+3. **La reunión general del domingo** (el culto) quedó **fuera de alcance**.
+   *Actualización 2026-11-16:* se sumó una **reunión general** con la misma
+   forma que ésta — lista nominal + resumen, **sin ofrenda** — en tablas
+   propias (`0041_reuniones_generales.sql`) y con la UI compartida
+   (`components/ReunionesConActa.tsx`). Lo que sigue de este punto vale para el
+   día que esa reunión quiera registrar la ofrenda del culto. No
    es la misma cosa que esta: la asistencia es un **conteo agregado**, no una
    lista nominal, no tiene acta, y **sí tiene ofrenda** — la entrada más grande
    de la iglesia. Si esa plata entra a la app, necesita tesorería asignada por

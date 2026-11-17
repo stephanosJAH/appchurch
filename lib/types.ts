@@ -370,9 +370,12 @@ export type ReunionObreros = {
   created_at: string;
 };
 
-// Fila del listado (RPC `reuniones_obreros_listado`): trae los conteos ya
-// resueltos y los nombres en vez de los uuid de `profiles`.
-export type ReunionObrerosListado = {
+// Fila del listado (RPCs `reuniones_obreros_listado` y
+// `reuniones_generales_listado`): trae los conteos ya resueltos y los nombres
+// en vez de los uuid de `profiles`. Las dos reuniones "con acta" (obreros 0031,
+// general 0041) tienen la misma forma y comparten la UI
+// (components/ReunionesConActa.tsx), por eso los tipos son uno solo.
+export type ReunionActaListado = {
   id: string;
   fecha: string;
   tema: string | null;
@@ -384,16 +387,27 @@ export type ReunionObrerosListado = {
   editado_en: string | null;
 };
 
-// Participante de una reunión concreta, con el nombre del padrón resuelto.
-export type AsistenciaObreros = {
+// Participante de una reunión concreta.
+export type AsistenciaActa = {
   reunion_id: string;
   miembro_id: string;
   presente: boolean;
 };
 
-// Item del checklist que viaja al RPC `registrar_reunion_obreros`. Sin
-// `modalidad`: la reunión de obreros es presencial (ver 0031).
-export type AsistenciaObrerosInput = {
+// Item del checklist que viaja a `registrar_reunion_obreros` /
+// `registrar_reunion_general`. Sin `modalidad`: las dos son presenciales.
+export type AsistenciaActaInput = {
   miembro_id: string;
   presente: boolean;
 };
+
+export type ReunionObrerosListado = ReunionActaListado;
+export type AsistenciaObreros = AsistenciaActa;
+export type AsistenciaObrerosInput = AsistenciaActaInput;
+
+/* ===================== Reunión general (0041) ===================== */
+// "Lo mismo que la reunión de obreros" en tablas propias; ver la cabecera de
+// supabase/migrations/0041_reuniones_generales.sql.
+export type ReunionGeneralListado = ReunionActaListado;
+export type AsistenciaGeneral = AsistenciaActa;
+export type AsistenciaGeneralInput = AsistenciaActaInput;

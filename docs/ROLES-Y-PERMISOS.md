@@ -231,6 +231,15 @@ y un líder de ministerio **puede ser `miembro`**. Ver [`MINISTERIOS.md`](./MINI
 > dos libros y no se mezclan; `app/ofrendas.tsx` los muestra con un parámetro
 > `origen`.
 
+### Reunión general — `reuniones_generales`, `asistencias_generales`
+
+Misma forma y mismos permisos que la reunión de obreros (abajo): participantes
+del padrón + resumen, sin ofrenda, **admin-only**, sólo policy de `select` y
+escritura únicamente por el RPC `registrar_reunion_general`. Tablas propias
+para que cada una pueda cambiar de audiencia sin partir una policy por `tipo`;
+ver la cabecera de `0041`. Se entra desde **Perfil → Administración → Reunión
+general**.
+
 ### Reunión de obreros — `reuniones_obreros`, `asistencias_obreros`
 
 La reunión del cuerpo de obreros: participantes + **acta de lo tratado**

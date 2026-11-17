@@ -309,6 +309,8 @@ export default function Perfil() {
                 no aparece en las tarjetas de gestión de arriba ni en Ofrendas.
                 Ver supabase/migrations/0031_reuniones_obreros.sql. */}
             <Row icon="clipboard-outline" label="Reunión de obreros" onPress={() => router.push("/admin/reuniones-obreros")} />
+            {/* Misma forma que la de obreros, en tablas propias (0041). */}
+            <Row icon="people-circle-outline" label="Reunión general" onPress={() => router.push("/admin/reuniones-generales")} />
             {/* Único lugar que suma los dos libros (discipulados + ministerios);
                 las tarjetas de arriba siguen yendo a uno solo. */}
             <Row icon="wallet-outline" label="Ofrendas" onPress={() => router.push("/admin/ofrendas")} last />

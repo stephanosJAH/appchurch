@@ -105,7 +105,7 @@ synthetic `...@u.appchurch.app` address for Supabase's email/password provider.
 This depends on **email confirmation being OFF** in the Supabase Auth dashboard
 (intentional product decision, not a bug) — see `supabase/README.md`.
 
-### Domain model: five separate "things", not one polymorphic one
+### Domain model: six separate "things", not one polymorphic one
 
 - **`discipulados`** — a standing group with a roster, **one** leader, and tracked
   attendance/offerings per meeting (`reuniones` + `asistencias`, written via the
@@ -128,6 +128,10 @@ This depends on **email confirmation being OFF** in the Supabase Auth dashboard
   Administración. Don't create an "Obreros" *ministerio* to host it: a ministerio
   is an *area* of the church, not the body that runs it. See
   `docs/REUNION-OBREROS.md` and the header of `0031`.
+- **`reuniones_generales`** (`0041`) — the general church meeting. Same shape and
+  permissions as `reuniones_obreros` (participants + summary, no offering,
+  admin-only) in its **own tables**, so either can change audience alone. Both
+  screens are thin wrappers over `components/ReunionesConActa.tsx`.
 
 These are intentionally separate tables/screens, not a shared "activity" model.
 See `docs/ACTIVIDADES-Y-EVENTOS.md` and `docs/MINISTERIOS.md` for the open design
@@ -142,11 +146,14 @@ and branch on an `origen` param.
 
 `registrar_reunion_obreros` (`0031`) is a **partial** mirror of those two: only
 the attendance mechanics (additive insert on create, payload-is-final on edit)
-are shared and must stay in sync across all three. Its body is otherwise its own
-— no offering, no `modalidad`, admin-gated — and `app/admin/reuniones-obreros.tsx`
-is a **separate screen on purpose**: `reunion/nueva.tsx` already carries 29
-`esMinisterio` branches, and this form's fields differ, so a third `origen` would
-make it three forms in one file.
+are shared and must stay in sync across all of them. Its body is otherwise its own
+— no offering, no `modalidad`, admin-gated — and its UI
+(`components/ReunionesConActa.tsx`) is **separate from `reunion/nueva.tsx` on
+purpose**: that file already carries 29 `esMinisterio` branches, and this form's
+fields differ, so a third `origen` would make it three forms in one file.
+`registrar_reunion_general` (`0041`) is a **full** mirror of
+`registrar_reunion_obreros` (same body, other tables): a fix to one goes into the
+other unless they're deliberately diverging.
 
 `miembros` (full PII: email, notes) vs. the `directorio` view (safe subset:
 name, birthday, phone — adults only, filtered by RLS) are different exposure
