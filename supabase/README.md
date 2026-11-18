@@ -50,6 +50,7 @@ falla más tarde y en otro lado (ver "Verificar qué está aplicado" abajo).
 | 0040 | `0040_foto_de_perfil.sql` | foto de perfil: `profiles.foto_path`, bucket público `fotos_perfil` (cada cuenta activa escribe en su carpeta) y la foto en la vista `directorio` |
 | 0041 | `0041_reuniones_generales.sql` | reunión general: participantes + resumen, misma forma que la de obreros en tablas propias (`reuniones_generales`, admin-only) |
 | 0042 | `0042_reunion_sin_fecha_futura.sql` | trigger en `reuniones` y `reuniones_ministerio`: no se registra una reunión con fecha futura (tolerancia de un día por huso horario) |
+| 0043 | `0043_ministerio_inactivo_y_candidatos.sql` | un ministerio dado de baja deja de dar permisos (`es_lider_de_ministerio`/`participo_del_ministerio` exigen `activo`); `candidatos_para_ministerio` con umbral, espejo de 0028; `integrantes_de_mi_ministerio` devuelve `miembro_activo` |
 
 Al agregar una migración nueva, sumale la fila acá y, si crea un objeto que
 otras van a referenciar, sumalo también a la query de verificación de abajo.

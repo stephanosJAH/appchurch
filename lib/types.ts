@@ -202,7 +202,9 @@ export type IntegranteMinisterio = {
   nombre: string;
   apellido: string | null;
   telefono: string | null;
-  activo: boolean;
+  activo: boolean; // en el roster del ministerio
+  // En la iglesia (miembros.activo). Opcional: antes de 0043 la RPC no lo traía.
+  miembro_activo?: boolean;
 };
 
 // Candidato del padrón para sumar a un grupo. Espejo de `CandidatoMiembro`

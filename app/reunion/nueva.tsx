@@ -44,6 +44,9 @@ type FilaAsistencia = {
   nombre: string;
   apellido: string | null;
   enGrupo: boolean;
+  // Dado de baja de la iglesia (miembros.activo = false): sigue en el roster a
+  // propósito (0022), pero se marca. Hoy solo lo trae el roster de ministerio.
+  bajaIglesia?: boolean;
 };
 
 type Origen = "discipulado" | "ministerio";
@@ -250,6 +253,7 @@ export default function NuevaReunion() {
             nombre: i.nombre,
             apellido: i.apellido,
             enGrupo: true,
+            bajaIglesia: i.miembro_activo === false,
           });
         }
       }
@@ -446,7 +450,7 @@ export default function NuevaReunion() {
           modalidad,
           ofrenda_presencial: montoPresencial,
           ofrenda_virtual: montoVirtual,
-          notas: notas.trim() || null,
+          notas: estaVacio(notas) ? null : notas.trim(),
           asistencias,
         });
       }
@@ -684,12 +688,11 @@ export default function NuevaReunion() {
               </View>
             )}
 
+            {/* Texto con formato en los dos libros. Las notas viejas de
+                discipulado son texto plano, que el editor y RichTextView
+                muestran tal cual. */}
             <View className="mt-5">
-              {esMinisterio ? (
-                <RichTextEditor label="Notas" valor={notas} onChange={cambiarNotas} placeholder="Observaciones (opcional)" />
-              ) : (
-                <Field label="Notas" value={notas} onChangeText={cambiarNotas} placeholder="Observaciones (opcional)" multiline />
-              )}
+              <RichTextEditor label="Notas" valor={notas} onChange={cambiarNotas} placeholder="Observaciones (opcional)" />
             </View>
 
             {/* La asistencia vive en la otra pestaña: el resumen queda a la vista
@@ -827,6 +830,8 @@ export default function NuevaReunion() {
                               </Body>
                               {!f.enGrupo ? (
                                 <Muted>{esMinisterio ? "Ya no está en el ministerio" : "Ya no está en el grupo"}</Muted>
+                              ) : f.bajaIglesia ? (
+                                <Muted>Dado de baja de la iglesia</Muted>
                               ) : null}
                             </View>
                           </Pressable>

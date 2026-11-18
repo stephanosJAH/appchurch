@@ -595,7 +595,9 @@ export default function MinisterioDetalle() {
             <View className={solapas.length > 1 ? "px-5" : "mt-2 px-5"}>
               {/* El día de reunión es opcional (0038): en lugar de la próxima
                   reunión, la última que se cargó. */}
-              {puedeGestionar && (
+              {/* Dado de baja: no se registran reuniones (el admin lo sigue
+                  viendo para reactivarlo; los líderes ya no llegan acá). */}
+              {puedeGestionar && ministerio.activo !== false && (
                 <View
                   style={{ backgroundColor: colors.primary, borderRadius: 18 }}
                   className="mt-5 flex-row items-center gap-3 py-3.5 pl-4 pr-3.5"
@@ -658,7 +660,7 @@ export default function MinisterioDetalle() {
                 <>
                   <Encabezado
                     titulo="Anuncios"
-                    accion={puedeGestionar ? "+ Publicar" : undefined}
+                    accion={puedeGestionar && ministerio.activo !== false ? "+ Publicar" : undefined}
                     onAccion={() =>
                       router.push({ pathname: "/anuncios", params: { ministerioId } })
                     }
@@ -686,7 +688,14 @@ export default function MinisterioDetalle() {
                           <AnuncioFila
                             a={a}
                             mostrarAlcance={false}
-                            onPress={() => router.push("/anuncios")}
+                            // Filtrado a este ministerio. `ministerioId` no:
+                            // ese parámetro abre el compositor para publicar.
+                            onPress={() =>
+                              router.push({
+                                pathname: "/anuncios",
+                                params: { filtro: ministerioId, filtroNombre: ministerio.nombre },
+                              })
+                            }
                             style={TARJETA}
                           />
                         </View>
@@ -734,6 +743,7 @@ export default function MinisterioDetalle() {
                     miembroId: i.miembro_id,
                     nombre: i.nombre,
                     apellido: i.apellido,
+                    aviso: i.miembro_activo === false ? "Dado de baja de la iglesia" : null,
                   }))}
                   // La ficha completa solo la lee el admin (RLS de `miembros`,
                   // 0014); a un líder `miembro` lo llevaría a una pantalla vacía.

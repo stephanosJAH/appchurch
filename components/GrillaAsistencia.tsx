@@ -61,6 +61,8 @@ export type FilaGrilla = {
   // él el lector de pantalla.
   icono?: ReactNode;
   accesibilidad?: string | null;
+  // Línea de aviso bajo el nombre (p. ej. "Dado de baja de la iglesia").
+  aviso?: string | null;
 };
 
 type Props = {
@@ -139,6 +141,11 @@ export function GrillaAsistencia({ reuniones, filas, encabezado, onPress, onQuit
                 </Text>
                 {f.icono}
               </View>
+              {f.aviso ? (
+                <Text style={{ fontFamily: fonts.sans }} className="text-[11px] leading-4 text-ink-muted">
+                  {f.aviso}
+                </Text>
+              ) : null}
               {faltas >= FALTAS_PARA_AVISAR && (
                 <Text
                   style={{ fontFamily: fonts.sansSemibold, color: colors.onTertiaryContainer }}
@@ -165,6 +172,7 @@ export function GrillaAsistencia({ reuniones, filas, encabezado, onPress, onQuit
         );
         const etiqueta = [
           nombreCompleto,
+          f.aviso,
           f.accesibilidad,
           pct != null ? `${pct}% de asistencia` : null,
         ]

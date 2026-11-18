@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, View } from "react-native";
 import { GrillaAsistencia } from "../../components/GrillaAsistencia";
 import { BuscadorPersonas } from "../../components/SelectorPersonas";
@@ -75,23 +75,49 @@ export default function IntegrantesMinisterio() {
   // asomaba un frame de "no encontramos a nadie".
   const buscando = isFetching || (isPending && !errorBusqueda);
 
+  // Agregar es primero buscar en el padrón y recién después crear, como en
+  // discipulado/discipulos.tsx (0028): si la persona ya tiene ficha (otro
+  // ministerio, un discipulado, su cuenta aprobada), crear otra la duplica y le
+  // parte el historial. La ficha nueva se ofrece solo cuando la búsqueda de
+  // verdad no encontró a nadie (la RPC filtra por umbral desde 0043), o si
+  // quien carga dice explícitamente que no es ninguno de los que aparecieron.
   const [showAgregar, setShowAgregar] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const [crearManual, setCrearManual] = useState(false);
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
   const [telefono, setTelefono] = useState("");
-  const [sexo, setSexo] = useState<Sexo>("M");
+  // Sin valor por defecto: el ministerio no tiene un sexo del que tomarlo, y
+  // uno precargado mal pasa desapercibido en la ficha del padrón.
+  const [sexo, setSexo] = useState<Sexo | null>(null);
+  const [nombreTocado, setNombreTocado] = useState(false);
+
+  const textoBuscado = busqueda.trim();
+  // "No está en el padrón" solo si la búsqueda contestó. Si falló no se sabe
+  // nada, y ofrecer el alta ahí es empujar al duplicado a ciegas.
+  const sinCoincidencias =
+    textoBuscado.length >= 2 && !buscando && !errorBusqueda && candidatos.length === 0;
+  const mostrarAlta = (crearManual || sinCoincidencias) && !errorBusqueda;
+
+  // Mientras nadie toque los campos, la ficha se llama como lo buscado: la
+  // primera palabra es el nombre; el resto, el apellido.
+  useEffect(() => {
+    if (nombreTocado) return;
+    const [n = "", ...resto] = textoBuscado.replace(/\s+/g, " ").split(" ");
+    setNombre(n);
+    setApellido(resto.join(" "));
+  }, [textoBuscado, nombreTocado]);
 
   const activos = integrantes.filter((i) => i.activo);
 
   const cerrarAgregar = () => {
     setShowAgregar(false);
-    setShowForm(false);
+    setCrearManual(false);
     setBusqueda("");
     setNombre("");
     setApellido("");
     setTelefono("");
-    setSexo("M");
+    setSexo(null);
+    setNombreTocado(false);
   };
 
   const onAgregar = async (miembroId: string) => {
@@ -112,7 +138,11 @@ export default function IntegrantesMinisterio() {
         {
           text: "Quitar",
           style: "destructive",
-          onPress: () => quitar.mutate(i.miembro_id),
+          onPress: () =>
+            quitar.mutate(i.miembro_id, {
+              onError: (e: any) =>
+                Alert.alert("Error", e.message ?? "No se pudo quitar del ministerio."),
+            }),
         },
       ]
     );
@@ -121,6 +151,10 @@ export default function IntegrantesMinisterio() {
   const onCrear = async () => {
     if (!nombre.trim()) {
       Alert.alert("Falta el nombre", "Ingresá al menos el nombre.");
+      return;
+    }
+    if (!sexo) {
+      Alert.alert("Falta el sexo", "Elegí masculino o femenino para crear la ficha.");
       return;
     }
     try {
@@ -166,7 +200,10 @@ export default function IntegrantesMinisterio() {
           {/* Sumar gente */}
           <BuscadorPersonas
             busqueda={busqueda}
-            onBusqueda={setBusqueda}
+            onBusqueda={(t) => {
+              setBusqueda(t);
+              setCrearManual(false);
+            }}
             candidatos={candidatos.map((c) => ({
               id: c.id,
               nombre: nombreCompleto(c),
@@ -175,31 +212,49 @@ export default function IntegrantesMinisterio() {
             onAgregar={(p) => onAgregar(p.id)}
             placeholder="Buscar en el padrón por nombre o teléfono"
             minCaracteres={2}
+            ayuda="Escribí al menos dos letras. Si la persona ya está en el padrón, sumala desde acá: conserva su ficha y su historial."
             buscando={buscando}
-            error={errorBusqueda ? `No se pudo buscar en el padrón: ${errorBusqueda.message}` : null}
+            error={
+              errorBusqueda
+                ? `No se pudo buscar en el padrón: ${errorBusqueda.message}. Probá de nuevo antes de crear una ficha; si la persona ya existe, una nueva la duplica.`
+                : null
+            }
             agregando={agregar.isPending}
-            sinResultados="No encontramos a nadie con ese nombre en el padrón (o ya está en el ministerio). Podés crear la ficha más abajo."
+            sinResultados={`Nadie activo del padrón coincide con «${textoBuscado}» (quien ya está en el ministerio no aparece, y quien fue dado de baja de la iglesia tampoco).`}
             autoFocus
-          />
+          >
+            {candidatos.length > 0 && !crearManual && (
+              <View className="mb-3">
+                <Button
+                  title="No es ninguno: crear ficha nueva"
+                  variant="ghost"
+                  size="sm"
+                  onPress={() => setCrearManual(true)}
+                />
+              </View>
+            )}
+          </BuscadorPersonas>
 
-          {/* Alta de una ficha nueva */}
-          <View className="mb-2 flex-row items-center justify-between">
-            <Label>¿No está en el padrón?</Label>
-            <Button
-              title={showForm ? "Cancelar" : "+ Crear ficha"}
-              variant="ghost"
-              size="sm"
-              onPress={() => setShowForm((v) => !v)}
-            />
-          </View>
-
-          {showForm && (
+          {/* Alta de una ficha nueva: solo si la búsqueda no la encontró */}
+          {mostrarAlta && (
             <Card>
-              <Field label="Nombre" value={nombre} onChangeText={setNombre} autoCapitalize="words" />
+              <Muted className="mb-3">Se crea una ficha nueva en el padrón:</Muted>
+              <Field
+                label="Nombre"
+                value={nombre}
+                onChangeText={(t) => {
+                  setNombreTocado(true);
+                  setNombre(t);
+                }}
+                autoCapitalize="words"
+              />
               <Field
                 label="Apellido"
                 value={apellido}
-                onChangeText={setApellido}
+                onChangeText={(t) => {
+                  setNombreTocado(true);
+                  setApellido(t);
+                }}
                 placeholder="Opcional"
                 autoCapitalize="words"
               />
@@ -252,6 +307,7 @@ export default function IntegrantesMinisterio() {
             miembroId: i.miembro_id,
             nombre: i.nombre,
             apellido: i.apellido,
+            aviso: i.miembro_activo === false ? "Dado de baja de la iglesia" : null,
           }))}
           // La ficha completa solo la puede leer el admin (RLS de `miembros`,
           // 0014); a un líder `miembro` lo llevaría a una pantalla vacía.

@@ -120,13 +120,26 @@ function AnuncioItem({
 }
 
 export default function Anuncios() {
-  const { ministerioId } = useLocalSearchParams<{ ministerioId?: string }>();
+  // `ministerioId`: abre el compositor apuntado a ese ministerio (botón
+  // "+ Publicar" del detalle). `filtro`: solo muestra los anuncios de ese
+  // ministerio (tocar un anuncio en el detalle); se quita con "Ver todos".
+  const { ministerioId, filtro: filtroParam, filtroNombre } = useLocalSearchParams<{
+    ministerioId?: string;
+    filtro?: string;
+    filtroNombre?: string;
+  }>();
+  const [filtro, setFiltro] = useState<string | null>(filtroParam ? String(filtroParam) : null);
   const { profile, session, isAdmin } = useAuth();
   const { data: anuncios = [], isLoading } = useAnuncios();
   const { data: mios = [] } = useMisMinisterios();
   const upsert = useUpsertAnuncio();
   const borrar = useBorrarAnuncio();
   const marcarLeidos = useMarcarAnunciosLeidos();
+
+  const lista = useMemo(
+    () => (filtro ? anuncios.filter((a) => a.ministerio_id === filtro) : anuncios),
+    [anuncios, filtro]
+  );
 
   const lidero = useMemo(() => mios.filter((m) => m.soy_lider), [mios]);
   const ministeriosQueLidero = useMemo(() => lidero.map((m) => m.id), [lidero]);
@@ -432,26 +445,40 @@ export default function Anuncios() {
         </Card>
       )}
 
-      <Label className="mb-2">Anuncios ({anuncios.length})</Label>
+      <Label className="mb-2">Anuncios ({lista.length})</Label>
+
+      {filtro && (
+        <View className="mb-3 flex-row items-center justify-between gap-3 rounded-lg bg-surface-low px-3.5 py-2.5">
+          <Muted className="flex-1" numberOfLines={1}>
+            Solo de {filtroNombre ? `«${filtroNombre}»` : "este ministerio"}
+          </Muted>
+          <Pressable onPress={() => setFiltro(null)} hitSlop={8} className="active:opacity-60">
+            <Text style={{ fontFamily: fonts.sansSemibold }} className="text-[13px] text-navy underline">
+              Ver todos
+            </Text>
+          </Pressable>
+        </View>
+      )}
 
       {isLoading ? (
         <View className="items-center py-6">
           <ActivityIndicator color={colors.primary} />
         </View>
-      ) : anuncios.length === 0 ? (
+      ) : lista.length === 0 ? (
         <Card>
           <Muted>
-            No hay anuncios por ahora. Acá van a aparecer los avisos de la iglesia y
-            los de los ministerios donde participás.
+            {filtro
+              ? "Este ministerio no tiene anuncios vigentes."
+              : "No hay anuncios por ahora. Acá van a aparecer los avisos de la iglesia y los de los ministerios donde participás."}
           </Muted>
         </Card>
       ) : (
         <View>
-          {anuncios.map((a, i) => (
+          {lista.map((a, i) => (
             <AnuncioItem
               key={a.id}
               a={a}
-              ultimo={i === anuncios.length - 1}
+              ultimo={i === lista.length - 1}
               editable={puedeEditar(a, isAdmin, ministeriosQueLidero)}
               onEditar={() => abrirEdicion(a)}
               onBorrar={() => confirmarBorrado(a)}

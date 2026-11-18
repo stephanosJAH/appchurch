@@ -209,11 +209,7 @@ export default function ReunionDetalle() {
           <>
             <Label className="mb-2">Notas</Label>
             <Card className="mb-4">
-              {esMinisterio ? (
-                <RichTextView descripcion={reunion.notas} />
-              ) : (
-                <Body className="text-ink">{reunion.notas}</Body>
-              )}
+              <RichTextView descripcion={reunion.notas} />
             </Card>
           </>
         ) : null}

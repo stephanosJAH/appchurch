@@ -329,6 +329,13 @@ que la pantalla necesita mostrar—:
 | Pantalla **`app/ministerio/integrantes.tsx`** | El diseño mencionaba el roster dentro del detalle. Buscar en el padrón + crear ficha + dar de baja es un formulario propio; el detalle muestra la lista y linkea acá |
 | Aviso de **fecha ya ocupada** en el formulario de reunión | Es la "consecuencia práctica del `unique (ministerio_id, fecha)`" anotada arriba. Como el formulario se comparte, el aviso quedó para los dos orígenes: el `unique` de `reuniones` es el mismo |
 
+**Ajustes de `0043`**: un ministerio dado de baja deja de dar permisos (los dos
+helpers exigen `ministerios.activo`; los líderes se conservan para que reactivarlo
+lo devuelva igual). `candidatos_para_ministerio` filtra por umbral, espejo del
+puntaje de `0028`, y la pantalla de integrantes ofrece crear la ficha solo cuando
+la búsqueda no encontró a nadie. `integrantes_de_mi_ministerio` devuelve
+`miembro_activo` para marcar a quien fue dado de baja de la iglesia.
+
 **Cómo se gatea la UI**: `useMisMinisterios()` (sobre `mis_ministerios()`) y su
 derivado `useSoyLiderDe(id)`. **Ninguna pantalla de ministerios pregunta por
 `esObrero`** — un líder puede ser `miembro`. En Perfil, el bloque "Resumen
