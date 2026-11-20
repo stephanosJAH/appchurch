@@ -1063,13 +1063,14 @@ Estas dos cosas no están versionadas y **el sistema no funciona sin ellas**:
 
 ### 8.4 Migraciones
 
-`supabase/migrations/`, **en orden numérico**, con `npm run db:push` (Supabase
-CLI). Qué corrió lo registra la tabla `supabase_migrations.schema_migrations` y lo
+`supabase/migrations/`, **en orden numérico**. Las aplica la integración de
+Supabase con GitHub al hacer push a `main` (`npm run db:push` queda para aplicarlas
+a mano desde la CLI). Qué corrió lo registra la tabla `supabase_migrations.schema_migrations` y lo
 muestra `npm run db:status`; hasta `0038` se aplicaban por SQL Editor, sin
-registro (ver `supabase/README.md`). No hay CI que las aplique.
+registro (ver `supabase/README.md`). No hay GitHub Actions: lo hace Supabase.
 
 **Riesgo operativo real**: la app y la base se despliegan por caminos distintos
-(EAS Update / SQL a mano). Un update OTA que llame a una RPC con una firma nueva
+(EAS Update / push a `main`). Un update OTA que llame a una RPC con una firma nueva
 llega al dispositivo **antes** de que la migración corra, y la llamada falla. Ya
 pasó: `0020` cambió la firma de `guardar_mis_datos` agregando `p_mostrar_contacto`,
 y "Mis datos" falló hasta que la migración se aplicó.

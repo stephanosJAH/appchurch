@@ -24,7 +24,11 @@ npm run db:push    # supabase db push — aplica y registra las que faltan
 ```
 
 Migrations are tracked in `supabase_migrations.schema_migrations` by the
-Supabase CLI. Don't tell the user to paste a migration into the SQL Editor:
+Supabase CLI. **Pushing to `main` applies them**: Supabase's GitHub integration
+ties the production project to this repo's `main` and runs new files in
+`supabase/migrations/` on every push. So after a push, confirm with
+`db:status` instead of running `db:push` (it will say "up to date"), and treat
+a push to `main` as a production deploy of the schema. Don't tell the user to paste a migration into the SQL Editor:
 that runs it without recording it. Setup and the one-time baseline are in
 `supabase/README.md`.
 

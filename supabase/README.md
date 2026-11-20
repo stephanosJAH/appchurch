@@ -62,7 +62,21 @@ RSS esté caído.
 
 ## Cómo aplicarlas
 
-Con la **Supabase CLI** (devDependency del proyecto, `npx supabase`). La CLI
+**Se aplican solas al hacer push a `main`.** El proyecto tiene la integración
+de Supabase con GitHub: la rama de producción está atada a `main` de este repo
+(`npx supabase branches list` lo muestra), y con cada push aplica, en orden, las
+migraciones nuevas de esta carpeta y las registra. Consecuencias:
+
+- Después del push, `npm run db:status` alcanza para confirmar; `db:push`
+  responde "Remote database is up to date" y no hace nada.
+- Si una migración falla, el error queda en el dashboard de Supabase (no en la
+  terminal): se nota porque `db:status` no la muestra en Remote.
+- Pushear a `main` es desplegar a producción. Revisá la migración antes.
+
+`db:push` sigue sirviendo para aplicar desde la máquina una migración que no
+pasa por `main` (otra rama, o la integración caída).
+
+Debajo, la **Supabase CLI** (devDependency del proyecto, `npx supabase`). La CLI
 lleva el registro en la tabla `supabase_migrations.schema_migrations` de la base:
 una fila por migración aplicada, con el número del prefijo del archivo como
 `version`. Es la fuente de verdad de qué corrió y qué no.
